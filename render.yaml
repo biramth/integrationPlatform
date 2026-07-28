@@ -4,8 +4,12 @@ services:
     runtime: node
     plan: free
     branch: main
-    buildCommand: "cd frontend && npm install && npm run build && cd ../backend && npm install"
-    preDeployCommand: "cd backend && node db/migrate.js && node db/seed.js"
+    # Pas de disque persistant sur le plan "free" (voir plus bas), donc pas
+    # de preDeployCommand non plus (non supporté sur ce plan) : migrate/seed
+    # tournent en fin de build, directement sur le système de fichiers du
+    # build (suffisant puisqu'il est de toute façon réinitialisé à chaque
+    # déploiement/veille sur ce plan).
+    buildCommand: "cd frontend && npm install && npm run build && cd ../backend && npm install && node db/migrate.js && node db/seed.js"
     startCommand: "cd backend && node server.js"
     envVars:
       - key: NODE_ENV
@@ -23,15 +27,26 @@ services:
     # Le plan "free" n'a pas de disque persistant : la base et les photos
     # sont réinitialisées à chaque redéploiement/redémarrage (seed.js les
     # recrée). Pour conserver les données entre deux démos, passer en plan
-    # "starter" (ou supérieur) et décommenter le bloc disk + les 2 lignes
-    # DB_PATH/UPLOAD_DIR en dessous (à la place de celles ci-dessus) :
+    # "starter" (ou supérieur) et faire CES changements :
+    # 1. plan: starter
+    # 2. décommenter le bloc "disk" ci-dessous
+    # 3. remplacer buildCommand par la version SANS migrate/seed ci-dessous
+    #    (sinon ils tourneraient sur le disque de build, pas sur le disque
+    #    persistant monté au déploiement)
+    # 4. ajouter preDeployCommand (supporté sur les plans payants, tourne
+    #    après le build, avec le disque persistant déjà monté)
+    # 5. remplacer les 2 lignes DB_PATH/UPLOAD_DIR par celles pointant vers
+    #    le disque monté
     #
-    # plan: starter
     # disk:
     #   name: data
     #   mountPath: /var/data
     #   sizeGB: 1
-    # envVars:
+    #
+    # buildCommand: "cd frontend && npm install && npm run build && cd ../backend && npm install"
+    # preDeployCommand: "cd backend && node db/migrate.js && node db/seed.js"
+    #
+    # envVars (remplacer DB_PATH/UPLOAD_DIR ci-dessus par) :
     #   - key: DB_PATH
     #     value: /var/data/integration.sqlite
     #   - key: UPLOAD_DIR
