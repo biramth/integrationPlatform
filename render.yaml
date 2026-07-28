@@ -9,7 +9,11 @@ services:
     # tournent en fin de build, directement sur le système de fichiers du
     # build (suffisant puisqu'il est de toute façon réinitialisé à chaque
     # déploiement/veille sur ce plan).
-    buildCommand: "cd frontend && npm install && npm run build && cd ../backend && npm install && node db/migrate.js && node db/seed.js"
+    # --include=dev est nécessaire car NODE_ENV=production (défini plus bas)
+    # ferait sinon sauter les devDependencies du frontend (vite,
+    # @vitejs/plugin-react) pendant le build, alors qu'elles sont
+    # indispensables pour "npm run build".
+    buildCommand: "cd frontend && npm install --include=dev && npm run build && cd ../backend && npm install && node db/migrate.js && node db/seed.js"
     startCommand: "cd backend && node server.js"
     envVars:
       - key: NODE_ENV
