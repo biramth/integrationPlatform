@@ -3,8 +3,11 @@ import { useFetch } from '../../hooks/useFetch';
 import { getRisks } from '../../api/healthApi';
 import Input from '../../components/common/Input';
 import Badge from '../../components/common/Badge';
-import { LoadingState, ErrorState, EmptyState } from '../../components/common/StateViews';
+import PageHeader from '../../components/common/PageHeader';
+import { ErrorState, EmptyState } from '../../components/common/StateViews';
+import { CardListSkeleton } from '../../components/common/Skeleton';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
+import { staggerStyle } from '../../utils/stagger';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -16,15 +19,14 @@ export default function RisksPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold text-slate-900">Risques du jour</h1>
-      <p className="mb-4 text-sm text-slate-500">
-        DUT1 dont une allergie déclarée correspond à un allergène du menu de cette date — à faire sortir des rangs
-        avant le service concerné.
-      </p>
+      <PageHeader
+        title="Risques du jour"
+        description="DUT1 dont une allergie déclarée correspond à un allergène du menu de cette date — à faire sortir des rangs avant le service concerné."
+      />
 
       <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mb-4 max-w-xs" />
 
-      {loading && <LoadingState />}
+      {loading && <CardListSkeleton />}
       {error && <ErrorState label={error} onRetry={reload} />}
       {!loading && !error && data.atRiskDut1.length === 0 && (
         <EmptyState label="Aucun DUT1 à risque identifié pour cette date." />
@@ -32,10 +34,11 @@ export default function RisksPage() {
 
       {!loading && !error && data.atRiskDut1.length > 0 && (
         <div className="flex flex-col gap-3">
-          {data.atRiskDut1.map((dut1) => (
+          {data.atRiskDut1.map((dut1, i) => (
             <div
               key={dut1.id}
-              className="rounded-xl border border-red-200 bg-red-50 p-4 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
+              className="animate-fade-in-up-pulse rounded-xl border border-red-200 bg-red-50 p-4 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
+              style={staggerStyle(i)}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-medium text-slate-900">

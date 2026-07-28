@@ -8,7 +8,9 @@ import Dut1BasicForm from '../../components/dut1/Dut1BasicForm';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
-import { LoadingState, ErrorState, EmptyState } from '../../components/common/StateViews';
+import PageHeader from '../../components/common/PageHeader';
+import { ErrorState, EmptyState } from '../../components/common/StateViews';
+import { CardListSkeleton } from '../../components/common/Skeleton';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../../utils/departments';
 import { recordToFormValues } from '../../utils/recordMapping';
 import { useToast } from '../../hooks/useToast';
@@ -61,7 +63,7 @@ export default function AdminRecordsPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold text-slate-900">Dossiers DUT1</h1>
+      <PageHeader title="Dossiers DUT1" />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Input
@@ -86,7 +88,7 @@ export default function AdminRecordsPage() {
         />
       </div>
 
-      {loading && <LoadingState />}
+      {loading && <CardListSkeleton rows={6} />}
       {error && <ErrorState label={error} onRetry={reload} />}
       {!loading && !error && data.records.length === 0 && <EmptyState label="Aucun dossier trouvé." />}
       {!loading && !error && data.records.length > 0 && <RecordsTable records={data.records} onSelect={openRecord} />}
@@ -113,8 +115,8 @@ export default function AdminRecordsPage() {
               <Button variant="secondary" onClick={closeModal}>
                 Annuler
               </Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              <Button onClick={handleSave} loading={saving}>
+                Enregistrer
               </Button>
             </div>
           </div>

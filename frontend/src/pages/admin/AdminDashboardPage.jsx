@@ -3,8 +3,11 @@ import * as statsApi from '../../api/statsApi';
 import StatCard from '../../components/stats/StatCard';
 import DepartmentBarChart from '../../components/stats/DepartmentBarChart';
 import GenderPieChart from '../../components/stats/GenderPieChart';
+import Card from '../../components/common/Card';
+import PageHeader from '../../components/common/PageHeader';
 import { ErrorState } from '../../components/common/StateViews';
 import { StatCardSkeleton } from '../../components/common/Skeleton';
+import { staggerStyle } from '../../utils/stagger';
 
 export default function AdminDashboardPage() {
   const overview = useFetch(statsApi.getOverview, []);
@@ -21,7 +24,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-xl font-semibold text-slate-900">Tableau de bord</h1>
+      <PageHeader eyebrow="Vue d'ensemble" title="Tableau de bord" />
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {loading ? (
@@ -33,25 +36,62 @@ export default function AdminDashboardPage() {
           </>
         ) : (
           <>
-            <StatCard label="Total DUT1" value={o.total} />
-            <StatCard label="Avec chambre" value={o.withRoom} sublabel={`${o.withoutRoom} en attente`} />
-            <StatCard label="Bagages photographiés" value={o.withLuggage} sublabel={`${o.withoutLuggage} restants`} />
-            <StatCard label="Phase 2 complétée" value={o.complementaryDone} sublabel={`${o.complementaryPending} restants`} />
+            <div className="animate-fade-in-up" style={staggerStyle(0)}>
+              <StatCard label="Total DUT1" value={o.total} icon="👥" accent="bg-blue-800" />
+            </div>
+            <div className="animate-fade-in-up" style={staggerStyle(1)}>
+              <StatCard
+                label="Avec chambre"
+                value={o.withRoom}
+                sublabel={`${o.withoutRoom} en attente`}
+                icon="🚪"
+                accent="bg-emerald-600"
+              />
+            </div>
+            <div className="animate-fade-in-up" style={staggerStyle(2)}>
+              <StatCard
+                label="Bagages photographiés"
+                value={o.withLuggage}
+                sublabel={`${o.withoutLuggage} restants`}
+                icon="🧳"
+                accent="bg-amber-500"
+              />
+            </div>
+            <div className="animate-fade-in-up" style={staggerStyle(3)}>
+              <StatCard
+                label="Phase 2 complétée"
+                value={o.complementaryDone}
+                sublabel={`${o.complementaryPending} restants`}
+                icon="📋"
+                accent="bg-sky-600"
+              />
+            </div>
           </>
         )}
       </div>
 
       {!loading && (
         <>
-          <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md">
-            <p className="mb-1 text-sm font-semibold text-slate-900">Occupation des chambres</p>
-            <p className="text-2xl font-semibold text-slate-900">{occupancy.data.occupancyRate}%</p>
-            <p className="text-xs text-slate-500">
-              {occupancy.data.totalOccupied} / {occupancy.data.totalCapacity} places occupées
-            </p>
-          </div>
+          <Card interactive className="mb-6 animate-fade-in-up" style={staggerStyle(4)}>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="mb-1 text-sm font-semibold text-slate-900">Occupation des chambres</p>
+                <p className="text-2xl font-semibold tabular-nums text-slate-900">{occupancy.data.occupancyRate}%</p>
+                <p className="text-xs text-slate-500">
+                  {occupancy.data.totalOccupied} / {occupancy.data.totalCapacity} places occupées
+                </p>
+              </div>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-lg">🏠</span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-blue-800 transition-all duration-500"
+                style={{ width: `${Math.min(occupancy.data.occupancyRate, 100)}%` }}
+              />
+            </div>
+          </Card>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 animate-fade-in-up" style={staggerStyle(5)}>
             <DepartmentBarChart rows={byDepartment.data.rows} />
             <GenderPieChart rows={byGender.data.rows} />
           </div>

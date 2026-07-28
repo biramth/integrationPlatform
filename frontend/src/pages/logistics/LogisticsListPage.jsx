@@ -5,8 +5,11 @@ import { uploadLuggagePhoto } from '../../api/luggageApi';
 import Dut1Card from '../../components/dut1/Dut1Card';
 import Input from '../../components/common/Input';
 import PhotoCapture from '../../components/upload/PhotoCapture';
-import { LoadingState, EmptyState, ErrorState } from '../../components/common/StateViews';
+import PageHeader from '../../components/common/PageHeader';
+import { EmptyState, ErrorState } from '../../components/common/StateViews';
+import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
+import { staggerStyle } from '../../utils/stagger';
 
 export default function LogisticsListPage() {
   const { showToast } = useToast();
@@ -40,32 +43,32 @@ export default function LogisticsListPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold text-slate-900">Bagages à photographier</h1>
-      <p className="mb-4 text-sm text-slate-500">Dossiers DUT1 enregistrés sans photo de bagage.</p>
+      <PageHeader title="Bagages à photographier" description="Dossiers DUT1 enregistrés sans photo de bagage." />
 
       <Input placeholder="Rechercher un nom…" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-4" />
 
-      {loading && <LoadingState />}
+      {loading && <CardListSkeleton />}
       {error && <ErrorState label={error} onRetry={reload} />}
       {!loading && !error && filtered.length === 0 && <EmptyState label="Aucun dossier en attente de photo." />}
 
       <div className="flex flex-col gap-3">
-        {filtered.map((record) => (
-          <Dut1Card
-            key={record.id}
-            record={record}
-            onClick={() => setExpandedId(expandedId === record.id ? null : record.id)}
-            actions={
-              expandedId === record.id && (
-                <div onClick={(e) => e.stopPropagation()}>
-                  <PhotoCapture
-                    submitting={submittingId === record.id}
-                    onCapture={(file) => handleCapture(record.id, file)}
-                  />
-                </div>
-              )
-            }
-          />
+        {filtered.map((record, i) => (
+          <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
+            <Dut1Card
+              record={record}
+              onClick={() => setExpandedId(expandedId === record.id ? null : record.id)}
+              actions={
+                expandedId === record.id && (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <PhotoCapture
+                      submitting={submittingId === record.id}
+                      onCapture={(file) => handleCapture(record.id, file)}
+                    />
+                  </div>
+                )
+              }
+            />
+          </div>
         ))}
       </div>
     </div>

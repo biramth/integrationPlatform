@@ -1,11 +1,12 @@
 import Badge from '../common/Badge';
 import Dut1Card from '../dut1/Dut1Card';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
+import { staggerStyle } from '../../utils/stagger';
 
 export default function RecordsTable({ records, onSelect }) {
   return (
     <>
-      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white md:block">
+      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm md:block">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
@@ -18,11 +19,12 @@ export default function RecordsTable({ records, onSelect }) {
             </tr>
           </thead>
           <tbody>
-            {records.map((record) => (
+            {records.map((record, i) => (
               <tr
                 key={record.id}
                 onClick={() => onSelect(record)}
-                className="cursor-pointer border-b border-slate-100 transition-colors last:border-0 hover:bg-blue-50/60"
+                className="animate-fade-in cursor-pointer border-b border-slate-100 transition-colors last:border-0 hover:bg-blue-50/60"
+                style={staggerStyle(i, 25, 300)}
               >
                 <td className="px-4 py-3 font-medium text-slate-900">
                   {record.first_name} {record.last_name}
@@ -49,8 +51,10 @@ export default function RecordsTable({ records, onSelect }) {
       </div>
 
       <div className="flex flex-col gap-3 md:hidden">
-        {records.map((record) => (
-          <Dut1Card key={record.id} record={record} onClick={() => onSelect(record)} />
+        {records.map((record, i) => (
+          <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
+            <Dut1Card record={record} onClick={() => onSelect(record)} />
+          </div>
         ))}
       </div>
     </>

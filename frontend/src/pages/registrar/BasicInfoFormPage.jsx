@@ -1,21 +1,42 @@
 import { useState } from 'react';
 import Dut1BasicForm from '../../components/dut1/Dut1BasicForm';
+import Dut1Card from '../../components/dut1/Dut1Card';
 import Button from '../../components/common/Button';
-import Badge from '../../components/common/Badge';
-import { createDut1 } from '../../api/dut1Api';
+import Input from '../../components/common/Input';
+import Modal from '../../components/common/Modal';
+import PageHeader from '../../components/common/PageHeader';
+import { EmptyState, ErrorState } from '../../components/common/StateViews';
+import { CardListSkeleton } from '../../components/common/Skeleton';
+import { createDut1, listDut1 } from '../../api/dut1Api';
 import { DUT1_BASIC_DEFAULTS } from '../../utils/dut1BasicFields';
 import { useToast } from '../../hooks/useToast';
+import { useAuth } from '../../hooks/useAuth';
+import { useFetch } from '../../hooks/useFetch';
+import { staggerStyle } from '../../utils/stagger';
 
 export default function BasicInfoFormPage() {
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const [modalOpen, setModalOpen] = useState(false);
   const [values, setValues] = useState(DUT1_BASIC_DEFAULTS);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState(null);
+  const [search, setSearch] = useState('');
+
+  const { data, loading, error, reload } = useFetch(
+    () => listDut1({ createdBy: user.id, search }),
+    [user.id, search]
+  );
 
   function handleChange(key, value) {
     setValues((v) => ({ ...v, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
+  }
+
+  function openModal() {
+    setValues(DUT1_BASIC_DEFAULTS);
+    setErrors({});
+    setModalOpen(true);
   }
 
   function validate() {
@@ -36,16 +57,15 @@ export default function BasicInfoFormPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setResult(null);
     if (!validate()) return;
 
     setSubmitting(true);
     try {
       const data = await createDut1(values);
-      setResult(data);
-      setValues(DUT1_BASIC_DEFAULTS);
-      setErrors({});
-      showToast('Dossier créé avec succès.', 'success');
+      const roomText = data.roomAssigned ? `— chambre ${data.room.label}` : `— ${data.warning}`;
+      showToast(`${data.record.first_name} ${data.record.last_name} enregistré(e) ${roomText}`, 'success');
+      setModalOpen(false);
+      reload();
     } catch (err) {
       showToast(err.response?.data?.error || 'Erreur lors de la création du dossier.', 'error');
     } finally {
@@ -55,36 +75,48 @@ export default function BasicInfoFormPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold text-slate-900">Nouvelle fiche DUT1 — Infos de base</h1>
-      <p className="mb-6 text-sm text-slate-500">
-        Cette fiche suffit pour assigner une chambre et rendre le DUT1 visible pour l'équipe logistique.
-      </p>
+      <PageHeader
+        eyebrow="Mon historique"
+        title="Enregistrements"
+        action={<Button onClick={openModal} className="sm:w-auto">+ Nouvelle fiche</Button>}
+      />
 
-      {result && (
-        <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4">
-          <p className="font-medium text-green-800">
-            Dossier de {result.record.first_name} {result.record.last_name} créé avec succès.
-          </p>
-          <p className="mt-1 text-sm text-green-700">
-            {result.roomAssigned ? (
-              <>
-                Chambre assignée : <Badge variant="success">{result.room.label}</Badge>
-              </>
-            ) : (
-              <Badge variant="warning">{result.warning}</Badge>
-            )}
-          </p>
+      <Input
+        placeholder="Rechercher dans mes enregistrements (nom, téléphone, matricule)…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mb-4"
+      />
+
+      {loading && <CardListSkeleton />}
+      {error && <ErrorState label={error} onRetry={reload} />}
+      {!loading && !error && data.records.length === 0 && (
+        <EmptyState label="Aucun dossier enregistré pour l'instant — clique sur « Nouvelle fiche » pour commencer." />
+      )}
+
+      {!loading && !error && data.records.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {data.records.map((record, i) => (
+            <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
+              <Dut1Card record={record} />
+            </div>
+          ))}
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
-        <Dut1BasicForm values={values} errors={errors} onChange={handleChange} />
-        <div className="sticky bottom-16 mt-6 flex justify-end bg-gradient-to-t from-white via-white pt-4 md:static md:bg-none">
-          <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
-            {submitting ? 'Enregistrement…' : 'Enregistrer le dossier'}
-          </Button>
-        </div>
-      </form>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nouvelle fiche DUT1 — Infos de base">
+        <form onSubmit={handleSubmit}>
+          <Dut1BasicForm values={values} errors={errors} onChange={handleChange} />
+          <div className="mt-6 flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" loading={submitting}>
+              Enregistrer le dossier
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

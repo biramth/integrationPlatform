@@ -5,8 +5,11 @@ import * as healthApi from '../../api/healthApi';
 import Dut1Card from '../../components/dut1/Dut1Card';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
+import Card from '../../components/common/Card';
+import PageHeader from '../../components/common/PageHeader';
 import { LoadingState, EmptyState, ErrorState } from '../../components/common/StateViews';
 import { useToast } from '../../hooks/useToast';
+import { staggerStyle } from '../../utils/stagger';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -58,10 +61,9 @@ export default function IllnessPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold text-slate-900">Suivi des maladies</h1>
-      <p className="mb-4 text-sm text-slate-500">Déclare et consulte l'historique de maladie des DUT1.</p>
+      <PageHeader title="Suivi des maladies" description="Déclare et consulte l'historique de maladie des DUT1." />
 
-      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+      <Card className="mb-6">
         <p className="mb-2 text-sm font-semibold text-slate-900">Malades aujourd'hui</p>
         {todayFetch.loading && <LoadingState />}
         {todayFetch.data && todayFetch.data.illnessRecords.length === 0 && (
@@ -76,7 +78,7 @@ export default function IllnessPage() {
             ))}
           </ul>
         )}
-      </div>
+      </Card>
 
       {!selected && (
         <>
@@ -87,14 +89,16 @@ export default function IllnessPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1"
             />
-            <Button type="submit" disabled={searching}>
-              {searching ? '…' : 'Rechercher'}
+            <Button type="submit" loading={searching}>
+              Rechercher
             </Button>
           </form>
           {!searching && results.length === 0 && search && <EmptyState label="Aucun dossier trouvé." />}
           <div className="flex flex-col gap-3">
-            {results.map((record) => (
-              <Dut1Card key={record.id} record={record} onClick={() => setSelected(record)} />
+            {results.map((record, i) => (
+              <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
+                <Dut1Card record={record} onClick={() => setSelected(record)} />
+              </div>
             ))}
           </div>
         </>
@@ -102,14 +106,14 @@ export default function IllnessPage() {
 
       {selected && (
         <div>
-          <button onClick={() => setSelected(null)} className="mb-4 text-sm text-blue-700">
+          <button onClick={() => setSelected(null)} className="mb-4 text-sm text-blue-900 transition-colors hover:text-blue-700">
             ← Retour à la recherche
           </button>
           <h2 className="mb-3 text-lg font-semibold text-slate-900">
             {selected.first_name} {selected.last_name}
           </h2>
 
-          <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4">
+          <Card className="mb-4">
             <p className="mb-2 text-sm font-semibold text-slate-900">Historique</p>
             {historyFetch.loading && <LoadingState />}
             {historyFetch.error && <ErrorState label={historyFetch.error} onRetry={historyFetch.reload} />}
@@ -125,16 +129,16 @@ export default function IllnessPage() {
                 ))}
               </ul>
             )}
-          </div>
+          </Card>
 
-          <form onSubmit={handleDeclare} className="rounded-xl border border-slate-200 bg-white p-4">
+          <form onSubmit={handleDeclare} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="mb-3 text-sm font-semibold text-slate-900">Déclarer une maladie</p>
             <div className="mb-3 flex flex-col gap-3 sm:flex-row">
               <Input label="Date" type="date" required value={illnessDate} onChange={(e) => setIllnessDate(e.target.value)} />
               <Input label="Note" value={note} onChange={(e) => setNote(e.target.value)} className="flex-1" />
             </div>
-            <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
-              {submitting ? 'Enregistrement…' : 'Déclarer'}
+            <Button type="submit" loading={submitting} className="w-full sm:w-auto">
+              Déclarer
             </Button>
           </form>
         </div>

@@ -105,7 +105,7 @@ function createRecord(req, res) {
 }
 
 function listRecords(req, res) {
-  const { department, gender, hasRoom, hasLuggagePhoto, complementary, search, page = 1, pageSize = 25 } = req.query;
+  const { department, gender, hasRoom, hasLuggagePhoto, complementary, search, createdBy, page = 1, pageSize = 25 } = req.query;
 
   const clauses = [];
   const params = {};
@@ -118,6 +118,10 @@ function listRecords(req, res) {
     clauses.push('d.gender = @gender');
     params.gender = gender;
   }
+  if (createdBy) {
+    clauses.push('d.created_by = @createdBy');
+    params.createdBy = Number(createdBy);
+  }
   if (hasRoom === 'true') clauses.push('d.room_id IS NOT NULL');
   if (hasRoom === 'false') clauses.push('d.room_id IS NULL');
   if (complementary === 'true') clauses.push('d.complementary_completed_at IS NOT NULL');
@@ -129,7 +133,9 @@ function listRecords(req, res) {
     clauses.push('NOT EXISTS (SELECT 1 FROM luggage_photos lp WHERE lp.dut1_id = d.id)');
   }
   if (search) {
-    clauses.push('(d.last_name LIKE @search OR d.first_name LIKE @search OR d.student_number LIKE @search)');
+    clauses.push(
+      '(d.last_name LIKE @search OR d.first_name LIKE @search OR d.student_number LIKE @search OR d.phone_number LIKE @search)'
+    );
     params.search = `%${search}%`;
   }
 

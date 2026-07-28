@@ -5,8 +5,12 @@ import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
-import { LoadingState, ErrorState, EmptyState } from '../../components/common/StateViews';
+import Card from '../../components/common/Card';
+import PageHeader from '../../components/common/PageHeader';
+import { ErrorState, EmptyState } from '../../components/common/StateViews';
+import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
+import { staggerStyle } from '../../utils/stagger';
 
 const EMPTY_FORM = { label: '', gender: '', capacity: '', building: '' };
 
@@ -43,7 +47,7 @@ export default function AdminRoomsPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold text-slate-900">Chambres</h1>
+      <PageHeader title="Chambres" />
 
       <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
         <p className="mb-3 text-sm font-semibold text-slate-900">Ajouter une chambre</p>
@@ -80,37 +84,36 @@ export default function AdminRoomsPage() {
           />
         </div>
         <div className="mt-3 flex justify-end">
-          <Button type="submit" disabled={submitting}>
-            {submitting ? 'Ajout…' : 'Ajouter'}
+          <Button type="submit" loading={submitting}>
+            Ajouter
           </Button>
         </div>
       </form>
 
-      {loading && <LoadingState />}
+      {loading && <CardListSkeleton />}
       {error && <ErrorState label={error} onRetry={reload} />}
       {!loading && !error && data.rooms.length === 0 && <EmptyState label="Aucune chambre configurée." />}
 
       {!loading && !error && data.rooms.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {data.rooms.map((room) => (
-            <div
-              key={room.id}
-              className="rounded-xl border border-slate-200 bg-white p-4 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <p className="font-medium text-slate-900">{room.label}</p>
-                <Badge variant={room.occupied >= room.capacity ? 'danger' : 'success'}>
-                  {room.occupied}/{room.capacity}
-                </Badge>
-              </div>
-              <p className="text-sm text-slate-500">{room.gender === 'M' ? 'Masculin' : 'Féminin'} · {room.building || '—'}</p>
-              <button
-                onClick={() => handleDelete(room)}
-                className="mt-3 text-xs text-red-600 hover:underline"
-                disabled={room.occupied > 0}
-              >
-                Supprimer
-              </button>
+          {data.rooms.map((room, i) => (
+            <div key={room.id} className="animate-fade-in-up" style={staggerStyle(i)}>
+              <Card accent={room.gender === 'M' ? 'bg-sky-600' : 'bg-pink-500'} className="pl-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="font-medium text-slate-900">{room.label}</p>
+                  <Badge variant={room.occupied >= room.capacity ? 'danger' : 'success'}>
+                    {room.occupied}/{room.capacity}
+                  </Badge>
+                </div>
+                <p className="text-sm text-slate-500">{room.gender === 'M' ? 'Masculin' : 'Féminin'} · {room.building || '—'}</p>
+                <button
+                  onClick={() => handleDelete(room)}
+                  className="mt-3 text-xs text-red-600 hover:underline"
+                  disabled={room.occupied > 0}
+                >
+                  Supprimer
+                </button>
+              </Card>
             </div>
           ))}
         </div>
