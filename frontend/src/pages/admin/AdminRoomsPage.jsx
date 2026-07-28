@@ -1,0 +1,120 @@
+import { useState } from 'react';
+import { useFetch } from '../../hooks/useFetch';
+import * as roomApi from '../../api/roomApi';
+import Input from '../../components/common/Input';
+import Select from '../../components/common/Select';
+import Button from '../../components/common/Button';
+import Badge from '../../components/common/Badge';
+import { LoadingState, ErrorState, EmptyState } from '../../components/common/StateViews';
+import { useToast } from '../../hooks/useToast';
+
+const EMPTY_FORM = { label: '', gender: '', capacity: '', building: '' };
+
+export default function AdminRoomsPage() {
+  const { showToast } = useToast();
+  const { data, loading, error, reload } = useFetch(roomApi.listRooms, []);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await roomApi.createRoom({ ...form, capacity: Number(form.capacity) });
+      setForm(EMPTY_FORM);
+      showToast('Chambre ajoutée.', 'success');
+      reload();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Erreur lors de la création.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDelete(room) {
+    if (!window.confirm(`Supprimer la chambre ${room.label} ?`)) return;
+    try {
+      await roomApi.deleteRoom(room.id);
+      reload();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Suppression impossible.', 'error');
+    }
+  }
+
+  return (
+    <div>
+      <h1 className="mb-4 text-xl font-semibold text-slate-900">Chambres</h1>
+
+      <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+        <p className="mb-3 text-sm font-semibold text-slate-900">Ajouter une chambre</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+          <Input
+            label="Label / Numéro"
+            required
+            value={form.label}
+            onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+          />
+          <Select
+            label="Genre"
+            required
+            placeholder="Choisir…"
+            value={form.gender}
+            onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}
+            options={[
+              { value: 'M', label: 'Masculin' },
+              { value: 'F', label: 'Féminin' },
+            ]}
+          />
+          <Input
+            label="Capacité"
+            type="number"
+            min="1"
+            required
+            value={form.capacity}
+            onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))}
+          />
+          <Input
+            label="Bâtiment"
+            value={form.building}
+            onChange={(e) => setForm((f) => ({ ...f, building: e.target.value }))}
+          />
+        </div>
+        <div className="mt-3 flex justify-end">
+          <Button type="submit" disabled={submitting}>
+            {submitting ? 'Ajout…' : 'Ajouter'}
+          </Button>
+        </div>
+      </form>
+
+      {loading && <LoadingState />}
+      {error && <ErrorState label={error} onRetry={reload} />}
+      {!loading && !error && data.rooms.length === 0 && <EmptyState label="Aucune chambre configurée." />}
+
+      {!loading && !error && data.rooms.length > 0 && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {data.rooms.map((room) => (
+            <div
+              key={room.id}
+              className="rounded-xl border border-slate-200 bg-white p-4 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <p className="font-medium text-slate-900">{room.label}</p>
+                <Badge variant={room.occupied >= room.capacity ? 'danger' : 'success'}>
+                  {room.occupied}/{room.capacity}
+                </Badge>
+              </div>
+              <p className="text-sm text-slate-500">{room.gender === 'M' ? 'Masculin' : 'Féminin'} · {room.building || '—'}</p>
+              <button
+                onClick={() => handleDelete(room)}
+                className="mt-3 text-xs text-red-600 hover:underline"
+                disabled={room.occupied > 0}
+              >
+                Supprimer
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

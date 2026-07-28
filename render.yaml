@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: integration-dut1
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: "cd frontend && npm install && npm run build && cd ../backend && npm install"
+    preDeployCommand: "cd backend && node db/migrate.js && node db/seed.js"
+    startCommand: "cd backend && node server.js"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DEFAULT_ADMIN_USERNAME
+        value: admin
+      - key: DEFAULT_ADMIN_PASSWORD
+        sync: false
+      - key: DB_PATH
+        value: ./data/integration.sqlite
+      - key: UPLOAD_DIR
+        value: ./uploads/luggage
+    # Le plan "free" n'a pas de disque persistant : la base et les photos
+    # sont réinitialisées à chaque redéploiement/redémarrage (seed.js les
+    # recrée). Pour conserver les données entre deux démos, passer en plan
+    # "starter" (ou supérieur) et décommenter le bloc disk + les 2 lignes
+    # DB_PATH/UPLOAD_DIR en dessous (à la place de celles ci-dessus) :
+    #
+    # plan: starter
+    # disk:
+    #   name: data
+    #   mountPath: /var/data
+    #   sizeGB: 1
+    # envVars:
+    #   - key: DB_PATH
+    #     value: /var/data/integration.sqlite
+    #   - key: UPLOAD_DIR
+    #     value: /var/data/uploads/luggage
