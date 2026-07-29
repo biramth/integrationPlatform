@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Plus, Search } from 'lucide-react';
 import Dut1BasicForm from '../../components/dut1/Dut1BasicForm';
 import Dut1Card from '../../components/dut1/Dut1Card';
 import Button from '../../components/common/Button';
@@ -78,10 +79,15 @@ export default function BasicInfoFormPage() {
       <PageHeader
         eyebrow="Mon historique"
         title="Enregistrements"
-        action={<Button onClick={openModal} className="sm:w-auto">+ Nouvelle fiche</Button>}
+        action={
+          <Button onClick={openModal} className="sm:w-auto">
+            <Plus className="h-4 w-4" /> Nouvelle fiche
+          </Button>
+        }
       />
 
       <Input
+        icon={Search}
         placeholder="Rechercher dans mes enregistrements (nom, téléphone, matricule)…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}

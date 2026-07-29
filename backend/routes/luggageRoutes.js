@@ -7,13 +7,14 @@ const router = express.Router();
 
 router.use(verifyToken);
 
+router.put('/dut1/:id/luggage-count', requireRole('logistics', 'admin'), luggageController.setLuggageCount);
 router.post(
-  '/dut1/:id/luggage-photos',
+  '/dut1/:id/luggage-items',
   requireRole('logistics', 'admin'),
   upload.single('photo'),
-  luggageController.uploadPhoto
+  luggageController.createLuggageItem
 );
-router.get('/dut1/:id/luggage-photos', luggageController.listPhotos);
-router.delete('/luggage-photos/:photoId', requireRole('admin'), luggageController.deletePhoto);
+router.get('/dut1/:id/luggage-items', luggageController.listLuggageItems);
+router.delete('/luggage-items/:itemId', requireRole('logistics', 'admin'), luggageController.deleteLuggageItem);
 
 module.exports = router;

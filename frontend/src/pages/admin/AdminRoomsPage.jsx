@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Trash2, Plus } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as roomApi from '../../api/roomApi';
 import Input from '../../components/common/Input';
@@ -85,7 +86,7 @@ export default function AdminRoomsPage() {
         </div>
         <div className="mt-3 flex justify-end">
           <Button type="submit" loading={submitting}>
-            Ajouter
+            <Plus className="h-4 w-4" /> Ajouter
           </Button>
         </div>
       </form>
@@ -108,10 +109,10 @@ export default function AdminRoomsPage() {
                 <p className="text-sm text-slate-500">{room.gender === 'M' ? 'Masculin' : 'Féminin'} · {room.building || '—'}</p>
                 <button
                   onClick={() => handleDelete(room)}
-                  className="mt-3 text-xs text-red-600 hover:underline"
+                  className="mt-3 flex items-center gap-1 text-xs text-red-600 transition-colors hover:text-red-700 hover:underline disabled:cursor-not-allowed disabled:text-slate-300 disabled:no-underline"
                   disabled={room.occupied > 0}
                 >
-                  Supprimer
+                  <Trash2 className="h-3.5 w-3.5" /> Supprimer
                 </button>
               </Card>
             </div>

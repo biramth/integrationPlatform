@@ -1,3 +1,4 @@
+import { Users, DoorOpen, Luggage, ClipboardCheck, Home } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as statsApi from '../../api/statsApi';
 import StatCard from '../../components/stats/StatCard';
@@ -37,15 +38,15 @@ export default function AdminDashboardPage() {
         ) : (
           <>
             <div className="animate-fade-in-up" style={staggerStyle(0)}>
-              <StatCard label="Total DUT1" value={o.total} icon="👥" accent="bg-blue-800" />
+              <StatCard label="Total DUT1" value={o.total} icon={Users} tone="blue" />
             </div>
             <div className="animate-fade-in-up" style={staggerStyle(1)}>
               <StatCard
                 label="Avec chambre"
                 value={o.withRoom}
                 sublabel={`${o.withoutRoom} en attente`}
-                icon="🚪"
-                accent="bg-emerald-600"
+                icon={DoorOpen}
+                tone="emerald"
               />
             </div>
             <div className="animate-fade-in-up" style={staggerStyle(2)}>
@@ -53,8 +54,8 @@ export default function AdminDashboardPage() {
                 label="Bagages photographiés"
                 value={o.withLuggage}
                 sublabel={`${o.withoutLuggage} restants`}
-                icon="🧳"
-                accent="bg-amber-500"
+                icon={Luggage}
+                tone="amber"
               />
             </div>
             <div className="animate-fade-in-up" style={staggerStyle(3)}>
@@ -62,8 +63,8 @@ export default function AdminDashboardPage() {
                 label="Phase 2 complétée"
                 value={o.complementaryDone}
                 sublabel={`${o.complementaryPending} restants`}
-                icon="📋"
-                accent="bg-sky-600"
+                icon={ClipboardCheck}
+                tone="violet"
               />
             </div>
           </>
@@ -81,7 +82,9 @@ export default function AdminDashboardPage() {
                   {occupancy.data.totalOccupied} / {occupancy.data.totalCapacity} places occupées
                 </p>
               </div>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-lg">🏠</span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-800 transition-transform duration-150 group-hover:scale-110">
+                <Home className="h-4.5 w-4.5" size={18} strokeWidth={2} />
+              </span>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
               <div

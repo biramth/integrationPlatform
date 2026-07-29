@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import { GraduationCap, FilePlus2, Luggage, Stethoscope, UtensilsCrossed } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { homePathForRole } from '../utils/roles';
 import Button from '../components/common/Button';
@@ -7,10 +8,10 @@ import Input from '../components/common/Input';
 import { staggerStyle } from '../utils/stagger';
 
 const COMMISSIONS = [
-  { icon: '📝', label: 'Enregistrement' },
-  { icon: '🧳', label: 'Commission Orga' },
-  { icon: '🩺', label: 'Commission Santé' },
-  { icon: '🍽️', label: 'Commission Cuisine' },
+  { icon: FilePlus2, label: 'Enregistrement' },
+  { icon: Luggage, label: 'Commission Orga' },
+  { icon: Stethoscope, label: 'Commission Santé' },
+  { icon: UtensilsCrossed, label: 'Commission Cuisine' },
 ];
 
 export default function LoginPage() {
@@ -51,7 +52,9 @@ export default function LoginPage() {
           }}
         />
         <div className="relative flex items-center gap-2 text-lg font-semibold">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 text-xl">🎓</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15">
+            <GraduationCap className="h-5 w-5" />
+          </span>
           Intégration DUT1
         </div>
 
@@ -69,10 +72,10 @@ export default function LoginPage() {
           {COMMISSIONS.map((c, i) => (
             <span
               key={c.label}
-              className="animate-fade-in-up flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-blue-50"
+              className="animate-fade-in-up flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-blue-50 transition-colors hover:bg-white/15"
               style={staggerStyle(i, 80)}
             >
-              <span>{c.icon}</span>
+              <c.icon className="h-3.5 w-3.5" strokeWidth={2} />
               {c.label}
             </span>
           ))}
@@ -82,7 +85,9 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center px-4 py-12">
         <form onSubmit={handleSubmit} className="w-full max-w-sm animate-fade-in-up">
           <div className="mb-8 flex items-center gap-2 lg:hidden">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-800 text-xl text-white">🎓</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-800 text-white">
+              <GraduationCap className="h-5 w-5" />
+            </span>
             <span className="text-lg font-semibold text-slate-900">Intégration DUT1</span>
           </div>
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Trash2, Plus, Leaf } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as allergenApi from '../../api/allergenApi';
 import Input from '../../components/common/Input';
@@ -51,7 +52,7 @@ export default function AllergensAdminPage() {
       <form onSubmit={handleCreate} className="mb-6 flex gap-2">
         <Input placeholder="Nouvel allergène…" value={label} onChange={(e) => setLabel(e.target.value)} className="flex-1" />
         <Button type="submit" loading={submitting}>
-          Ajouter
+          <Plus className="h-4 w-4" /> Ajouter
         </Button>
       </form>
 
@@ -73,9 +74,12 @@ export default function AllergensAdminPage() {
               className="animate-fade-in-up flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
               style={staggerStyle(i, 20, 200)}
             >
-              <span className="text-sm text-slate-900">{a.label}</span>
-              <button onClick={() => handleDelete(a)} className="text-xs text-red-600 hover:underline">
-                Supprimer
+              <span className="flex items-center gap-2 text-sm text-slate-900">
+                <Leaf className="h-3.5 w-3.5 text-emerald-600" />
+                {a.label}
+              </span>
+              <button onClick={() => handleDelete(a)} className="flex items-center gap-1 text-xs text-red-600 transition-colors hover:text-red-700 hover:underline">
+                <Trash2 className="h-3.5 w-3.5" /> Supprimer
               </button>
             </div>
           ))}

@@ -4,7 +4,11 @@ function overview(req, res) {
   const total = db.prepare('SELECT COUNT(*) AS n FROM dut1_records').get().n;
   const withRoom = db.prepare('SELECT COUNT(*) AS n FROM dut1_records WHERE room_id IS NOT NULL').get().n;
   const withLuggage = db
-    .prepare('SELECT COUNT(DISTINCT dut1_id) AS n FROM luggage_photos')
+    .prepare(
+      `SELECT COUNT(*) AS n FROM dut1_records d
+       WHERE d.luggage_count IS NOT NULL
+         AND (SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id) >= d.luggage_count`
+    )
     .get().n;
   const complementaryDone = db
     .prepare('SELECT COUNT(*) AS n FROM dut1_records WHERE complementary_completed_at IS NOT NULL')

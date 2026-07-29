@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ArrowLeft, Search } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import { listDut1 } from '../../api/dut1Api';
 import * as healthApi from '../../api/healthApi';
@@ -84,6 +85,7 @@ export default function IllnessPage() {
         <>
           <form onSubmit={handleSearch} className="mb-4 flex gap-2">
             <Input
+              icon={Search}
               placeholder="Nom ou prénom…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -106,8 +108,11 @@ export default function IllnessPage() {
 
       {selected && (
         <div>
-          <button onClick={() => setSelected(null)} className="mb-4 text-sm text-blue-900 transition-colors hover:text-blue-700">
-            ← Retour à la recherche
+          <button
+            onClick={() => setSelected(null)}
+            className="mb-4 flex items-center gap-1 text-sm text-blue-900 transition-colors hover:text-blue-700"
+          >
+            <ArrowLeft className="h-4 w-4" /> Retour à la recherche
           </button>
           <h2 className="mb-3 text-lg font-semibold text-slate-900">
             {selected.first_name} {selected.last_name}

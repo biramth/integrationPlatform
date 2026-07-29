@@ -8,6 +8,14 @@ const ALLERGENS_SUBQUERY = `(
   WHERE da.dut1_id = d.id
 ) AS allergens_json`;
 
+const LUGGAGE_ITEMS_COUNT_SUBQUERY = `(
+  SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id
+) AS luggage_items_count`;
+
+const LUGGAGE_SENSITIVE_SUBQUERY = `(
+  SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id AND li.is_sensitive = 1
+) AS luggage_sensitive_count`;
+
 function serializeRecord(record) {
   if (!record) return null;
   return {
@@ -127,10 +135,10 @@ function listRecords(req, res) {
   if (complementary === 'true') clauses.push('d.complementary_completed_at IS NOT NULL');
   if (complementary === 'false') clauses.push('d.complementary_completed_at IS NULL');
   if (hasLuggagePhoto === 'true') {
-    clauses.push('EXISTS (SELECT 1 FROM luggage_photos lp WHERE lp.dut1_id = d.id)');
+    clauses.push('EXISTS (SELECT 1 FROM luggage_items li WHERE li.dut1_id = d.id)');
   }
   if (hasLuggagePhoto === 'false') {
-    clauses.push('NOT EXISTS (SELECT 1 FROM luggage_photos lp WHERE lp.dut1_id = d.id)');
+    clauses.push('NOT EXISTS (SELECT 1 FROM luggage_items li WHERE li.dut1_id = d.id)');
   }
   if (search) {
     clauses.push(
@@ -148,7 +156,8 @@ function listRecords(req, res) {
   const records = db
     .prepare(
       `SELECT d.*, r.label AS room_label,
-         EXISTS (SELECT 1 FROM luggage_photos lp WHERE lp.dut1_id = d.id) AS has_luggage_photo,
+         ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
+         ${LUGGAGE_SENSITIVE_SUBQUERY},
          ${ALLERGENS_SUBQUERY}
        FROM dut1_records d
        LEFT JOIN rooms r ON r.id = d.room_id
@@ -169,7 +178,10 @@ function listRecords(req, res) {
 function getRecord(req, res) {
   const record = db
     .prepare(
-      `SELECT d.*, r.label AS room_label, ${ALLERGENS_SUBQUERY}
+      `SELECT d.*, r.label AS room_label,
+         ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
+         ${LUGGAGE_SENSITIVE_SUBQUERY},
+         ${ALLERGENS_SUBQUERY}
        FROM dut1_records d
        LEFT JOIN rooms r ON r.id = d.room_id
        WHERE d.id = ?`
@@ -180,11 +192,13 @@ function getRecord(req, res) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
 
-  const photos = db
-    .prepare('SELECT id, file_path, original_name, uploaded_at FROM luggage_photos WHERE dut1_id = ?')
+  const luggageItems = db
+    .prepare(
+      'SELECT id, file_path, original_name, is_sensitive, sensitive_note, uploaded_at FROM luggage_items WHERE dut1_id = ?'
+    )
     .all(req.params.id);
 
-  res.json({ record: serializeRecord(record), photos });
+  res.json({ record: serializeRecord(record), luggageItems });
 }
 
 function updateRecord(req, res) {
@@ -248,10 +262,13 @@ function deleteRecord(req, res) {
 function listWithoutLuggage(req, res) {
   const records = db
     .prepare(
-      `SELECT d.*, r.label AS room_label
+      `SELECT d.*, r.label AS room_label,
+         ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
+         ${LUGGAGE_SENSITIVE_SUBQUERY}
        FROM dut1_records d
        LEFT JOIN rooms r ON r.id = d.room_id
-       WHERE NOT EXISTS (SELECT 1 FROM luggage_photos lp WHERE lp.dut1_id = d.id)
+       WHERE d.luggage_count IS NULL
+          OR (SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id) < d.luggage_count
        ORDER BY d.created_at ASC, d.id ASC`
     )
     .all();

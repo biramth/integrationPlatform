@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { Search } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import { listDut1, updateDut1, reassignRoom } from '../../api/dut1Api';
 import { listRooms } from '../../api/roomApi';
@@ -67,6 +68,7 @@ export default function AdminRecordsPage() {
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Input
+          icon={Search}
           placeholder="Rechercher un nom…"
           value={filters.search}
           onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}

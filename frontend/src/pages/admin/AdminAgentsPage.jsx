@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Plus, KeyRound, Ban, RotateCcw } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as agentApi from '../../api/agentApi';
 import Input from '../../components/common/Input';
@@ -104,7 +105,7 @@ export default function AdminAgentsPage() {
         </div>
         <div className="mt-3 flex justify-end">
           <Button type="submit" loading={submitting}>
-            Créer
+            <Plus className="h-4 w-4" /> Créer
           </Button>
         </div>
       </form>
@@ -129,13 +130,14 @@ export default function AdminAgentsPage() {
                 <div className="flex items-center gap-2">
                   <Badge variant={agent.is_active ? 'success' : 'neutral'}>{agent.is_active ? 'Actif' : 'Désactivé'}</Badge>
                   <Button variant="secondary" onClick={() => resetPassword(agent)} className="px-3 py-1.5 text-xs">
-                    Réinit. mdp
+                    <KeyRound className="h-3.5 w-3.5" /> Réinit. mdp
                   </Button>
                   <Button
                     variant={agent.is_active ? 'danger' : 'secondary'}
                     onClick={() => toggleActive(agent)}
                     className="px-3 py-1.5 text-xs"
                   >
+                    {agent.is_active ? <Ban className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
                     {agent.is_active ? 'Désactiver' : 'Réactiver'}
                   </Button>
                 </div>

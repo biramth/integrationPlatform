@@ -1,15 +1,19 @@
 import { useMemo, useState } from 'react';
+import { ShieldAlert, Luggage as LuggageIcon, ChevronDown, Search } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import { listWithoutLuggage } from '../../api/dut1Api';
-import { uploadLuggagePhoto } from '../../api/luggageApi';
-import Dut1Card from '../../components/dut1/Dut1Card';
+import * as luggageApi from '../../api/luggageApi';
+import Card from '../../components/common/Card';
+import Badge from '../../components/common/Badge';
 import Input from '../../components/common/Input';
 import PhotoCapture from '../../components/upload/PhotoCapture';
+import LuggageItemThumb from '../../components/upload/LuggageItemThumb';
 import PageHeader from '../../components/common/PageHeader';
 import { EmptyState, ErrorState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
+import { DEPARTMENT_LABELS } from '../../utils/departments';
 
 export default function LogisticsListPage() {
   const { showToast } = useToast();
@@ -17,6 +21,8 @@ export default function LogisticsListPage() {
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [submittingId, setSubmittingId] = useState(null);
+  const [itemsByDut1, setItemsByDut1] = useState({});
+  const [countDraft, setCountDraft] = useState('');
 
   const filtered = useMemo(() => {
     const records = data?.records || [];
@@ -27,12 +33,38 @@ export default function LogisticsListPage() {
     );
   }, [data, search]);
 
-  async function handleCapture(dut1Id, file) {
-    setSubmittingId(dut1Id);
-    try {
-      await uploadLuggagePhoto(dut1Id, file);
-      showToast('Photo enregistrée.', 'success');
+  async function loadItems(dut1Id) {
+    const res = await luggageApi.listLuggageItems(dut1Id);
+    setItemsByDut1((m) => ({ ...m, [dut1Id]: res.items }));
+  }
+
+  function toggleExpand(record) {
+    if (expandedId === record.id) {
       setExpandedId(null);
+      return;
+    }
+    setExpandedId(record.id);
+    setCountDraft(record.luggage_count ?? '');
+    if (!itemsByDut1[record.id]) loadItems(record.id);
+  }
+
+  async function handleSaveCount(record) {
+    const value = countDraft === '' ? null : Number(countDraft);
+    if (value === record.luggage_count) return;
+    try {
+      await luggageApi.setLuggageCount(record.id, value);
+      reload();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Erreur lors de la mise à jour.', 'error');
+    }
+  }
+
+  async function handleCapture(record, file, isSensitive, sensitiveNote) {
+    setSubmittingId(record.id);
+    try {
+      await luggageApi.createLuggageItem(record.id, file, isSensitive, sensitiveNote);
+      showToast('Bagage ajouté.', 'success');
+      await loadItems(record.id);
       reload();
     } catch (err) {
       showToast(err.response?.data?.error || "Échec de l'envoi de la photo.", 'error');
@@ -41,35 +73,131 @@ export default function LogisticsListPage() {
     }
   }
 
+  async function handleDeleteItem(record, item) {
+    if (!window.confirm('Supprimer ce bagage ?')) return;
+    try {
+      await luggageApi.deleteLuggageItem(item.id);
+      await loadItems(record.id);
+      reload();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Suppression impossible.', 'error');
+    }
+  }
+
   return (
     <div>
-      <PageHeader title="Bagages à photographier" description="Dossiers DUT1 enregistrés sans photo de bagage." />
+      <PageHeader
+        title="Bagages"
+        description="Déclare le nombre de bagages de chaque DUT1, photographie chacun d'eux et signale les objets sensibles."
+      />
 
-      <Input placeholder="Rechercher un nom…" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-4" />
+      <Input
+        icon={Search}
+        placeholder="Rechercher un nom…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mb-4"
+      />
 
       {loading && <CardListSkeleton />}
       {error && <ErrorState label={error} onRetry={reload} />}
-      {!loading && !error && filtered.length === 0 && <EmptyState label="Aucun dossier en attente de photo." />}
+      {!loading && !error && filtered.length === 0 && <EmptyState label="Tous les bagages sont à jour." />}
 
       <div className="flex flex-col gap-3">
-        {filtered.map((record, i) => (
-          <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
-            <Dut1Card
-              record={record}
-              onClick={() => setExpandedId(expandedId === record.id ? null : record.id)}
-              actions={
-                expandedId === record.id && (
-                  <div onClick={(e) => e.stopPropagation()}>
+        {filtered.map((record, i) => {
+          const expanded = expandedId === record.id;
+          const items = itemsByDut1[record.id];
+          const hasCount = record.luggage_count !== null && record.luggage_count !== undefined;
+
+          return (
+            <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
+              <Card>
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(record)}
+                  className="flex w-full items-start justify-between gap-2 text-left"
+                >
+                  <div>
+                    <p className="font-medium text-slate-900">
+                      {record.first_name} {record.last_name}
+                    </p>
+                    <p className="text-sm text-slate-500">{DEPARTMENT_LABELS[record.department] || record.department}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Badge variant={record.room_label ? 'success' : 'warning'}>
+                        {record.room_label ? `Chambre ${record.room_label}` : 'Sans chambre'}
+                      </Badge>
+                      <Badge variant={hasCount && record.luggage_items_count > 0 ? 'neutral' : 'warning'}>
+                        <LuggageIcon className="mr-1 inline h-3 w-3" />
+                        {record.luggage_items_count}
+                        {hasCount ? `/${record.luggage_count}` : ''} bagage{record.luggage_items_count > 1 ? 's' : ''}
+                      </Badge>
+                      {record.luggage_sensitive_count > 0 && (
+                        <Badge variant="warning">
+                          <ShieldAlert className="mr-1 inline h-3 w-3" />
+                          {record.luggage_sensitive_count} sensible{record.luggage_sensitive_count > 1 ? 's' : ''}
+                        </Badge>
+                      )}
+                    </div>
+                    {hasCount && (
+                      <div className="mt-2 h-1.5 w-40 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-blue-800 transition-all duration-500"
+                          style={{
+                            width: `${Math.min((record.luggage_items_count / Math.max(record.luggage_count, 1)) * 100, 100)}%`,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <ChevronDown
+                    className={`h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {expanded && (
+                  <div className="mt-4 flex flex-col gap-4 border-t border-slate-100 pt-4" onClick={(e) => e.stopPropagation()}>
+                    <label className="flex flex-col gap-1 text-sm">
+                      <span className="font-medium text-slate-700">Nombre de bagages déclaré</span>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          value={countDraft}
+                          onChange={(e) => setCountDraft(e.target.value)}
+                          onBlur={() => handleSaveCount(record)}
+                          placeholder="Ex : 3"
+                          className="min-h-[44px] w-28 rounded-lg border border-slate-300 px-3 py-2 text-base outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                        />
+                      </div>
+                    </label>
+
+                    {items === undefined && <p className="text-sm text-slate-400">Chargement des bagages…</p>}
+                    {items && items.length > 0 && (
+                      <div>
+                        <p className="mb-2 text-sm font-medium text-slate-700">Bagages photographiés</p>
+                        <div className="flex flex-wrap gap-2">
+                          {items.map((item, idx) => (
+                            <LuggageItemThumb
+                              key={item.id}
+                              item={item}
+                              index={idx}
+                              onDelete={() => handleDeleteItem(record, item)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <PhotoCapture
                       submitting={submittingId === record.id}
-                      onCapture={(file) => handleCapture(record.id, file)}
+                      onCapture={(file, isSensitive, sensitiveNote) => handleCapture(record, file, isSensitive, sensitiveNote)}
                     />
                   </div>
-                )
-              }
-            />
-          </div>
-        ))}
+                )}
+              </Card>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

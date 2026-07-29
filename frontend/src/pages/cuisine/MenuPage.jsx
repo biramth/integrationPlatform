@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Trash2, Plus, UtensilsCrossed } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as mealApi from '../../api/mealApi';
 import { listAllergens } from '../../api/allergenApi';
@@ -95,17 +96,25 @@ export default function MenuPage() {
           {service?.dishes.map((dish, i) => (
             <div key={dish.id} className="animate-fade-in-up" style={staggerStyle(i)}>
               <Card className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-medium text-slate-900">{dish.name}</p>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {dish.allergens.length === 0 && <span className="text-xs text-slate-400">Aucun allergène déclaré</span>}
-                    {dish.allergens.map((a) => (
-                      <Badge key={a.id} variant="warning">{a.label}</Badge>
-                    ))}
+                <div className="flex items-start gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-800">
+                    <UtensilsCrossed className="h-4.5 w-4.5" size={18} />
+                  </span>
+                  <div>
+                    <p className="font-medium text-slate-900">{dish.name}</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {dish.allergens.length === 0 && <span className="text-xs text-slate-400">Aucun allergène déclaré</span>}
+                      {dish.allergens.map((a) => (
+                        <Badge key={a.id} variant="warning">{a.label}</Badge>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <button onClick={() => handleDeleteDish(dish.id)} className="shrink-0 text-xs text-red-600 hover:underline">
-                  Supprimer
+                <button
+                  onClick={() => handleDeleteDish(dish.id)}
+                  className="flex shrink-0 items-center gap-1 text-xs text-red-600 transition-colors hover:text-red-700 hover:underline"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Supprimer
                 </button>
               </Card>
             </div>
@@ -133,7 +142,7 @@ export default function MenuPage() {
           </div>
         )}
         <Button type="submit" loading={submitting} className="w-full sm:w-auto">
-          Ajouter le plat
+          <Plus className="h-4 w-4" /> Ajouter le plat
         </Button>
       </form>
     </div>

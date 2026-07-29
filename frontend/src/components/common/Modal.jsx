@@ -1,3 +1,5 @@
+import { X } from 'lucide-react';
+
 export default function Modal({ open, onClose, title, children }) {
   if (!open) return null;
 
@@ -14,10 +16,10 @@ export default function Modal({ open, onClose, title, children }) {
           <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
           <button
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100"
             aria-label="Fermer"
           >
-            ✕
+            <X className="h-4.5 w-4.5" size={18} />
           </button>
         </div>
         {children}

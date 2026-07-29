@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ArrowLeft, Search } from 'lucide-react';
 import { listDut1, completeComplementary } from '../../api/dut1Api';
 import { setDut1Allergies } from '../../api/dut1AllergyApi';
 import Dut1Card from '../../components/dut1/Dut1Card';
@@ -70,8 +71,11 @@ export default function CompleteInfoFormPage() {
   if (selected) {
     return (
       <div>
-        <button onClick={() => setSelected(null)} className="mb-4 text-sm text-blue-900 transition-colors hover:text-blue-700">
-          ← Retour à la recherche
+        <button
+          onClick={() => setSelected(null)}
+          className="mb-4 flex items-center gap-1 text-sm text-blue-900 transition-colors hover:text-blue-700"
+        >
+          <ArrowLeft className="h-4 w-4" /> Retour à la recherche
         </button>
         <PageHeader
           eyebrow="Phase 2 — infos complémentaires"
@@ -115,6 +119,7 @@ export default function CompleteInfoFormPage() {
 
       <form onSubmit={handleSearch} className="mb-4 flex flex-col gap-2 sm:flex-row">
         <Input
+          icon={Search}
           placeholder="Nom, prénom, téléphone, matricule…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}

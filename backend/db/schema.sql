@@ -46,19 +46,25 @@ CREATE TABLE IF NOT EXISTS dut1_records (
   room_id           INTEGER REFERENCES rooms(id) ON DELETE SET NULL,
   room_assigned_at  TEXT,
 
+  -- Bagages (commission Orga) : nombre déclaré par le DUT1, un luggage_item par bagage photographié
+  luggage_count     INTEGER,
+
   created_by  INTEGER NOT NULL REFERENCES users(id),
   updated_by  INTEGER REFERENCES users(id),
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS luggage_photos (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  dut1_id       INTEGER NOT NULL REFERENCES dut1_records(id) ON DELETE CASCADE,
-  file_path     TEXT NOT NULL,
-  original_name TEXT,
-  uploaded_by   INTEGER NOT NULL REFERENCES users(id),
-  uploaded_at   TEXT NOT NULL DEFAULT (datetime('now'))
+-- Un bagage = une photo + son statut "objet sensible" (espèces, électronique, papiers importants...)
+CREATE TABLE IF NOT EXISTS luggage_items (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  dut1_id         INTEGER NOT NULL REFERENCES dut1_records(id) ON DELETE CASCADE,
+  file_path       TEXT NOT NULL,
+  original_name   TEXT,
+  is_sensitive    INTEGER NOT NULL DEFAULT 0,
+  sensitive_note  TEXT,
+  uploaded_by     INTEGER NOT NULL REFERENCES users(id),
+  uploaded_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS room_assignment_history (
@@ -123,7 +129,7 @@ CREATE INDEX IF NOT EXISTS idx_dut1_department ON dut1_records(department);
 CREATE INDEX IF NOT EXISTS idx_dut1_gender ON dut1_records(gender);
 CREATE INDEX IF NOT EXISTS idx_dut1_room ON dut1_records(room_id);
 CREATE INDEX IF NOT EXISTS idx_dut1_complementary ON dut1_records(complementary_completed_at);
-CREATE INDEX IF NOT EXISTS idx_luggage_dut1 ON luggage_photos(dut1_id);
+CREATE INDEX IF NOT EXISTS idx_luggage_dut1 ON luggage_items(dut1_id);
 CREATE INDEX IF NOT EXISTS idx_dish_allergens_dish ON dish_allergens(dish_id);
 CREATE INDEX IF NOT EXISTS idx_dut1_allergens_dut1 ON dut1_allergens(dut1_id);
 CREATE INDEX IF NOT EXISTS idx_illness_dut1 ON illness_records(dut1_id);
