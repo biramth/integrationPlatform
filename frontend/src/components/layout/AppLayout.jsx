@@ -11,8 +11,8 @@ export default function AppLayout() {
   const items = NAV_ITEMS[user.role] || [];
 
   return (
-    <div className="grid min-h-screen grid-rows-[auto_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-1">
-      <aside className="hidden flex-col border-r border-slate-200 bg-white p-4 md:flex print:hidden">
+    <div className="grid min-h-screen grid-rows-[auto_1fr] md:h-screen md:grid-cols-[16rem_1fr] md:grid-rows-1 md:overflow-hidden print:h-auto print:overflow-visible print:block">
+      <aside className="hidden flex-col overflow-y-auto border-r border-slate-200 bg-white p-4 md:flex print:hidden">
         <div className="mb-6 flex items-center gap-2 px-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-800 text-white">
             <GraduationCap className="h-4.5 w-4.5" size={18} />
@@ -78,7 +78,7 @@ export default function AppLayout() {
         </button>
       </header>
 
-      <main className="overflow-y-auto bg-slate-50 pb-20 md:pb-0">
+      <main className="overflow-y-auto bg-slate-50 pb-20 md:pb-0 print:overflow-visible print:pb-0">
         <div key={location.pathname} className="mx-auto max-w-5xl p-4 sm:p-6 animate-fade-in-up">
           <Outlet />
         </div>
