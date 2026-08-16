@@ -112,8 +112,8 @@ function createRecord(req, res) {
   }
 }
 
-function listRecords(req, res) {
-  const { department, gender, hasRoom, hasLuggagePhoto, complementary, search, createdBy, roomId, page = 1, pageSize = 25 } = req.query;
+function buildRecordsFilter(query) {
+  const { department, gender, hasRoom, hasLuggagePhoto, complementary, search, createdBy, roomId } = query;
 
   const clauses = [];
   const params = {};
@@ -152,6 +152,12 @@ function listRecords(req, res) {
   }
 
   const whereSql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  return { whereSql, params };
+}
+
+function listRecords(req, res) {
+  const { page = 1, pageSize = 25 } = req.query;
+  const { whereSql, params } = buildRecordsFilter(req.query);
   const limit = Math.min(Number(pageSize) || 25, 100);
   const offset = (Math.max(Number(page) || 1, 1) - 1) * limit;
 
@@ -177,6 +183,44 @@ function listRecords(req, res) {
     page: Number(page) || 1,
     pageSize: limit,
   });
+}
+
+const CSV_HEADER = [
+  'ID', 'N° étudiant', 'Nom', 'Prénom', 'Naissance', 'Lieu', 'Genre', 'Téléphone',
+  'Département', 'Père', 'Mère', 'Tél. père', 'Tél. mère', 'Adresse', 'Chambre',
+  'Bagages déclarés', 'Phase 2',
+];
+
+function csvEscape(value) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+function exportRecordsCsv(req, res) {
+  const { whereSql, params } = buildRecordsFilter(req.query);
+
+  const records = db
+    .prepare(
+      `SELECT d.id, d.student_number, d.last_name, d.first_name, d.birth_date, d.birth_place,
+              d.gender, d.phone_number, d.department, d.father_name, d.mother_name,
+              d.father_phone, d.mother_phone, d.address, r.label AS room_label,
+              d.luggage_count, d.complementary_completed_at
+       FROM dut1_records d
+       LEFT JOIN rooms r ON r.id = d.room_id
+       ${whereSql}
+       ORDER BY d.last_name, d.first_name`
+    )
+    .all(params);
+
+  const csvRows = records.map((r) => [
+    r.id, r.student_number, r.last_name, r.first_name, r.birth_date, r.birth_place, r.gender,
+    r.phone_number, r.department, r.father_name, r.mother_name, r.father_phone, r.mother_phone,
+    r.address, r.room_label, r.luggage_count, r.complementary_completed_at ? 'Oui' : 'Non',
+  ]);
+  const csv = [CSV_HEADER, ...csvRows].map((row) => row.map(csvEscape).join(',')).join('\r\n');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="dut1_export.csv"');
+  res.send('﻿' + csv);
 }
 
 function getRecord(req, res) {
@@ -345,6 +389,7 @@ function setAllergies(req, res) {
 module.exports = {
   createRecord,
   listRecords,
+  exportRecordsCsv,
   getRecord,
   updateRecord,
   deleteRecord,

@@ -4,6 +4,9 @@ import * as statsApi from '../../api/statsApi';
 import StatCard from '../../components/stats/StatCard';
 import DepartmentBarChart from '../../components/stats/DepartmentBarChart';
 import GenderPieChart from '../../components/stats/GenderPieChart';
+import IllnessTrendChart from '../../components/stats/IllnessTrendChart';
+import AllergyPrevalenceChart from '../../components/stats/AllergyPrevalenceChart';
+import CompletionByDepartmentChart from '../../components/stats/CompletionByDepartmentChart';
 import Card from '../../components/common/Card';
 import PageHeader from '../../components/common/PageHeader';
 import { Progress } from '@/components/ui/progress';
@@ -16,9 +19,26 @@ export default function AdminDashboardPage() {
   const byDepartment = useFetch(statsApi.getByDepartment, []);
   const byGender = useFetch(statsApi.getByGender, []);
   const occupancy = useFetch(statsApi.getRoomsOccupancy, []);
+  const illnessTrend = useFetch(statsApi.getIllnessTrend, []);
+  const allergyPrevalence = useFetch(statsApi.getAllergyPrevalence, []);
+  const completionByDept = useFetch(statsApi.getCompletionByDepartment, []);
 
-  const loading = overview.loading || byDepartment.loading || byGender.loading || occupancy.loading;
-  const error = overview.error || byDepartment.error || byGender.error || occupancy.error;
+  const loading =
+    overview.loading ||
+    byDepartment.loading ||
+    byGender.loading ||
+    occupancy.loading ||
+    illnessTrend.loading ||
+    allergyPrevalence.loading ||
+    completionByDept.loading;
+  const error =
+    overview.error ||
+    byDepartment.error ||
+    byGender.error ||
+    occupancy.error ||
+    illnessTrend.error ||
+    allergyPrevalence.error ||
+    completionByDept.error;
 
   if (error) return <ErrorState label={error} onRetry={() => window.location.reload()} />;
 
@@ -93,6 +113,15 @@ export default function AdminDashboardPage() {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 animate-fade-in-up" style={staggerStyle(5)}>
             <DepartmentBarChart rows={byDepartment.data.rows} />
             <GenderPieChart rows={byGender.data.rows} />
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2 animate-fade-in-up" style={staggerStyle(6)}>
+            <IllnessTrendChart rows={illnessTrend.data.rows} />
+            <AllergyPrevalenceChart rows={allergyPrevalence.data.rows} />
+          </div>
+
+          <div className="mt-4 animate-fade-in-up" style={staggerStyle(7)}>
+            <CompletionByDepartmentChart rows={completionByDept.data.rows} />
           </div>
         </>
       )}

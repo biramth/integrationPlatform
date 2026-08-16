@@ -12,7 +12,7 @@ export default function AppLayout() {
 
   return (
     <div className="grid min-h-screen grid-rows-[auto_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-1">
-      <aside className="hidden flex-col border-r border-slate-200 bg-white p-4 md:flex">
+      <aside className="hidden flex-col border-r border-slate-200 bg-white p-4 md:flex print:hidden">
         <div className="mb-6 flex items-center gap-2 px-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-800 text-white">
             <GraduationCap className="h-4.5 w-4.5" size={18} />
@@ -61,7 +61,7 @@ export default function AppLayout() {
         </div>
       </aside>
 
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:hidden">
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:hidden print:hidden">
         <div className="flex items-center gap-2">
           <Avatar name={user.fullName} size={32} />
           <div>
@@ -84,7 +84,7 @@ export default function AppLayout() {
         </div>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200 bg-white/95 backdrop-blur md:hidden print:hidden">
         {items.map((item) => (
           <NavLink
             key={item.to}

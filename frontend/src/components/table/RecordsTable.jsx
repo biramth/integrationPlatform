@@ -1,18 +1,26 @@
 import Badge from '../common/Badge';
 import Dut1Card from '../dut1/Dut1Card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
 import { staggerStyle } from '../../utils/stagger';
 import { getLuggageStatus } from '../../utils/luggageStatus';
 
-export default function RecordsTable({ records, onSelect }) {
+export default function RecordsTable({ records, onSelect, selectedIds, onToggleSelect, onToggleSelectAll, allSelected }) {
+  const selectable = !!selectedIds;
+
   return (
     <>
       <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm md:block">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 text-xs uppercase text-muted-foreground hover:bg-muted/50">
-              <TableHead className="py-3 pl-4">Nom</TableHead>
+              {selectable && (
+                <TableHead className="w-10 py-3 pl-4">
+                  <Checkbox checked={allSelected} onCheckedChange={onToggleSelectAll} aria-label="Tout sélectionner" />
+                </TableHead>
+              )}
+              <TableHead className={selectable ? 'py-3' : 'py-3 pl-4'}>Nom</TableHead>
               <TableHead>Département</TableHead>
               <TableHead>Genre</TableHead>
               <TableHead>Chambre</TableHead>
@@ -30,7 +38,16 @@ export default function RecordsTable({ records, onSelect }) {
                   className="animate-fade-in cursor-pointer"
                   style={staggerStyle(i, 25, 300)}
                 >
-                  <TableCell className="whitespace-normal py-3 pl-4 font-medium text-foreground">
+                  {selectable && (
+                    <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedIds.has(record.id)}
+                        onCheckedChange={() => onToggleSelect(record.id)}
+                        aria-label={`Sélectionner ${record.first_name} ${record.last_name}`}
+                      />
+                    </TableCell>
+                  )}
+                  <TableCell className={`whitespace-normal py-3 font-medium text-foreground ${selectable ? '' : 'pl-4'}`}>
                     {record.first_name} {record.last_name}
                   </TableCell>
                   <TableCell className="whitespace-normal text-muted-foreground">

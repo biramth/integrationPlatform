@@ -15,3 +15,15 @@ export function getByGender() {
 export function getRoomsOccupancy() {
   return axiosClient.get('/stats/rooms-occupancy').then((res) => res.data);
 }
+
+export function getIllnessTrend(days = 14) {
+  return axiosClient.get('/stats/illness-trend', { params: { days } }).then((res) => res.data);
+}
+
+export function getAllergyPrevalence() {
+  return axiosClient.get('/stats/allergy-prevalence').then((res) => res.data);
+}
+
+export function getCompletionByDepartment() {
+  return axiosClient.get('/stats/completion-by-department').then((res) => res.data);
+}

@@ -61,4 +61,59 @@ function roomsOccupancy(req, res) {
   });
 }
 
-module.exports = { overview, byDepartment, byGender, roomsOccupancy };
+function illnessTrend(req, res) {
+  const days = Math.min(Number(req.query.days) || 14, 90);
+  const rows = db
+    .prepare(
+      `SELECT illness_date AS date, COUNT(*) AS count
+       FROM illness_records
+       WHERE illness_date >= date('now', '-' || @days || ' days')
+       GROUP BY illness_date
+       ORDER BY illness_date ASC`
+    )
+    .all({ days });
+  res.json({ rows });
+}
+
+function allergyPrevalence(req, res) {
+  const rows = db
+    .prepare(
+      `SELECT a.id, a.label, COUNT(da.dut1_id) AS count
+       FROM allergens a
+       LEFT JOIN dut1_allergens da ON da.allergen_id = a.id
+       GROUP BY a.id
+       ORDER BY count DESC, a.label`
+    )
+    .all();
+  res.json({ rows });
+}
+
+function completionByDepartment(req, res) {
+  const rows = db
+    .prepare(
+      `SELECT department,
+              COUNT(*) AS total,
+              SUM(CASE WHEN complementary_completed_at IS NOT NULL THEN 1 ELSE 0 END) AS completed
+       FROM dut1_records
+       GROUP BY department
+       ORDER BY department`
+    )
+    .all();
+
+  res.json({
+    rows: rows.map((r) => ({
+      ...r,
+      rate: r.total ? Number(((r.completed / r.total) * 100).toFixed(1)) : 0,
+    })),
+  });
+}
+
+module.exports = {
+  overview,
+  byDepartment,
+  byGender,
+  roomsOccupancy,
+  illnessTrend,
+  allergyPrevalence,
+  completionByDepartment,
+};

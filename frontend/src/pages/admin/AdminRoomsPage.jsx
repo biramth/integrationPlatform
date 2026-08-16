@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Trash2, Plus, Pencil, ChevronDown, BedDouble } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Trash2, Plus, Pencil, ChevronDown, BedDouble, Printer } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as roomApi from '../../api/roomApi';
 import { listDut1 } from '../../api/dut1Api';
@@ -108,7 +109,16 @@ export default function AdminRoomsPage() {
 
   return (
     <div>
-      <PageHeader title="Chambres" />
+      <PageHeader
+        title="Chambres"
+        action={
+          <Link to="/admin/print/rooms">
+            <Button variant="secondary">
+              <Printer className="h-4 w-4" /> Imprimer fiches chambres
+            </Button>
+          </Link>
+        }
+      />
 
       <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
         <p className="mb-3 text-sm font-semibold text-slate-900">Ajouter une chambre</p>
