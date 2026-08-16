@@ -14,6 +14,7 @@ import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
+import { Progress } from '@/components/ui/progress';
 
 export default function LogisticsListPage() {
   const { showToast } = useToast();
@@ -139,14 +140,10 @@ export default function LogisticsListPage() {
                       )}
                     </div>
                     {hasCount && (
-                      <div className="mt-2 h-1.5 w-40 overflow-hidden rounded-full bg-slate-100">
-                        <div
-                          className="h-full rounded-full bg-blue-800 transition-all duration-500"
-                          style={{
-                            width: `${Math.min((record.luggage_items_count / Math.max(record.luggage_count, 1)) * 100, 100)}%`,
-                          }}
-                        />
-                      </div>
+                      <Progress
+                        value={Math.min((record.luggage_items_count / Math.max(record.luggage_count, 1)) * 100, 100)}
+                        className="mt-2 h-1.5 w-40"
+                      />
                     )}
                   </div>
                   <ChevronDown

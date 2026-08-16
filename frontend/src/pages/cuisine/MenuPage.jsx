@@ -10,6 +10,7 @@ import Badge from '../../components/common/Badge';
 import AllergenCheckboxes from '../../components/common/AllergenCheckboxes';
 import Card from '../../components/common/Card';
 import PageHeader from '../../components/common/PageHeader';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
@@ -72,19 +73,15 @@ export default function MenuPage() {
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
         <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        <div className="flex gap-2">
-          {MEAL_TYPES.map((mt) => (
-            <button
-              key={mt}
-              onClick={() => setMealType(mt)}
-              className={`min-h-[44px] rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 active:scale-[0.97] ${
-                mealType === mt ? 'bg-blue-800 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              {MEAL_TYPE_LABELS[mt]}
-            </button>
-          ))}
-        </div>
+        <Tabs value={mealType} onValueChange={setMealType}>
+          <TabsList className="h-11 p-1">
+            {MEAL_TYPES.map((mt) => (
+              <TabsTrigger key={mt} value={mt} className="px-3 text-sm">
+                {MEAL_TYPE_LABELS[mt]}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </div>
 
       {servicesFetch.loading && <CardListSkeleton rows={2} />}

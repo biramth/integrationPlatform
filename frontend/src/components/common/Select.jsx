@@ -1,26 +1,46 @@
-export default function Select({ label, error, options, placeholder, className = '', ...props }) {
+import {
+  Select as ShadSelect,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+
+export default function Select({ label, error, options, placeholder, className = '', value, onChange, required, id, ...props }) {
+  const selectId = id || (label ? `field-${label.replace(/\s+/g, '-').toLowerCase()}` : undefined);
+  const stringValue = value === undefined || value === null || value === '' ? '' : String(value);
+
   return (
-    <label className="flex flex-col gap-1 text-sm">
+    <div className="flex flex-col gap-1.5">
       {label && (
-        <span className="font-medium text-slate-700 dark:text-slate-300">
+        <Label htmlFor={selectId} className="text-sm font-medium text-slate-700">
           {label}
-          {props.required && <span className="text-red-500"> *</span>}
-        </span>
+          {required && <span className="text-red-500"> *</span>}
+        </Label>
       )}
-      <select
-        className={`min-h-[44px] rounded-lg border bg-white px-3 py-2 text-base outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 ${
-          error ? 'border-red-500' : 'border-slate-300'
-        } ${className}`}
+      <ShadSelect
+        value={stringValue}
+        onValueChange={(val) => onChange?.({ target: { value: val } })}
         {...props}
       >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger
+          id={selectId}
+          aria-invalid={!!error}
+          className={cn('min-h-[44px] w-full rounded-lg px-3 py-2 text-base', className)}
+        >
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((opt) => (
+            <SelectItem key={opt.value} value={String(opt.value)}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </ShadSelect>
       {error && <span className="text-xs text-red-600">{error}</span>}
-    </label>
+    </div>
   );
 }

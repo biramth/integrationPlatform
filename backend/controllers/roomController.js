@@ -71,6 +71,23 @@ function updateRoom(req, res) {
   res.json({ room: db.prepare('SELECT * FROM rooms WHERE id = ?').get(id) });
 }
 
+function updateMattressCount(req, res) {
+  const { id } = req.params;
+  const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(id);
+  if (!room) {
+    return res.status(404).json({ error: 'Chambre introuvable.' });
+  }
+
+  const { mattressCount } = req.body;
+  const value = mattressCount === null || mattressCount === '' || mattressCount === undefined ? null : Number(mattressCount);
+  if (value !== null && (Number.isNaN(value) || value < 0)) {
+    return res.status(400).json({ error: 'mattressCount doit être un nombre positif ou nul.' });
+  }
+
+  db.prepare(`UPDATE rooms SET mattress_count = ?, updated_at = datetime('now') WHERE id = ?`).run(value, id);
+  res.json({ room: db.prepare('SELECT * FROM rooms WHERE id = ?').get(id) });
+}
+
 function deleteRoom(req, res) {
   const { id } = req.params;
   const occupied = db.prepare('SELECT COUNT(*) AS n FROM dut1_records WHERE room_id = ?').get(id).n;
@@ -106,4 +123,4 @@ function reassignDut1Room(req, res) {
   }
 }
 
-module.exports = { listRooms, createRoom, updateRoom, deleteRoom, reassignDut1Room };
+module.exports = { listRooms, createRoom, updateRoom, updateMattressCount, deleteRoom, reassignDut1Room };

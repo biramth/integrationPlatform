@@ -7,6 +7,7 @@ import AppLayout from './components/layout/AppLayout';
 import BasicInfoFormPage from './pages/registrar/BasicInfoFormPage';
 import CompleteInfoFormPage from './pages/registrar/CompleteInfoFormPage';
 import LogisticsListPage from './pages/logistics/LogisticsListPage';
+import RoomsPage from './pages/logistics/RoomsPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminRecordsPage from './pages/admin/AdminRecordsPage';
 import AdminRoomsPage from './pages/admin/AdminRoomsPage';
@@ -32,6 +33,7 @@ function App() {
 
           <Route element={<RoleRoute roles={['logistics', 'admin']} />}>
             <Route path="/logistics" element={<LogisticsListPage />} />
+            <Route path="/logistics/rooms" element={<RoomsPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={['admin']} />}>

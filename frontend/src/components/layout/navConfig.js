@@ -18,7 +18,10 @@ export const NAV_ITEMS = {
     { to: '/registrar/basic', label: 'Enregistrer', icon: FilePlus2 },
     { to: '/registrar/complementary', label: 'Compléter', icon: ClipboardList },
   ],
-  [ROLES.LOGISTICS]: [{ to: '/logistics', label: 'Bagages', icon: Luggage }],
+  [ROLES.LOGISTICS]: [
+    { to: '/logistics', label: 'Bagages', icon: Luggage },
+    { to: '/logistics/rooms', label: 'Chambres', icon: DoorOpen },
+  ],
   [ROLES.ADMIN]: [
     { to: '/admin', label: 'Tableau de bord', shortLabel: 'Accueil', icon: LayoutDashboard },
     { to: '/admin/records', label: 'Dossiers', icon: FolderOpen },

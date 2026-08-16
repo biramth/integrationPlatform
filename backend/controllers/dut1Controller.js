@@ -113,7 +113,7 @@ function createRecord(req, res) {
 }
 
 function listRecords(req, res) {
-  const { department, gender, hasRoom, hasLuggagePhoto, complementary, search, createdBy, page = 1, pageSize = 25 } = req.query;
+  const { department, gender, hasRoom, hasLuggagePhoto, complementary, search, createdBy, roomId, page = 1, pageSize = 25 } = req.query;
 
   const clauses = [];
   const params = {};
@@ -129,6 +129,10 @@ function listRecords(req, res) {
   if (createdBy) {
     clauses.push('d.created_by = @createdBy');
     params.createdBy = Number(createdBy);
+  }
+  if (roomId) {
+    clauses.push('d.room_id = @roomId');
+    params.roomId = Number(roomId);
   }
   if (hasRoom === 'true') clauses.push('d.room_id IS NOT NULL');
   if (hasRoom === 'false') clauses.push('d.room_id IS NULL');

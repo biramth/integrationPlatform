@@ -15,3 +15,7 @@ export function updateRoom(id, payload) {
 export function deleteRoom(id) {
   return axiosClient.delete(`/rooms/${id}`).then((res) => res.data);
 }
+
+export function updateMattressCount(id, mattressCount) {
+  return axiosClient.put(`/rooms/${id}/mattress-count`, { mattressCount }).then((res) => res.data);
+}

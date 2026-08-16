@@ -6,6 +6,7 @@ import DepartmentBarChart from '../../components/stats/DepartmentBarChart';
 import GenderPieChart from '../../components/stats/GenderPieChart';
 import Card from '../../components/common/Card';
 import PageHeader from '../../components/common/PageHeader';
+import { Progress } from '@/components/ui/progress';
 import { ErrorState } from '../../components/common/StateViews';
 import { StatCardSkeleton } from '../../components/common/Skeleton';
 import { staggerStyle } from '../../utils/stagger';
@@ -86,12 +87,7 @@ export default function AdminDashboardPage() {
                 <Home className="h-4.5 w-4.5" size={18} strokeWidth={2} />
               </span>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-blue-800 transition-all duration-500"
-                style={{ width: `${Math.min(occupancy.data.occupancyRate, 100)}%` }}
-              />
-            </div>
+            <Progress value={Math.min(occupancy.data.occupancyRate, 100)} className="mt-3 h-2" />
           </Card>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 animate-fade-in-up" style={staggerStyle(5)}>

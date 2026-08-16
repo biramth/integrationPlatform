@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trash2, Plus, Leaf } from 'lucide-react';
+import { Trash2, Plus, Leaf, Pencil, Check, X } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as allergenApi from '../../api/allergenApi';
 import Input from '../../components/common/Input';
@@ -15,6 +15,9 @@ export default function AllergensAdminPage() {
   const { data, loading, error, reload } = useFetch(allergenApi.listAllergens, []);
   const [label, setLabel] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [renaming, setRenaming] = useState(false);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -39,6 +42,34 @@ export default function AllergensAdminPage() {
       reload();
     } catch (err) {
       showToast(err.response?.data?.error || 'Suppression impossible (allergène utilisé).', 'error');
+    }
+  }
+
+  function startEdit(allergen) {
+    setEditingId(allergen.id);
+    setEditLabel(allergen.label);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditLabel('');
+  }
+
+  async function handleRename(allergen) {
+    if (!editLabel.trim() || editLabel.trim() === allergen.label) {
+      cancelEdit();
+      return;
+    }
+    setRenaming(true);
+    try {
+      await allergenApi.updateAllergen(allergen.id, editLabel.trim());
+      showToast('Allergène renommé.', 'success');
+      cancelEdit();
+      reload();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Renommage impossible.', 'error');
+    } finally {
+      setRenaming(false);
     }
   }
 
@@ -68,21 +99,58 @@ export default function AllergensAdminPage() {
 
       {!loading && !error && data.allergens.length > 0 && (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {data.allergens.map((a, i) => (
-            <div
-              key={a.id}
-              className="animate-fade-in-up flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
-              style={staggerStyle(i, 20, 200)}
-            >
-              <span className="flex items-center gap-2 text-sm text-slate-900">
-                <Leaf className="h-3.5 w-3.5 text-emerald-600" />
-                {a.label}
-              </span>
-              <button onClick={() => handleDelete(a)} className="flex items-center gap-1 text-xs text-red-600 transition-colors hover:text-red-700 hover:underline">
-                <Trash2 className="h-3.5 w-3.5" /> Supprimer
-              </button>
-            </div>
-          ))}
+          {data.allergens.map((a, i) => {
+            const editing = editingId === a.id;
+            return (
+              <div
+                key={a.id}
+                className="animate-fade-in-up flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
+                style={staggerStyle(i, 20, 200)}
+              >
+                {editing ? (
+                  <>
+                    <input
+                      autoFocus
+                      value={editLabel}
+                      onChange={(e) => setEditLabel(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRename(a);
+                        if (e.key === 'Escape') cancelEdit();
+                      }}
+                      className="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                    />
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        onClick={() => handleRename(a)}
+                        disabled={renaming}
+                        className="flex items-center text-emerald-600 transition-colors hover:text-emerald-700"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button onClick={cancelEdit} className="flex items-center text-slate-400 transition-colors hover:text-slate-600">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex items-center gap-2 text-sm text-slate-900">
+                      <Leaf className="h-3.5 w-3.5 text-emerald-600" />
+                      {a.label}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button onClick={() => startEdit(a)} className="flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700 hover:underline">
+                        <Pencil className="h-3.5 w-3.5" /> Renommer
+                      </button>
+                      <button onClick={() => handleDelete(a)} className="flex items-center gap-1 text-xs text-red-600 transition-colors hover:text-red-700 hover:underline">
+                        <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

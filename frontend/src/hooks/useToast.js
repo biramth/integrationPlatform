@@ -1,10 +1,15 @@
-import { useContext } from 'react';
-import { ToastContext } from '../context/toastContextInstance';
+import { toast } from 'sonner';
+
+const METHOD = {
+  success: toast.success,
+  error: toast.error,
+  info: toast,
+};
 
 export function useToast() {
-  const ctx = useContext(ToastContext);
-  if (!ctx) {
-    throw new Error('useToast doit être utilisé à l\'intérieur de ToastProvider.');
+  function showToast(text, variant = 'info') {
+    (METHOD[variant] || toast)(text);
   }
-  return ctx;
+
+  return { showToast };
 }

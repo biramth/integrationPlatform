@@ -4,11 +4,12 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.use(verifyToken, requireRole('admin'));
+router.use(verifyToken);
 
-router.get('/', roomController.listRooms);
-router.post('/', roomController.createRoom);
-router.put('/:id', roomController.updateRoom);
-router.delete('/:id', roomController.deleteRoom);
+router.get('/', requireRole('logistics', 'admin'), roomController.listRooms);
+router.post('/', requireRole('admin'), roomController.createRoom);
+router.put('/:id', requireRole('admin'), roomController.updateRoom);
+router.put('/:id/mattress-count', requireRole('logistics', 'admin'), roomController.updateMattressCount);
+router.delete('/:id', requireRole('admin'), roomController.deleteRoom);
 
 module.exports = router;

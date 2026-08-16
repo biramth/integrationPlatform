@@ -12,13 +12,15 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS rooms (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  label       TEXT NOT NULL UNIQUE,
-  gender      TEXT NOT NULL CHECK (gender IN ('M','F')),
-  capacity    INTEGER NOT NULL CHECK (capacity > 0),
-  building    TEXT,
-  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  label           TEXT NOT NULL UNIQUE,
+  gender          TEXT NOT NULL CHECK (gender IN ('M','F')),
+  capacity        INTEGER NOT NULL CHECK (capacity > 0),
+  building        TEXT,
+  -- NULL = pas encore compté sur le terrain par la commission Orga
+  mattress_count  INTEGER,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Dossier DUT1 : phase 1 = colonnes obligatoires ; phase 2 = complementary_completed_at + extra_fields_json

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Trash2 } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
-import { listDut1, updateDut1, reassignRoom } from '../../api/dut1Api';
+import { listDut1, updateDut1, deleteDut1, reassignRoom } from '../../api/dut1Api';
 import { listRooms } from '../../api/roomApi';
 import RecordsTable from '../../components/table/RecordsTable';
 import Modal from '../../components/common/Modal';
@@ -23,6 +23,7 @@ export default function AdminRecordsPage() {
   const [formValues, setFormValues] = useState(null);
   const [roomChoice, setRoomChoice] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const fetcher = useCallback(
     () => listDut1({ search: filters.search, department: filters.department, gender: filters.gender }),
@@ -57,6 +58,22 @@ export default function AdminRecordsPage() {
       showToast(err.response?.data?.error || 'Erreur lors de la mise à jour.', 'error');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm(`Supprimer définitivement le dossier de ${selected.first_name} ${selected.last_name} ?`)) return;
+    setDeleting(true);
+    try {
+      await deleteDut1(selected.id);
+      showToast('Dossier supprimé.', 'success');
+      reload();
+      roomsFetch.reload();
+      closeModal();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Suppression impossible.', 'error');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -113,13 +130,18 @@ export default function AdminRecordsPage() {
               />
             </div>
 
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={closeModal}>
-                Annuler
+            <div className="flex items-center justify-between gap-2">
+              <Button variant="danger" onClick={handleDelete} loading={deleting}>
+                <Trash2 className="h-4 w-4" /> Supprimer
               </Button>
-              <Button onClick={handleSave} loading={saving}>
-                Enregistrer
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={closeModal}>
+                  Annuler
+                </Button>
+                <Button onClick={handleSave} loading={saving}>
+                  Enregistrer
+                </Button>
+              </div>
             </div>
           </div>
         )}
