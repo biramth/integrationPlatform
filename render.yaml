@@ -4,16 +4,13 @@ services:
     runtime: node
     plan: free
     branch: main
-    # Pas de disque persistant sur le plan "free" (voir plus bas), donc pas
-    # de preDeployCommand non plus (non supporté sur ce plan) : migrate/seed
-    # tournent en fin de build, directement sur le système de fichiers du
-    # build (suffisant puisqu'il est de toute façon réinitialisé à chaque
-    # déploiement/veille sur ce plan).
-    # --include=dev est nécessaire car NODE_ENV=production (défini plus bas)
-    # ferait sinon sauter les devDependencies du frontend (vite,
-    # @vitejs/plugin-react) pendant le build, alors qu'elles sont
-    # indispensables pour "npm run build".
-    buildCommand: "cd frontend && npm install --include=dev && npm run build && cd ../backend && npm install && node db/migrate.js && node db/seed.js"
+    # Les données (Postgres + photos) vivent sur Supabase, pas sur le disque de
+    # Render : plus besoin de disque persistant ni de préoccupation liée au
+    # plan "free" qui réinitialise le système de fichiers à chaque déploiement.
+    # --include=dev reste nécessaire car NODE_ENV=production ferait sinon
+    # sauter les devDependencies du frontend (vite, @vitejs/plugin-react)
+    # pendant le build, alors qu'elles sont indispensables pour "npm run build".
+    buildCommand: "cd frontend && npm install --include=dev && npm run build && cd ../backend && npm install && node db/migrate.js && node db/setupStorage.js && node db/seed.js"
     startCommand: "cd backend && node server.js"
     envVars:
       - key: NODE_ENV
@@ -24,34 +21,13 @@ services:
         value: admin
       - key: DEFAULT_ADMIN_PASSWORD
         sync: false
-      - key: DB_PATH
-        value: ./data/integration.sqlite
-      - key: UPLOAD_DIR
-        value: ./uploads/luggage
-    # Le plan "free" n'a pas de disque persistant : la base et les photos
-    # sont réinitialisées à chaque redéploiement/redémarrage (seed.js les
-    # recrée). Pour conserver les données entre deux démos, passer en plan
-    # "starter" (ou supérieur) et faire CES changements :
-    # 1. plan: starter
-    # 2. décommenter le bloc "disk" ci-dessous
-    # 3. remplacer buildCommand par la version SANS migrate/seed ci-dessous
-    #    (sinon ils tourneraient sur le disque de build, pas sur le disque
-    #    persistant monté au déploiement)
-    # 4. ajouter preDeployCommand (supporté sur les plans payants, tourne
-    #    après le build, avec le disque persistant déjà monté)
-    # 5. remplacer les 2 lignes DB_PATH/UPLOAD_DIR par celles pointant vers
-    #    le disque monté
-    #
-    # disk:
-    #   name: data
-    #   mountPath: /var/data
-    #   sizeGB: 1
-    #
-    # buildCommand: "cd frontend && npm install && npm run build && cd ../backend && npm install"
-    # preDeployCommand: "cd backend && node db/migrate.js && node db/seed.js"
-    #
-    # envVars (remplacer DB_PATH/UPLOAD_DIR ci-dessus par) :
-    #   - key: DB_PATH
-    #     value: /var/data/integration.sqlite
-    #   - key: UPLOAD_DIR
-    #     value: /var/data/uploads/luggage
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+    # migrate.js (CREATE TABLE IF NOT EXISTS) et seed.js (INSERT ... ON CONFLICT
+    # DO NOTHING) sont tous les deux idempotents : les relancer à chaque
+    # déploiement est sans danger et ne touche jamais aux données réelles déjà
+    # présentes sur Supabase.

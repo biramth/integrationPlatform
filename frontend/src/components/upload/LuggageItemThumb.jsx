@@ -1,9 +1,33 @@
+import { useEffect, useState } from 'react';
 import { ShieldAlert, X } from 'lucide-react';
+import axiosClient from '../../api/axiosClient';
 
 export default function LuggageItemThumb({ item, index, onDelete }) {
+  const [src, setSrc] = useState(null);
+
+  useEffect(() => {
+    let objectUrl;
+    let cancelled = false;
+
+    axiosClient.get(`/luggage-items/${item.id}/photo`, { responseType: 'blob' }).then((res) => {
+      if (cancelled) return;
+      objectUrl = URL.createObjectURL(res.data);
+      setSrc(objectUrl);
+    });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [item.id]);
+
   return (
     <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
-      <img src={`/${item.file_path}`} alt={`Bagage ${index + 1}`} className="h-full w-full object-cover" />
+      {src ? (
+        <img src={src} alt={`Bagage ${index + 1}`} className="h-full w-full object-cover" />
+      ) : (
+        <div className="h-full w-full animate-pulse bg-slate-200" />
+      )}
       <span className="absolute bottom-0 left-0 rounded-tr-md bg-black/50 px-1.5 py-0.5 text-[10px] font-medium text-white">
         #{index + 1}
       </span>

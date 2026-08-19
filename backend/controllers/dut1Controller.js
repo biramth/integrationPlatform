@@ -3,7 +3,7 @@ const { DEPARTMENTS } = require('../constants/departments');
 const { autoAssignRoom } = require('../services/roomAssignmentService');
 
 const ALLERGENS_SUBQUERY = `(
-  SELECT COALESCE(json_group_array(json_object('id', a.id, 'label', a.label)), '[]')
+  SELECT COALESCE(json_agg(json_build_object('id', a.id, 'label', a.label)), '[]'::json)
   FROM dut1_allergens da JOIN allergens a ON a.id = da.allergen_id
   WHERE da.dut1_id = d.id
 ) AS allergens_json`;
@@ -13,7 +13,7 @@ const LUGGAGE_ITEMS_COUNT_SUBQUERY = `(
 ) AS luggage_items_count`;
 
 const LUGGAGE_SENSITIVE_SUBQUERY = `(
-  SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id AND li.is_sensitive = 1
+  SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id AND li.is_sensitive = TRUE
 ) AS luggage_sensitive_count`;
 
 function serializeRecord(record) {
@@ -21,7 +21,7 @@ function serializeRecord(record) {
   return {
     ...record,
     extra_fields: record.extra_fields_json ? JSON.parse(record.extra_fields_json) : null,
-    allergens: 'allergens_json' in record ? JSON.parse(record.allergens_json) : undefined,
+    allergens: 'allergens_json' in record ? record.allergens_json : undefined,
   };
 }
 
@@ -44,7 +44,7 @@ function validateBasicPayload(body) {
   return null;
 }
 
-function createRecord(req, res) {
+async function createRecord(req, res) {
   const error = validateBasicPayload(req.body);
   if (error) {
     return res.status(400).json({ error });
@@ -67,36 +67,35 @@ function createRecord(req, res) {
   } = req.body;
 
   try {
-    const result = db
-      .prepare(
-        `INSERT INTO dut1_records
-          (student_number, last_name, first_name, birth_date, birth_place, gender, phone_number,
-           department, father_name, mother_name, father_phone, mother_phone, address, created_by)
-         VALUES (@studentNumber, @lastName, @firstName, @birthDate, @birthPlace, @gender, @phoneNumber,
-           @department, @fatherName, @motherName, @fatherPhone, @motherPhone, @address, @createdBy)`
-      )
-      .run({
-        studentNumber: studentNumber || null,
+    const result = await db.run(
+      `INSERT INTO dut1_records
+        (student_number, last_name, first_name, birth_date, birth_place, gender, phone_number,
+         department, father_name, mother_name, father_phone, mother_phone, address, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       RETURNING id`,
+      [
+        studentNumber || null,
         lastName,
         firstName,
         birthDate,
         birthPlace,
         gender,
-        phoneNumber: phoneNumber || null,
+        phoneNumber || null,
         department,
-        fatherName: fatherName || null,
-        motherName: motherName || null,
-        fatherPhone: fatherPhone || null,
-        motherPhone: motherPhone || null,
-        address: address || null,
-        createdBy: req.user.id,
-      });
+        fatherName || null,
+        motherName || null,
+        fatherPhone || null,
+        motherPhone || null,
+        address || null,
+        req.user.id,
+      ]
+    );
 
-    const dut1Id = result.lastInsertRowid;
-    const assignedRoomId = autoAssignRoom(dut1Id, gender, req.user.id);
+    const dut1Id = result.rows[0].id;
+    const assignedRoomId = await autoAssignRoom(dut1Id, gender, req.user.id);
 
-    const record = db.prepare('SELECT * FROM dut1_records WHERE id = ?').get(dut1Id);
-    const room = assignedRoomId ? db.prepare('SELECT * FROM rooms WHERE id = ?').get(assignedRoomId) : null;
+    const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [dut1Id]);
+    const room = assignedRoomId ? await db.get('SELECT * FROM rooms WHERE id = $1', [assignedRoomId]) : null;
 
     res.status(201).json({
       record: serializeRecord(record),
@@ -105,7 +104,7 @@ function createRecord(req, res) {
       warning: assignedRoomId ? null : 'Aucune chambre disponible pour ce genre pour le moment.',
     });
   } catch (err) {
-    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+    if (err.code === '23505') {
       return res.status(409).json({ error: 'Un dossier avec ce numéro étudiant existe déjà.' });
     }
     throw err;
@@ -116,24 +115,16 @@ function buildRecordsFilter(query) {
   const { department, gender, hasRoom, hasLuggagePhoto, complementary, search, createdBy, roomId } = query;
 
   const clauses = [];
-  const params = {};
+  const params = [];
+  const addParam = (value) => {
+    params.push(value);
+    return `$${params.length}`;
+  };
 
-  if (department) {
-    clauses.push('d.department = @department');
-    params.department = department;
-  }
-  if (gender) {
-    clauses.push('d.gender = @gender');
-    params.gender = gender;
-  }
-  if (createdBy) {
-    clauses.push('d.created_by = @createdBy');
-    params.createdBy = Number(createdBy);
-  }
-  if (roomId) {
-    clauses.push('d.room_id = @roomId');
-    params.roomId = Number(roomId);
-  }
+  if (department) clauses.push(`d.department = ${addParam(department)}`);
+  if (gender) clauses.push(`d.gender = ${addParam(gender)}`);
+  if (createdBy) clauses.push(`d.created_by = ${addParam(Number(createdBy))}`);
+  if (roomId) clauses.push(`d.room_id = ${addParam(Number(roomId))}`);
   if (hasRoom === 'true') clauses.push('d.room_id IS NOT NULL');
   if (hasRoom === 'false') clauses.push('d.room_id IS NULL');
   if (complementary === 'true') clauses.push('d.complementary_completed_at IS NOT NULL');
@@ -145,37 +136,36 @@ function buildRecordsFilter(query) {
     clauses.push('NOT EXISTS (SELECT 1 FROM luggage_items li WHERE li.dut1_id = d.id)');
   }
   if (search) {
+    const p = addParam(`%${search}%`);
     clauses.push(
-      '(d.last_name LIKE @search OR d.first_name LIKE @search OR d.student_number LIKE @search OR d.phone_number LIKE @search)'
+      `(d.last_name ILIKE ${p} OR d.first_name ILIKE ${p} OR d.student_number ILIKE ${p} OR d.phone_number ILIKE ${p})`
     );
-    params.search = `%${search}%`;
   }
 
   const whereSql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   return { whereSql, params };
 }
 
-function listRecords(req, res) {
+async function listRecords(req, res) {
   const { page = 1, pageSize = 25 } = req.query;
   const { whereSql, params } = buildRecordsFilter(req.query);
   const limit = Math.min(Number(pageSize) || 25, 100);
   const offset = (Math.max(Number(page) || 1, 1) - 1) * limit;
 
-  const total = db.prepare(`SELECT COUNT(*) AS n FROM dut1_records d ${whereSql}`).get(params).n;
+  const total = (await db.get(`SELECT COUNT(*) AS n FROM dut1_records d ${whereSql}`, params)).n;
 
-  const records = db
-    .prepare(
-      `SELECT d.*, r.label AS room_label,
-         ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
-         ${LUGGAGE_SENSITIVE_SUBQUERY},
-         ${ALLERGENS_SUBQUERY}
-       FROM dut1_records d
-       LEFT JOIN rooms r ON r.id = d.room_id
-       ${whereSql}
-       ORDER BY d.created_at DESC, d.id DESC
-       LIMIT @limit OFFSET @offset`
-    )
-    .all({ ...params, limit, offset });
+  const records = await db.all(
+    `SELECT d.*, r.label AS room_label,
+       ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
+       ${LUGGAGE_SENSITIVE_SUBQUERY},
+       ${ALLERGENS_SUBQUERY}
+     FROM dut1_records d
+     LEFT JOIN rooms r ON r.id = d.room_id
+     ${whereSql}
+     ORDER BY d.created_at DESC, d.id DESC
+     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, limit, offset]
+  );
 
   res.json({
     records: records.map(serializeRecord),
@@ -195,21 +185,20 @@ function csvEscape(value) {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
 
-function exportRecordsCsv(req, res) {
+async function exportRecordsCsv(req, res) {
   const { whereSql, params } = buildRecordsFilter(req.query);
 
-  const records = db
-    .prepare(
-      `SELECT d.id, d.student_number, d.last_name, d.first_name, d.birth_date, d.birth_place,
-              d.gender, d.phone_number, d.department, d.father_name, d.mother_name,
-              d.father_phone, d.mother_phone, d.address, r.label AS room_label,
-              d.luggage_count, d.complementary_completed_at
-       FROM dut1_records d
-       LEFT JOIN rooms r ON r.id = d.room_id
-       ${whereSql}
-       ORDER BY d.last_name, d.first_name`
-    )
-    .all(params);
+  const records = await db.all(
+    `SELECT d.id, d.student_number, d.last_name, d.first_name, d.birth_date, d.birth_place,
+            d.gender, d.phone_number, d.department, d.father_name, d.mother_name,
+            d.father_phone, d.mother_phone, d.address, r.label AS room_label,
+            d.luggage_count, d.complementary_completed_at
+     FROM dut1_records d
+     LEFT JOIN rooms r ON r.id = d.room_id
+     ${whereSql}
+     ORDER BY d.last_name, d.first_name`,
+    params
+  );
 
   const csvRows = records.map((r) => [
     r.id, r.student_number, r.last_name, r.first_name, r.birth_date, r.birth_place, r.gender,
@@ -223,35 +212,33 @@ function exportRecordsCsv(req, res) {
   res.send('﻿' + csv);
 }
 
-function getRecord(req, res) {
-  const record = db
-    .prepare(
-      `SELECT d.*, r.label AS room_label,
-         ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
-         ${LUGGAGE_SENSITIVE_SUBQUERY},
-         ${ALLERGENS_SUBQUERY}
-       FROM dut1_records d
-       LEFT JOIN rooms r ON r.id = d.room_id
-       WHERE d.id = ?`
-    )
-    .get(req.params.id);
+async function getRecord(req, res) {
+  const record = await db.get(
+    `SELECT d.*, r.label AS room_label,
+       ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
+       ${LUGGAGE_SENSITIVE_SUBQUERY},
+       ${ALLERGENS_SUBQUERY}
+     FROM dut1_records d
+     LEFT JOIN rooms r ON r.id = d.room_id
+     WHERE d.id = $1`,
+    [req.params.id]
+  );
 
   if (!record) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
 
-  const luggageItems = db
-    .prepare(
-      'SELECT id, file_path, original_name, is_sensitive, sensitive_note, uploaded_at FROM luggage_items WHERE dut1_id = ?'
-    )
-    .all(req.params.id);
+  const luggageItems = await db.all(
+    'SELECT id, file_path, original_name, is_sensitive, sensitive_note, uploaded_at FROM luggage_items WHERE dut1_id = $1',
+    [req.params.id]
+  );
 
   res.json({ record: serializeRecord(record), luggageItems });
 }
 
-function updateRecord(req, res) {
+async function updateRecord(req, res) {
   const { id } = req.params;
-  const existing = db.prepare('SELECT * FROM dut1_records WHERE id = ?').get(id);
+  const existing = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
   if (!existing) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
@@ -285,104 +272,100 @@ function updateRecord(req, res) {
     return res.status(400).json({ error: 'Au moins un numéro de téléphone parent est requis.' });
   }
 
-  db.prepare(
+  await db.run(
     `UPDATE dut1_records SET
-      student_number = @student_number, last_name = @last_name, first_name = @first_name,
-      birth_date = @birth_date, birth_place = @birth_place, gender = @gender,
-      phone_number = @phone_number, department = @department, father_name = @father_name,
-      mother_name = @mother_name, father_phone = @father_phone, mother_phone = @mother_phone,
-      address = @address, updated_by = @updated_by, updated_at = datetime('now')
-     WHERE id = @id`
-  ).run({ ...updated, updated_by: req.user.id, id });
+      student_number = $1, last_name = $2, first_name = $3,
+      birth_date = $4, birth_place = $5, gender = $6,
+      phone_number = $7, department = $8, father_name = $9,
+      mother_name = $10, father_phone = $11, mother_phone = $12,
+      address = $13, updated_by = $14, updated_at = NOW()
+     WHERE id = $15`,
+    [
+      updated.student_number, updated.last_name, updated.first_name,
+      updated.birth_date, updated.birth_place, updated.gender,
+      updated.phone_number, updated.department, updated.father_name,
+      updated.mother_name, updated.father_phone, updated.mother_phone,
+      updated.address, req.user.id, id,
+    ]
+  );
 
-  const record = db.prepare('SELECT * FROM dut1_records WHERE id = ?').get(id);
+  const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
   res.json({ record: serializeRecord(record) });
 }
 
-function deleteRecord(req, res) {
-  const result = db.prepare('DELETE FROM dut1_records WHERE id = ?').run(req.params.id);
+async function deleteRecord(req, res) {
+  const result = await db.run('DELETE FROM dut1_records WHERE id = $1', [req.params.id]);
   if (result.changes === 0) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
   res.status(204).send();
 }
 
-function listWithoutLuggage(req, res) {
-  const records = db
-    .prepare(
-      `SELECT d.*, r.label AS room_label,
-         ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
-         ${LUGGAGE_SENSITIVE_SUBQUERY}
-       FROM dut1_records d
-       LEFT JOIN rooms r ON r.id = d.room_id
-       WHERE d.luggage_count IS NULL
-          OR (SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id) < d.luggage_count
-       ORDER BY d.created_at ASC, d.id ASC`
-    )
-    .all();
+async function listWithoutLuggage(req, res) {
+  const records = await db.all(
+    `SELECT d.*, r.label AS room_label,
+       ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
+       ${LUGGAGE_SENSITIVE_SUBQUERY}
+     FROM dut1_records d
+     LEFT JOIN rooms r ON r.id = d.room_id
+     WHERE d.luggage_count IS NULL
+        OR (SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id) < d.luggage_count
+     ORDER BY d.created_at ASC, d.id ASC`
+  );
   res.json({ records: records.map(serializeRecord) });
 }
 
-function listWithoutComplementary(req, res) {
-  const records = db
-    .prepare(
-      `SELECT d.*, ${ALLERGENS_SUBQUERY}
-       FROM dut1_records d
-       WHERE d.complementary_completed_at IS NULL
-       ORDER BY d.created_at ASC, d.id ASC`
-    )
-    .all();
+async function listWithoutComplementary(req, res) {
+  const records = await db.all(
+    `SELECT d.*, ${ALLERGENS_SUBQUERY}
+     FROM dut1_records d
+     WHERE d.complementary_completed_at IS NULL
+     ORDER BY d.created_at ASC, d.id ASC`
+  );
   res.json({ records: records.map(serializeRecord) });
 }
 
-function completeComplementary(req, res) {
+async function completeComplementary(req, res) {
   const { id } = req.params;
-  const existing = db.prepare('SELECT id FROM dut1_records WHERE id = ?').get(id);
+  const existing = await db.get('SELECT id FROM dut1_records WHERE id = $1', [id]);
   if (!existing) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
 
   const extraFields = req.body.extraFields || {};
 
-  db.prepare(
+  await db.run(
     `UPDATE dut1_records
-     SET extra_fields_json = @extraFieldsJson,
-         complementary_completed_at = datetime('now'),
-         complementary_completed_by = @userId,
-         updated_by = @userId,
-         updated_at = datetime('now')
-     WHERE id = @id`
-  ).run({ extraFieldsJson: JSON.stringify(extraFields), userId: req.user.id, id });
+     SET extra_fields_json = $1,
+         complementary_completed_at = NOW(),
+         complementary_completed_by = $2,
+         updated_by = $2,
+         updated_at = NOW()
+     WHERE id = $3`,
+    [JSON.stringify(extraFields), req.user.id, id]
+  );
 
-  const record = db.prepare('SELECT * FROM dut1_records WHERE id = ?').get(id);
+  const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
   res.json({ record: serializeRecord(record) });
 }
 
-const replaceAllergensStmt = {
-  clear: db.prepare('DELETE FROM dut1_allergens WHERE dut1_id = ?'),
-  insert: db.prepare('INSERT INTO dut1_allergens (dut1_id, allergen_id) VALUES (?, ?)'),
-};
-
-const updateAllergies = db.transaction((dut1Id, allergenIds) => {
-  replaceAllergensStmt.clear.run(dut1Id);
-  for (const allergenId of allergenIds) {
-    replaceAllergensStmt.insert.run(dut1Id, allergenId);
-  }
-});
-
-function setAllergies(req, res) {
+async function setAllergies(req, res) {
   const { id } = req.params;
-  const existing = db.prepare('SELECT id FROM dut1_records WHERE id = ?').get(id);
+  const existing = await db.get('SELECT id FROM dut1_records WHERE id = $1', [id]);
   if (!existing) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
 
   const allergenIds = Array.isArray(req.body.allergenIds) ? req.body.allergenIds.map(Number) : [];
-  updateAllergies(id, allergenIds);
 
-  const record = db
-    .prepare(`SELECT d.*, ${ALLERGENS_SUBQUERY} FROM dut1_records d WHERE d.id = ?`)
-    .get(id);
+  await db.transaction(async (tx) => {
+    await tx.run('DELETE FROM dut1_allergens WHERE dut1_id = $1', [id]);
+    for (const allergenId of allergenIds) {
+      await tx.run('INSERT INTO dut1_allergens (dut1_id, allergen_id) VALUES ($1, $2)', [id, allergenId]);
+    }
+  });
+
+  const record = await db.get(`SELECT d.*, ${ALLERGENS_SUBQUERY} FROM dut1_records d WHERE d.id = $1`, [id]);
   res.json({ record: serializeRecord(record) });
 }
 

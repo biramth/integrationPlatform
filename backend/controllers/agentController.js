@@ -6,14 +6,12 @@ function serialize(user) {
   return rest;
 }
 
-function listAgents(req, res) {
-  const agents = db
-    .prepare('SELECT * FROM users ORDER BY full_name ASC')
-    .all();
+async function listAgents(req, res) {
+  const agents = await db.all('SELECT * FROM users ORDER BY full_name ASC');
   res.json({ agents: agents.map(serialize) });
 }
 
-function createAgent(req, res) {
+async function createAgent(req, res) {
   const { fullName, username, password, role } = req.body;
 
   if (!fullName || !username || !password || !role) {
@@ -27,23 +25,24 @@ function createAgent(req, res) {
   }
 
   try {
-    const result = db
-      .prepare('INSERT INTO users (full_name, username, password_hash, role) VALUES (?, ?, ?, ?)')
-      .run(fullName, username, hashPassword(password), role);
+    const result = await db.run(
+      'INSERT INTO users (full_name, username, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id',
+      [fullName, username, hashPassword(password), role]
+    );
 
-    const agent = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+    const agent = await db.get('SELECT * FROM users WHERE id = $1', [result.rows[0].id]);
     res.status(201).json({ agent: serialize(agent) });
   } catch (err) {
-    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      return res.status(409).json({ error: 'Ce nom d\'utilisateur existe déjà.' });
+    if (err.code === '23505') {
+      return res.status(409).json({ error: "Ce nom d'utilisateur existe déjà." });
     }
     throw err;
   }
 }
 
-function updateAgent(req, res) {
+async function updateAgent(req, res) {
   const { id } = req.params;
-  const agent = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+  const agent = await db.get('SELECT * FROM users WHERE id = $1', [id]);
   if (!agent) {
     return res.status(404).json({ error: 'Agent introuvable.' });
   }
@@ -53,19 +52,20 @@ function updateAgent(req, res) {
     return res.status(400).json({ error: 'role invalide.' });
   }
 
-  db.prepare(
-    `UPDATE users SET full_name = ?, role = ?, is_active = ?, updated_at = datetime('now') WHERE id = ?`
-  ).run(
-    fullName ?? agent.full_name,
-    role ?? agent.role,
-    isActive !== undefined ? (isActive ? 1 : 0) : agent.is_active,
-    id
+  await db.run(
+    `UPDATE users SET full_name = $1, role = $2, is_active = $3, updated_at = NOW() WHERE id = $4`,
+    [
+      fullName ?? agent.full_name,
+      role ?? agent.role,
+      isActive !== undefined ? !!isActive : agent.is_active,
+      id,
+    ]
   );
 
-  res.json({ agent: serialize(db.prepare('SELECT * FROM users WHERE id = ?').get(id)) });
+  res.json({ agent: serialize(await db.get('SELECT * FROM users WHERE id = $1', [id])) });
 }
 
-function resetPassword(req, res) {
+async function resetPassword(req, res) {
   const { id } = req.params;
   const { password } = req.body;
 
@@ -73,9 +73,10 @@ function resetPassword(req, res) {
     return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères.' });
   }
 
-  const result = db
-    .prepare(`UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`)
-    .run(hashPassword(password), id);
+  const result = await db.run(
+    `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+    [hashPassword(password), id]
+  );
 
   if (result.changes === 0) {
     return res.status(404).json({ error: 'Agent introuvable.' });
@@ -84,10 +85,11 @@ function resetPassword(req, res) {
   res.status(204).send();
 }
 
-function deactivateAgent(req, res) {
-  const result = db
-    .prepare(`UPDATE users SET is_active = 0, updated_at = datetime('now') WHERE id = ?`)
-    .run(req.params.id);
+async function deactivateAgent(req, res) {
+  const result = await db.run(
+    `UPDATE users SET is_active = FALSE, updated_at = NOW() WHERE id = $1`,
+    [req.params.id]
+  );
 
   if (result.changes === 0) {
     return res.status(404).json({ error: 'Agent introuvable.' });

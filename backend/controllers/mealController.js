@@ -2,42 +2,43 @@ const db = require('../db/database');
 
 const MEAL_TYPES = ['petit-dejeuner', 'dejeuner', 'diner'];
 
+const DISH_ALLERGENS_SUBQUERY = `(
+  SELECT COALESCE(json_agg(json_build_object('id', a.id, 'label', a.label)), '[]'::json)
+  FROM dish_allergens dga JOIN allergens a ON a.id = dga.allergen_id
+  WHERE dga.dish_id = dish.id
+) AS dish_allergens_json`;
+
 function serializeMealService(row, dishRows) {
   const dishes = dishRows
     .filter((d) => d.meal_service_id === row.id)
     .map((d) => ({
       id: d.dish_id,
       name: d.dish_name,
-      allergens: d.dish_allergens_json ? JSON.parse(d.dish_allergens_json) : [],
+      allergens: d.dish_allergens_json || [],
     }));
   return { id: row.id, serviceDate: row.service_date, mealType: row.meal_type, dishes };
 }
 
-function listMealServices(req, res) {
+async function listMealServices(req, res) {
   const { date } = req.query;
   if (!date) {
     return res.status(400).json({ error: 'date requise (YYYY-MM-DD).' });
   }
 
-  const services = db
-    .prepare('SELECT * FROM meal_services WHERE service_date = ? ORDER BY meal_type')
-    .all(date);
+  const services = await db.all('SELECT * FROM meal_services WHERE service_date = $1 ORDER BY meal_type', [date]);
 
-  const dishRows = db
-    .prepare(
-      `SELECT dish.id AS dish_id, dish.name AS dish_name, dish.meal_service_id,
-         (SELECT COALESCE(json_group_array(json_object('id', a.id, 'label', a.label)), '[]')
-          FROM dish_allergens dga JOIN allergens a ON a.id = dga.allergen_id
-          WHERE dga.dish_id = dish.id) AS dish_allergens_json
-       FROM dishes dish
-       WHERE dish.meal_service_id IN (SELECT id FROM meal_services WHERE service_date = ?)`
-    )
-    .all(date);
+  const dishRows = await db.all(
+    `SELECT dish.id AS dish_id, dish.name AS dish_name, dish.meal_service_id,
+       ${DISH_ALLERGENS_SUBQUERY}
+     FROM dishes dish
+     WHERE dish.meal_service_id IN (SELECT id FROM meal_services WHERE service_date = $1)`,
+    [date]
+  );
 
   res.json({ mealServices: services.map((s) => serializeMealService(s, dishRows)) });
 }
 
-function createMealService(req, res) {
+async function createMealService(req, res) {
   const { serviceDate, mealType } = req.body;
   if (!serviceDate || !mealType) {
     return res.status(400).json({ error: 'serviceDate et mealType sont requis.' });
@@ -46,22 +47,24 @@ function createMealService(req, res) {
     return res.status(400).json({ error: `mealType doit être l'un de : ${MEAL_TYPES.join(', ')}.` });
   }
 
-  db.prepare(
-    'INSERT OR IGNORE INTO meal_services (service_date, meal_type, created_by) VALUES (?, ?, ?)'
-  ).run(serviceDate, mealType, req.user.id);
+  await db.run(
+    'INSERT INTO meal_services (service_date, meal_type, created_by) VALUES ($1, $2, $3) ON CONFLICT (service_date, meal_type) DO NOTHING',
+    [serviceDate, mealType, req.user.id]
+  );
 
-  const service = db
-    .prepare('SELECT * FROM meal_services WHERE service_date = ? AND meal_type = ?')
-    .get(serviceDate, mealType);
+  const service = await db.get(
+    'SELECT * FROM meal_services WHERE service_date = $1 AND meal_type = $2',
+    [serviceDate, mealType]
+  );
 
   res.status(201).json({ mealService: serializeMealService(service, []) });
 }
 
-function createDish(req, res) {
+async function createDish(req, res) {
   const { id } = req.params;
   const { name, allergenIds } = req.body;
 
-  const service = db.prepare('SELECT * FROM meal_services WHERE id = ?').get(id);
+  const service = await db.get('SELECT * FROM meal_services WHERE id = $1', [id]);
   if (!service) {
     return res.status(404).json({ error: 'Service de repas introuvable.' });
   }
@@ -69,39 +72,34 @@ function createDish(req, res) {
     return res.status(400).json({ error: 'name requis.' });
   }
 
-  const insertDish = db.transaction(() => {
-    const result = db
-      .prepare('INSERT INTO dishes (meal_service_id, name, created_by) VALUES (?, ?, ?)')
-      .run(id, name, req.user.id);
-    const dishId = result.lastInsertRowid;
+  const dishId = await db.transaction(async (tx) => {
+    const result = await tx.run(
+      'INSERT INTO dishes (meal_service_id, name, created_by) VALUES ($1, $2, $3) RETURNING id',
+      [id, name, req.user.id]
+    );
+    const newDishId = result.rows[0].id;
 
     const ids = Array.isArray(allergenIds) ? allergenIds.map(Number) : [];
-    const insertAllergen = db.prepare('INSERT INTO dish_allergens (dish_id, allergen_id) VALUES (?, ?)');
     for (const allergenId of ids) {
-      insertAllergen.run(dishId, allergenId);
+      await tx.run('INSERT INTO dish_allergens (dish_id, allergen_id) VALUES ($1, $2)', [newDishId, allergenId]);
     }
-    return dishId;
+    return newDishId;
   });
 
-  const dishId = insertDish();
-
-  const dishRow = db
-    .prepare(
-      `SELECT dish.id AS dish_id, dish.name AS dish_name, dish.meal_service_id,
-         (SELECT COALESCE(json_group_array(json_object('id', a.id, 'label', a.label)), '[]')
-          FROM dish_allergens dga JOIN allergens a ON a.id = dga.allergen_id
-          WHERE dga.dish_id = dish.id) AS dish_allergens_json
-       FROM dishes dish WHERE dish.id = ?`
-    )
-    .get(dishId);
+  const dishRow = await db.get(
+    `SELECT dish.id AS dish_id, dish.name AS dish_name, dish.meal_service_id,
+       ${DISH_ALLERGENS_SUBQUERY}
+     FROM dishes dish WHERE dish.id = $1`,
+    [dishId]
+  );
 
   res.status(201).json({
-    dish: { id: dishRow.dish_id, name: dishRow.dish_name, allergens: JSON.parse(dishRow.dish_allergens_json) },
+    dish: { id: dishRow.dish_id, name: dishRow.dish_name, allergens: dishRow.dish_allergens_json || [] },
   });
 }
 
-function deleteDish(req, res) {
-  const result = db.prepare('DELETE FROM dishes WHERE id = ?').run(req.params.id);
+async function deleteDish(req, res) {
+  const result = await db.run('DELETE FROM dishes WHERE id = $1', [req.params.id]);
   if (result.changes === 0) {
     return res.status(404).json({ error: 'Plat introuvable.' });
   }

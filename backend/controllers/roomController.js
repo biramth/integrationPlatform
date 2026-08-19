@@ -1,21 +1,19 @@
 const db = require('../db/database');
 const { manualAssignRoom } = require('../services/roomAssignmentService');
 
-function listRooms(req, res) {
-  const rooms = db
-    .prepare(
-      `SELECT r.*, COUNT(d.id) AS occupied
-       FROM rooms r
-       LEFT JOIN dut1_records d ON d.room_id = r.id
-       GROUP BY r.id
-       ORDER BY r.label ASC`
-    )
-    .all();
+async function listRooms(req, res) {
+  const rooms = await db.all(
+    `SELECT r.*, COUNT(d.id) AS occupied
+     FROM rooms r
+     LEFT JOIN dut1_records d ON d.room_id = r.id
+     GROUP BY r.id
+     ORDER BY r.label ASC`
+  );
 
-  res.json({ rooms });
+  res.json({ rooms: rooms.map((r) => ({ ...r, occupied: Number(r.occupied) })) });
 }
 
-function createRoom(req, res) {
+async function createRoom(req, res) {
   const { label, gender, capacity, building } = req.body;
 
   if (!label || !gender || !capacity) {
@@ -29,23 +27,24 @@ function createRoom(req, res) {
   }
 
   try {
-    const result = db
-      .prepare('INSERT INTO rooms (label, gender, capacity, building) VALUES (?, ?, ?, ?)')
-      .run(label, gender, Number(capacity), building || null);
+    const result = await db.run(
+      'INSERT INTO rooms (label, gender, capacity, building) VALUES ($1, $2, $3, $4) RETURNING id',
+      [label, gender, Number(capacity), building || null]
+    );
 
-    const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(result.lastInsertRowid);
+    const room = await db.get('SELECT * FROM rooms WHERE id = $1', [result.rows[0].id]);
     res.status(201).json({ room });
   } catch (err) {
-    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+    if (err.code === '23505') {
       return res.status(409).json({ error: 'Une chambre avec ce label existe déjà.' });
     }
     throw err;
   }
 }
 
-function updateRoom(req, res) {
+async function updateRoom(req, res) {
   const { id } = req.params;
-  const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(id);
+  const room = await db.get('SELECT * FROM rooms WHERE id = $1', [id]);
   if (!room) {
     return res.status(404).json({ error: 'Chambre introuvable.' });
   }
@@ -58,22 +57,23 @@ function updateRoom(req, res) {
     return res.status(400).json({ error: 'capacity doit être positif.' });
   }
 
-  db.prepare(
-    `UPDATE rooms SET label = ?, gender = ?, capacity = ?, building = ?, updated_at = datetime('now') WHERE id = ?`
-  ).run(
-    label ?? room.label,
-    gender ?? room.gender,
-    capacity !== undefined ? Number(capacity) : room.capacity,
-    building !== undefined ? building : room.building,
-    id
+  await db.run(
+    `UPDATE rooms SET label = $1, gender = $2, capacity = $3, building = $4, updated_at = NOW() WHERE id = $5`,
+    [
+      label ?? room.label,
+      gender ?? room.gender,
+      capacity !== undefined ? Number(capacity) : room.capacity,
+      building !== undefined ? building : room.building,
+      id,
+    ]
   );
 
-  res.json({ room: db.prepare('SELECT * FROM rooms WHERE id = ?').get(id) });
+  res.json({ room: await db.get('SELECT * FROM rooms WHERE id = $1', [id]) });
 }
 
-function updateMattressCount(req, res) {
+async function updateMattressCount(req, res) {
   const { id } = req.params;
-  const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(id);
+  const room = await db.get('SELECT * FROM rooms WHERE id = $1', [id]);
   if (!room) {
     return res.status(404).json({ error: 'Chambre introuvable.' });
   }
@@ -84,18 +84,18 @@ function updateMattressCount(req, res) {
     return res.status(400).json({ error: 'mattressCount doit être un nombre positif ou nul.' });
   }
 
-  db.prepare(`UPDATE rooms SET mattress_count = ?, updated_at = datetime('now') WHERE id = ?`).run(value, id);
-  res.json({ room: db.prepare('SELECT * FROM rooms WHERE id = ?').get(id) });
+  await db.run(`UPDATE rooms SET mattress_count = $1, updated_at = NOW() WHERE id = $2`, [value, id]);
+  res.json({ room: await db.get('SELECT * FROM rooms WHERE id = $1', [id]) });
 }
 
-function deleteRoom(req, res) {
+async function deleteRoom(req, res) {
   const { id } = req.params;
-  const occupied = db.prepare('SELECT COUNT(*) AS n FROM dut1_records WHERE room_id = ?').get(id).n;
-  if (occupied > 0) {
+  const occupiedRow = await db.get('SELECT COUNT(*) AS n FROM dut1_records WHERE room_id = $1', [id]);
+  if (Number(occupiedRow.n) > 0) {
     return res.status(409).json({ error: 'Impossible de supprimer une chambre occupée.' });
   }
 
-  const result = db.prepare('DELETE FROM rooms WHERE id = ?').run(id);
+  const result = await db.run('DELETE FROM rooms WHERE id = $1', [id]);
   if (result.changes === 0) {
     return res.status(404).json({ error: 'Chambre introuvable.' });
   }
@@ -103,7 +103,7 @@ function deleteRoom(req, res) {
   res.status(204).send();
 }
 
-function reassignDut1Room(req, res) {
+async function reassignDut1Room(req, res) {
   const { id } = req.params;
   const { roomId } = req.body;
 
@@ -112,8 +112,8 @@ function reassignDut1Room(req, res) {
   }
 
   try {
-    manualAssignRoom(Number(id), Number(roomId), req.user.id);
-    const record = db.prepare('SELECT id, room_id FROM dut1_records WHERE id = ?').get(id);
+    await manualAssignRoom(Number(id), Number(roomId), req.user.id);
+    const record = await db.get('SELECT id, room_id FROM dut1_records WHERE id = $1', [id]);
     res.json({ dut1Id: record.id, roomId: record.room_id });
   } catch (err) {
     if (err.status) {

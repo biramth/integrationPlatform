@@ -1,31 +1,30 @@
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE IF NOT EXISTS users (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   full_name     TEXT NOT NULL,
   username      TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   role          TEXT NOT NULL CHECK (role IN ('registrar','logistics','admin','sante','cuisine')),
-  is_active     INTEGER NOT NULL DEFAULT 1,
-  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS rooms (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   label           TEXT NOT NULL UNIQUE,
   gender          TEXT NOT NULL CHECK (gender IN ('M','F')),
   capacity        INTEGER NOT NULL CHECK (capacity > 0),
   building        TEXT,
   -- NULL = pas encore compté sur le terrain par la commission Orga
   mattress_count  INTEGER,
-  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Dossier DUT1 : phase 1 = colonnes obligatoires ; phase 2 = complementary_completed_at + extra_fields_json
+-- birth_date reste TEXT (YYYY-MM-DD) pour éviter toute conversion de fuseau horaire à l'affichage.
 CREATE TABLE IF NOT EXISTS dut1_records (
-  id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+  id                          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
   student_number              TEXT UNIQUE,
   last_name                   TEXT NOT NULL,
@@ -41,49 +40,50 @@ CREATE TABLE IF NOT EXISTS dut1_records (
   mother_phone                TEXT,
   address                     TEXT,
 
-  complementary_completed_at  TEXT,
+  complementary_completed_at  TIMESTAMPTZ,
   complementary_completed_by  INTEGER REFERENCES users(id),
   extra_fields_json           TEXT,
 
   room_id           INTEGER REFERENCES rooms(id) ON DELETE SET NULL,
-  room_assigned_at  TEXT,
+  room_assigned_at  TIMESTAMPTZ,
 
   -- Bagages (commission Orga) : nombre déclaré par le DUT1, un luggage_item par bagage photographié
   luggage_count     INTEGER,
 
   created_by  INTEGER NOT NULL REFERENCES users(id),
   updated_by  INTEGER REFERENCES users(id),
-  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Un bagage = une photo + son statut "objet sensible" (espèces, électronique, papiers importants...)
+-- Un bagage = une photo (Supabase Storage) + son statut "objet sensible" (espèces, électronique, papiers importants...)
+-- file_path stocke le chemin de l'objet dans le bucket Supabase Storage (pas un chemin disque local).
 CREATE TABLE IF NOT EXISTS luggage_items (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   dut1_id         INTEGER NOT NULL REFERENCES dut1_records(id) ON DELETE CASCADE,
   file_path       TEXT NOT NULL,
   original_name   TEXT,
-  is_sensitive    INTEGER NOT NULL DEFAULT 0,
+  is_sensitive    BOOLEAN NOT NULL DEFAULT FALSE,
   sensitive_note  TEXT,
   uploaded_by     INTEGER NOT NULL REFERENCES users(id),
-  uploaded_at     TEXT NOT NULL DEFAULT (datetime('now'))
+  uploaded_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS room_assignment_history (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   dut1_id      INTEGER NOT NULL REFERENCES dut1_records(id) ON DELETE CASCADE,
   old_room_id  INTEGER REFERENCES rooms(id),
   new_room_id  INTEGER REFERENCES rooms(id),
   changed_by   INTEGER NOT NULL REFERENCES users(id),
   reason       TEXT,
-  changed_at   TEXT NOT NULL DEFAULT (datetime('now'))
+  changed_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Allergènes (liste gérée par la commission Santé)
 CREATE TABLE IF NOT EXISTS allergens (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   label       TEXT NOT NULL UNIQUE,
-  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Allergies déclarées d'un DUT1 (sélection structurée, remplie en phase 2)
@@ -94,21 +94,22 @@ CREATE TABLE IF NOT EXISTS dut1_allergens (
 );
 
 -- Services de repas (commission Cuisine) : un par jour + type de repas
+-- service_date reste TEXT (YYYY-MM-DD), comparé tel quel dans les requêtes.
 CREATE TABLE IF NOT EXISTS meal_services (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   service_date  TEXT NOT NULL,
   meal_type     TEXT NOT NULL CHECK (meal_type IN ('petit-dejeuner','dejeuner','diner')),
   created_by    INTEGER NOT NULL REFERENCES users(id),
-  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (service_date, meal_type)
 );
 
 CREATE TABLE IF NOT EXISTS dishes (
-  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  id                INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   meal_service_id   INTEGER NOT NULL REFERENCES meal_services(id) ON DELETE CASCADE,
   name              TEXT NOT NULL,
   created_by        INTEGER NOT NULL REFERENCES users(id),
-  created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS dish_allergens (
@@ -117,14 +118,14 @@ CREATE TABLE IF NOT EXISTS dish_allergens (
   PRIMARY KEY (dish_id, allergen_id)
 );
 
--- Déclarations de maladie (commission Santé)
+-- Déclarations de maladie (commission Santé). illness_date reste TEXT (YYYY-MM-DD).
 CREATE TABLE IF NOT EXISTS illness_records (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   dut1_id       INTEGER NOT NULL REFERENCES dut1_records(id) ON DELETE CASCADE,
   illness_date  TEXT NOT NULL,
   note          TEXT,
   declared_by   INTEGER NOT NULL REFERENCES users(id),
-  created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_dut1_department ON dut1_records(department);

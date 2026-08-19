@@ -15,6 +15,7 @@ router.post(
   luggageController.createLuggageItem
 );
 router.get('/dut1/:id/luggage-items', luggageController.listLuggageItems);
+router.get('/luggage-items/:itemId/photo', luggageController.getLuggagePhotoUrl);
 router.delete('/luggage-items/:itemId', requireRole('logistics', 'admin'), luggageController.deleteLuggageItem);
 
 module.exports = router;

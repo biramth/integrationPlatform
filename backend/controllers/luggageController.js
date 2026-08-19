@@ -1,13 +1,11 @@
 const db = require('../db/database');
-const fs = require('fs');
-const path = require('path');
+const storage = require('../services/storageService');
 
-function createLuggageItem(req, res) {
+async function createLuggageItem(req, res) {
   const { id } = req.params;
-  const record = db.prepare('SELECT id FROM dut1_records WHERE id = ?').get(id);
+  const record = await db.get('SELECT id FROM dut1_records WHERE id = $1', [id]);
 
   if (!record) {
-    if (req.file) fs.unlinkSync(req.file.path);
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
 
@@ -15,41 +13,39 @@ function createLuggageItem(req, res) {
     return res.status(400).json({ error: 'Fichier photo requis (champ "photo").' });
   }
 
-  const relativePath = path.relative(path.join(__dirname, '..'), req.file.path).replace(/\\/g, '/');
   const isSensitive = req.body.isSensitive === 'true' || req.body.isSensitive === '1';
+  const objectPath = await storage.uploadLuggagePhoto(id, req.file);
 
-  const result = db
-    .prepare(
-      `INSERT INTO luggage_items (dut1_id, file_path, original_name, is_sensitive, sensitive_note, uploaded_by)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    )
-    .run(id, relativePath, req.file.originalname, isSensitive ? 1 : 0, req.body.sensitiveNote || null, req.user.id);
+  const result = await db.run(
+    `INSERT INTO luggage_items (dut1_id, file_path, original_name, is_sensitive, sensitive_note, uploaded_by)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+    [id, objectPath, req.file.originalname, isSensitive, req.body.sensitiveNote || null, req.user.id]
+  );
 
-  const item = db.prepare('SELECT * FROM luggage_items WHERE id = ?').get(result.lastInsertRowid);
+  const item = await db.get('SELECT * FROM luggage_items WHERE id = $1', [result.rows[0].id]);
   res.status(201).json({ item });
 }
 
-function listLuggageItems(req, res) {
-  const items = db
-    .prepare('SELECT * FROM luggage_items WHERE dut1_id = ? ORDER BY uploaded_at ASC')
-    .all(req.params.id);
+async function listLuggageItems(req, res) {
+  const items = await db.all(
+    'SELECT id, file_path, original_name, is_sensitive, sensitive_note, uploaded_at FROM luggage_items WHERE dut1_id = $1',
+    [req.params.id]
+  );
   res.json({ items });
 }
 
-function deleteLuggageItem(req, res) {
-  const item = db.prepare('SELECT * FROM luggage_items WHERE id = ?').get(req.params.itemId);
+async function deleteLuggageItem(req, res) {
+  const item = await db.get('SELECT * FROM luggage_items WHERE id = $1', [req.params.itemId]);
   if (!item) {
     return res.status(404).json({ error: 'Bagage introuvable.' });
   }
 
-  const absolutePath = path.join(__dirname, '..', item.file_path);
-  fs.rm(absolutePath, { force: true }, () => {});
-
-  db.prepare('DELETE FROM luggage_items WHERE id = ?').run(req.params.itemId);
+  await storage.deleteLuggagePhoto(item.file_path);
+  await db.run('DELETE FROM luggage_items WHERE id = $1', [req.params.itemId]);
   res.status(204).send();
 }
 
-function setLuggageCount(req, res) {
+async function setLuggageCount(req, res) {
   const { id } = req.params;
   const { luggageCount } = req.body;
 
@@ -58,16 +54,27 @@ function setLuggageCount(req, res) {
     return res.status(400).json({ error: 'luggageCount doit être un entier positif ou nul.' });
   }
 
-  const result = db
-    .prepare(`UPDATE dut1_records SET luggage_count = ?, updated_at = datetime('now') WHERE id = ?`)
-    .run(count, id);
+  const result = await db.run(
+    `UPDATE dut1_records SET luggage_count = $1, updated_at = NOW() WHERE id = $2`,
+    [count, id]
+  );
 
   if (result.changes === 0) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
 
-  const record = db.prepare('SELECT id, luggage_count FROM dut1_records WHERE id = ?').get(id);
+  const record = await db.get('SELECT id, luggage_count FROM dut1_records WHERE id = $1', [id]);
   res.json({ record });
+}
+
+async function getLuggagePhotoUrl(req, res) {
+  const item = await db.get('SELECT file_path FROM luggage_items WHERE id = $1', [req.params.itemId]);
+  if (!item) {
+    return res.status(404).json({ error: 'Bagage introuvable.' });
+  }
+
+  const url = await storage.getSignedUrl(item.file_path);
+  res.redirect(url);
 }
 
 module.exports = {
@@ -75,4 +82,5 @@ module.exports = {
   listLuggageItems,
   deleteLuggageItem,
   setLuggageCount,
+  getLuggagePhotoUrl,
 };

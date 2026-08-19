@@ -1,8 +1,15 @@
 const fs = require('fs');
 const path = require('path');
-const db = require('./database');
+const { pool } = require('./database');
 
-const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
-db.exec(schema);
+async function migrate() {
+  const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+  await pool.query(schema);
+  console.log('Migration terminée : schéma appliqué.');
+  await pool.end();
+}
 
-console.log('Migration terminée : schéma appliqué.');
+migrate().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
