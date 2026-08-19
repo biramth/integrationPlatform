@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trash2, Plus, UtensilsCrossed } from 'lucide-react';
+import { Trash2, Plus, UtensilsCrossed, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as mealApi from '../../api/mealApi';
 import { listAllergens } from '../../api/allergenApi';
@@ -18,6 +18,12 @@ import { staggerStyle } from '../../utils/stagger';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function shiftDate(iso, days) {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 export default function MenuPage() {
@@ -72,7 +78,25 @@ export default function MenuPage() {
       />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-        <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <div className="flex items-end gap-1">
+          <button
+            type="button"
+            onClick={() => setDate((d) => shiftDate(d, -1))}
+            className="flex h-11 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-500 transition-colors hover:bg-slate-50"
+            aria-label="Jour précédent"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <button
+            type="button"
+            onClick={() => setDate((d) => shiftDate(d, 1))}
+            className="flex h-11 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-500 transition-colors hover:bg-slate-50"
+            aria-label="Jour suivant"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
         <Tabs value={mealType} onValueChange={setMealType}>
           <TabsList className="h-11 p-1">
             {MEAL_TYPES.map((mt) => (

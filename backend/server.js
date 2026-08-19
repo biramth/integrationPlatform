@@ -13,6 +13,8 @@ const allergenRoutes = require('./routes/allergenRoutes');
 const mealRoutes = require('./routes/mealRoutes');
 const healthRoutes = require('./routes/healthRoutes');
 const activityRoutes = require('./routes/activityRoutes');
+const importRoutes = require('./routes/importRoutes');
+const admittedStudentsRoutes = require('./routes/admittedStudentsRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -31,6 +33,8 @@ app.use('/api/allergens', allergenRoutes);
 app.use('/api', mealRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/activities', activityRoutes);
+app.use('/api/import', importRoutes);
+app.use('/api/admitted-students', admittedStudentsRoutes);
 
 app.use('/api', notFoundHandler);
 

@@ -1,5 +1,5 @@
 const db = require('../db/database');
-const { manualAssignRoom } = require('../services/roomAssignmentService');
+const { manualAssignRoom, getHistoryForRoom } = require('../services/roomAssignmentService');
 
 async function listRooms(req, res) {
   const rooms = await db.all(
@@ -123,4 +123,17 @@ async function reassignDut1Room(req, res) {
   }
 }
 
-module.exports = { listRooms, createRoom, updateRoom, updateMattressCount, deleteRoom, reassignDut1Room };
+async function getRoomHistory(req, res) {
+  const history = await getHistoryForRoom(req.params.id);
+  res.json({ history });
+}
+
+module.exports = {
+  listRooms,
+  createRoom,
+  updateRoom,
+  updateMattressCount,
+  deleteRoom,
+  reassignDut1Room,
+  getRoomHistory,
+};

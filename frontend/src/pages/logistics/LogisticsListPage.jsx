@@ -9,6 +9,7 @@ import Input from '../../components/common/Input';
 import PhotoCapture from '../../components/upload/PhotoCapture';
 import LuggageItemThumb from '../../components/upload/LuggageItemThumb';
 import PageHeader from '../../components/common/PageHeader';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyState, ErrorState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
@@ -16,10 +17,41 @@ import { staggerStyle } from '../../utils/stagger';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
 import { Progress } from '@/components/ui/progress';
 
+function RecentLuggageTab() {
+  const { data, loading, error, reload } = useFetch(luggageApi.listMyLuggageItems, []);
+
+  if (loading) return <CardListSkeleton />;
+  if (error) return <ErrorState label={error} onRetry={reload} />;
+  if (data.items.length === 0) return <EmptyState label="Tu n'as pas encore traité de bagage." />;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {data.items.map((item, i) => (
+        <div key={item.id} className="animate-fade-in-up" style={staggerStyle(i)}>
+          <Card className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-medium text-slate-900">
+                {item.first_name} {item.last_name}
+              </p>
+              <p className="text-xs text-slate-500">{new Date(item.uploaded_at).toLocaleString('fr-FR')}</p>
+            </div>
+            {item.is_sensitive && (
+              <Badge variant="warning">
+                <ShieldAlert className="mr-1 inline h-3 w-3" /> Sensible
+              </Badge>
+            )}
+          </Card>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function LogisticsListPage() {
   const { showToast } = useToast();
   const { data, loading, error, reload } = useFetch(listWithoutLuggage, []);
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState('todo');
   const [expandedId, setExpandedId] = useState(null);
   const [submittingId, setSubmittingId] = useState(null);
   const [itemsByDut1, setItemsByDut1] = useState({});
@@ -92,20 +124,35 @@ export default function LogisticsListPage() {
         description="Déclare le nombre de bagages de chaque DUT1, photographie chacun d'eux et signale les objets sensibles."
       />
 
-      <Input
-        icon={Search}
-        placeholder="Rechercher un nom…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="mb-4"
-      />
+      <Tabs value={tab} onValueChange={setTab} className="mb-4">
+        <TabsList className="h-11 p-1">
+          <TabsTrigger value="todo" className="px-3 text-sm">
+            À traiter
+          </TabsTrigger>
+          <TabsTrigger value="recent" className="px-3 text-sm">
+            Récents
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      {loading && <CardListSkeleton />}
-      {error && <ErrorState label={error} onRetry={reload} />}
-      {!loading && !error && filtered.length === 0 && <EmptyState label="Tous les bagages sont à jour." />}
+      {tab === 'recent' && <RecentLuggageTab />}
 
-      <div className="flex flex-col gap-3">
-        {filtered.map((record, i) => {
+      {tab === 'todo' && (
+        <>
+          <Input
+            icon={Search}
+            placeholder="Rechercher un nom…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="mb-4"
+          />
+
+          {loading && <CardListSkeleton />}
+          {error && <ErrorState label={error} onRetry={reload} />}
+          {!loading && !error && filtered.length === 0 && <EmptyState label="Tous les bagages sont à jour." />}
+
+          <div className="flex flex-col gap-3">
+            {filtered.map((record, i) => {
           const expanded = expandedId === record.id;
           const items = itemsByDut1[record.id];
           const hasCount = record.luggage_count !== null && record.luggage_count !== undefined;
@@ -195,7 +242,9 @@ export default function LogisticsListPage() {
             </div>
           );
         })}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

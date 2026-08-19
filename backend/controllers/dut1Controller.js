@@ -1,6 +1,6 @@
 const db = require('../db/database');
 const { DEPARTMENTS } = require('../constants/departments');
-const { autoAssignRoom } = require('../services/roomAssignmentService');
+const { autoAssignRoom, getHistoryForDut1 } = require('../services/roomAssignmentService');
 
 const ALLERGENS_SUBQUERY = `(
   SELECT COALESCE(json_agg(json_build_object('id', a.id, 'label', a.label, 'severity', da.severity)), '[]'::json)
@@ -64,6 +64,7 @@ async function createRecord(req, res) {
     fatherPhone,
     motherPhone,
     address,
+    admittedStudentId,
   } = req.body;
 
   try {
@@ -92,6 +93,16 @@ async function createRecord(req, res) {
     );
 
     const dut1Id = result.rows[0].id;
+
+    if (admittedStudentId) {
+      // Lien best-effort, jamais bloquant : le dossier existe déjà même si ce
+      // candidat de l'import a entretemps été relié à un autre dossier.
+      await db.run(
+        'UPDATE admitted_students SET matched_dut1_id = $1 WHERE id = $2 AND matched_dut1_id IS NULL',
+        [dut1Id, Number(admittedStudentId)]
+      );
+    }
+
     const assignedRoomId = await autoAssignRoom(dut1Id, gender, req.user.id);
 
     const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [dut1Id]);
@@ -271,6 +282,11 @@ async function updateRecord(req, res) {
   if (!updated.father_phone && !updated.mother_phone) {
     return res.status(400).json({ error: 'Au moins un numéro de téléphone parent est requis.' });
   }
+  if (req.body.admissionListType !== undefined && req.body.admissionListType !== null) {
+    if (!['principale', 'attente'].includes(req.body.admissionListType)) {
+      return res.status(400).json({ error: 'admissionListType doit être "principale" ou "attente".' });
+    }
+  }
 
   await db.run(
     `UPDATE dut1_records SET
@@ -288,6 +304,21 @@ async function updateRecord(req, res) {
       updated.address, req.user.id, id,
     ]
   );
+
+  if (req.body.admissionListType !== undefined) {
+    const listType = req.body.admissionListType || null;
+    if (listType) {
+      await db.run(
+        `UPDATE dut1_records SET admission_list_type = $1, admission_validated_at = NOW(), admission_validated_by = $2 WHERE id = $3`,
+        [listType, req.user.id, id]
+      );
+    } else {
+      await db.run(
+        `UPDATE dut1_records SET admission_list_type = NULL, admission_validated_at = NULL, admission_validated_by = NULL WHERE id = $1`,
+        [id]
+      );
+    }
+  }
 
   const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
   res.json({ record: serializeRecord(record) });
@@ -333,6 +364,10 @@ async function completeComplementary(req, res) {
   }
 
   const extraFields = req.body.extraFields || {};
+  const { admissionListType } = req.body;
+  if (admissionListType && !['principale', 'attente'].includes(admissionListType)) {
+    return res.status(400).json({ error: 'admissionListType doit être "principale" ou "attente".' });
+  }
 
   await db.run(
     `UPDATE dut1_records
@@ -345,8 +380,20 @@ async function completeComplementary(req, res) {
     [JSON.stringify(extraFields), req.user.id, id]
   );
 
+  if (admissionListType) {
+    await db.run(
+      `UPDATE dut1_records SET admission_list_type = $1, admission_validated_at = NOW(), admission_validated_by = $2 WHERE id = $3`,
+      [admissionListType, req.user.id, id]
+    );
+  }
+
   const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
   res.json({ record: serializeRecord(record) });
+}
+
+async function getRoomHistory(req, res) {
+  const history = await getHistoryForDut1(req.params.id);
+  res.json({ history });
 }
 
 async function setAllergies(req, res) {
@@ -386,5 +433,6 @@ module.exports = {
   listWithoutLuggage,
   listWithoutComplementary,
   completeComplementary,
+  getRoomHistory,
   setAllergies,
 };

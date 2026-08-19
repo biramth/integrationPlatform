@@ -10,6 +10,7 @@ router.get('/', requireRole('logistics', 'admin'), roomController.listRooms);
 router.post('/', requireRole('admin'), roomController.createRoom);
 router.put('/:id', requireRole('admin'), roomController.updateRoom);
 router.put('/:id/mattress-count', requireRole('logistics', 'admin'), roomController.updateMattressCount);
+router.get('/:id/history', requireRole('admin'), roomController.getRoomHistory);
 router.delete('/:id', requireRole('admin'), roomController.deleteRoom);
 
 module.exports = router;

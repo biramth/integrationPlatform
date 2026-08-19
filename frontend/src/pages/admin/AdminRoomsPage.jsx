@@ -31,6 +31,8 @@ export default function AdminRoomsPage() {
 
   const [expandedId, setExpandedId] = useState(null);
   const [occupantsByRoom, setOccupantsByRoom] = useState({});
+  const [historyRoomId, setHistoryRoomId] = useState(null);
+  const [historyByRoom, setHistoryByRoom] = useState({});
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -107,6 +109,18 @@ export default function AdminRoomsPage() {
     }
   }
 
+  async function toggleHistory(room) {
+    if (historyRoomId === room.id) {
+      setHistoryRoomId(null);
+      return;
+    }
+    setHistoryRoomId(room.id);
+    if (!historyByRoom[room.id]) {
+      const res = await roomApi.getRoomHistory(room.id);
+      setHistoryByRoom((m) => ({ ...m, [room.id]: res.history }));
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -170,6 +184,8 @@ export default function AdminRoomsPage() {
           {data.rooms.map((room, i) => {
             const expanded = expandedId === room.id;
             const occupants = occupantsByRoom[room.id];
+            const historyExpanded = historyRoomId === room.id;
+            const history = historyByRoom[room.id];
             const mattress = getMattressStatus(room);
             return (
               <div key={room.id} className="animate-fade-in-up" style={staggerStyle(i)}>
@@ -183,7 +199,7 @@ export default function AdminRoomsPage() {
                   <p className="text-sm text-slate-500">{room.gender === 'M' ? 'Masculin' : 'Féminin'} · {room.building || '—'}</p>
                   <div className="mt-2">
                     <Badge variant={mattress.variant}>
-                      <BedDouble className="mr-1 inline h-3 w-3" /> Matelas {mattress.label}
+                      <BedDouble className="mr-1 inline h-3 w-3" /> {mattress.label}
                     </Badge>
                   </div>
 
@@ -203,13 +219,22 @@ export default function AdminRoomsPage() {
                         <Trash2 className="h-3.5 w-3.5" /> Supprimer
                       </button>
                     </div>
-                    <button
-                      onClick={() => toggleExpand(room)}
-                      className="flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700"
-                    >
-                      Occupants
-                      <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => toggleExpand(room)}
+                        className="flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700"
+                      >
+                        Occupants
+                        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
+                      </button>
+                      <button
+                        onClick={() => toggleHistory(room)}
+                        className="flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700"
+                      >
+                        Historique
+                        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${historyExpanded ? 'rotate-180' : ''}`} />
+                      </button>
+                    </div>
                   </div>
 
                   {expanded && (
@@ -221,6 +246,25 @@ export default function AdminRoomsPage() {
                           {occupants.map((o) => (
                             <li key={o.id} className="text-sm text-slate-700">
                               {o.first_name} {o.last_name}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+
+                  {historyExpanded && (
+                    <div className="mt-3 border-t border-slate-100 pt-3">
+                      {history === undefined && <p className="text-xs text-slate-400">Chargement…</p>}
+                      {history && history.length === 0 && <p className="text-xs text-slate-400">Aucun changement enregistré.</p>}
+                      {history && history.length > 0 && (
+                        <ul className="flex flex-col gap-1.5">
+                          {history.map((h) => (
+                            <li key={h.id} className="text-xs text-slate-600">
+                              {h.first_name} {h.last_name} —{' '}
+                              {h.old_room_label ? `${h.old_room_label} → ${h.new_room_label || 'aucune'}` : 'assigné(e) ici'}
+                              {' · '}
+                              {new Date(h.changed_at).toLocaleString('fr-FR')}
                             </li>
                           ))}
                         </ul>

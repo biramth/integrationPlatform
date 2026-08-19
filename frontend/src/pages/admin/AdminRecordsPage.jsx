@@ -1,14 +1,15 @@
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Trash2, Download, Printer } from 'lucide-react';
+import { Search, Trash2, Download, Printer, ChevronDown } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { listDut1, updateDut1, deleteDut1, reassignRoom, exportDut1Csv } from '../../api/dut1Api';
+import { listDut1, updateDut1, deleteDut1, reassignRoom, exportDut1Csv, getDut1RoomHistory } from '../../api/dut1Api';
 import { listRooms } from '../../api/roomApi';
 import RecordsTable from '../../components/table/RecordsTable';
 import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
 import Dut1BasicForm from '../../components/dut1/Dut1BasicForm';
+import AdmissionListToggle from '../../components/dut1/AdmissionListToggle';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
@@ -29,6 +30,9 @@ export default function AdminRecordsPage() {
   const [selected, setSelected] = useState(null);
   const [formValues, setFormValues] = useState(null);
   const [roomChoice, setRoomChoice] = useState('');
+  const [admissionListType, setAdmissionListType] = useState(null);
+  const [roomHistory, setRoomHistory] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -57,6 +61,9 @@ export default function AdminRecordsPage() {
     setSelected(record);
     setFormValues(recordToFormValues(record));
     setRoomChoice(record.room_id || '');
+    setAdmissionListType(record.admission_list_type || null);
+    setRoomHistory(null);
+    setHistoryOpen(false);
   }
 
   function closeModal() {
@@ -64,10 +71,17 @@ export default function AdminRecordsPage() {
     setFormValues(null);
   }
 
+  function toggleHistory() {
+    setHistoryOpen((open) => !open);
+    if (!roomHistory) {
+      getDut1RoomHistory(selected.id).then((res) => setRoomHistory(res.history));
+    }
+  }
+
   async function handleSave() {
     setSaving(true);
     try {
-      await updateDut1(selected.id, formValues);
+      await updateDut1(selected.id, { ...formValues, admissionListType });
       if (roomChoice && Number(roomChoice) !== selected.room_id) {
         await reassignRoom(selected.id, Number(roomChoice));
       }
@@ -224,6 +238,11 @@ export default function AdminRecordsPage() {
             <Dut1BasicForm values={formValues} onChange={(key, value) => setFormValues((v) => ({ ...v, [key]: value }))} />
 
             <div>
+              <p className="mb-1.5 text-sm font-medium text-slate-700">Admission au concours</p>
+              <AdmissionListToggle value={admissionListType} onChange={setAdmissionListType} />
+            </div>
+
+            <div>
               <Select
                 label="Chambre assignée"
                 value={roomChoice}
@@ -234,6 +253,34 @@ export default function AdminRecordsPage() {
                   label: `${r.label} (${r.occupied}/${r.capacity})`,
                 }))}
               />
+            </div>
+
+            <div>
+              <button
+                type="button"
+                onClick={toggleHistory}
+                className="flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700"
+              >
+                Historique des chambres
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${historyOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {historyOpen && (
+                <div className="mt-2 border-t border-slate-100 pt-2">
+                  {!roomHistory && <p className="text-xs text-slate-400">Chargement…</p>}
+                  {roomHistory && roomHistory.length === 0 && <p className="text-xs text-slate-400">Aucun changement de chambre.</p>}
+                  {roomHistory && roomHistory.length > 0 && (
+                    <ul className="flex flex-col gap-1.5">
+                      {roomHistory.map((h) => (
+                        <li key={h.id} className="text-xs text-slate-600">
+                          {h.old_room_label ? `${h.old_room_label} → ${h.new_room_label || 'aucune'}` : `Assigné à ${h.new_room_label}`}
+                          {' · '}
+                          {new Date(h.changed_at).toLocaleString('fr-FR')} par {h.changed_by_name || '—'}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between gap-2">

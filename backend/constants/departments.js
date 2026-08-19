@@ -1,3 +1,12 @@
 const DEPARTMENTS = ['GC', 'GE', 'GI', 'GM', 'GCBA', 'Gestion'];
 
-module.exports = { DEPARTMENTS };
+const DEPARTMENT_LABELS = {
+  GC: 'Génie Civil',
+  GE: 'Génie Électrique',
+  GI: 'Génie Informatique',
+  GM: 'Génie Mécanique',
+  GCBA: 'Génie Chimique et Biologie Appliquée',
+  Gestion: 'Gestion',
+};
+
+module.exports = { DEPARTMENTS, DEPARTMENT_LABELS };

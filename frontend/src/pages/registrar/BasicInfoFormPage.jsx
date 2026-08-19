@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import Dut1BasicForm from '../../components/dut1/Dut1BasicForm';
+import AdmittedStudentLookup from '../../components/dut1/AdmittedStudentLookup';
 import Dut1Card from '../../components/dut1/Dut1Card';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
@@ -20,6 +21,7 @@ export default function BasicInfoFormPage() {
   const { user } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
   const [values, setValues] = useState(DUT1_BASIC_DEFAULTS);
+  const [admittedStudentId, setAdmittedStudentId] = useState(null);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
@@ -36,8 +38,22 @@ export default function BasicInfoFormPage() {
 
   function openModal() {
     setValues(DUT1_BASIC_DEFAULTS);
+    setAdmittedStudentId(null);
     setErrors({});
     setModalOpen(true);
+  }
+
+  function handleSelectAdmitted(student) {
+    setValues((v) => ({
+      ...v,
+      lastName: student.last_name,
+      firstName: student.first_name,
+      department: student.department,
+      birthDate: student.birth_date || v.birthDate,
+      birthPlace: student.birth_place || v.birthPlace,
+    }));
+    setAdmittedStudentId(student.id);
+    setErrors({});
   }
 
   function validate() {
@@ -62,7 +78,7 @@ export default function BasicInfoFormPage() {
 
     setSubmitting(true);
     try {
-      const data = await createDut1(values);
+      const data = await createDut1({ ...values, admittedStudentId });
       const roomText = data.roomAssigned ? `— chambre ${data.room.label}` : `— ${data.warning}`;
       showToast(`${data.record.first_name} ${data.record.last_name} enregistré(e) ${roomText}`, 'success');
       setModalOpen(false);
@@ -112,7 +128,10 @@ export default function BasicInfoFormPage() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nouvelle fiche DUT1 — Infos de base">
         <form onSubmit={handleSubmit}>
-          <Dut1BasicForm values={values} errors={errors} onChange={handleChange} />
+          <AdmittedStudentLookup department={values.department} onSelect={handleSelectAdmitted} />
+          <div className="mt-4">
+            <Dut1BasicForm values={values} errors={errors} onChange={handleChange} />
+          </div>
           <div className="mt-6 flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
               Annuler

@@ -74,4 +74,32 @@ async function manualAssignRoom(dut1Id, newRoomId, changedBy) {
   });
 }
 
-module.exports = { autoAssignRoom, manualAssignRoom, roomOccupancy };
+async function getHistoryForDut1(dut1Id) {
+  return db.all(
+    `SELECT h.*, ro.label AS old_room_label, rn.label AS new_room_label, u.full_name AS changed_by_name
+     FROM room_assignment_history h
+     LEFT JOIN rooms ro ON ro.id = h.old_room_id
+     LEFT JOIN rooms rn ON rn.id = h.new_room_id
+     LEFT JOIN users u ON u.id = h.changed_by
+     WHERE h.dut1_id = $1
+     ORDER BY h.changed_at DESC`,
+    [dut1Id]
+  );
+}
+
+async function getHistoryForRoom(roomId) {
+  return db.all(
+    `SELECT h.*, d.first_name, d.last_name,
+       ro.label AS old_room_label, rn.label AS new_room_label, u.full_name AS changed_by_name
+     FROM room_assignment_history h
+     JOIN dut1_records d ON d.id = h.dut1_id
+     LEFT JOIN rooms ro ON ro.id = h.old_room_id
+     LEFT JOIN rooms rn ON rn.id = h.new_room_id
+     LEFT JOIN users u ON u.id = h.changed_by
+     WHERE h.old_room_id = $1 OR h.new_room_id = $1
+     ORDER BY h.changed_at DESC`,
+    [roomId]
+  );
+}
+
+module.exports = { autoAssignRoom, manualAssignRoom, roomOccupancy, getHistoryForDut1, getHistoryForRoom };

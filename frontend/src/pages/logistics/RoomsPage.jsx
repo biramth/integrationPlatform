@@ -78,7 +78,7 @@ export default function RoomsPage() {
                           {room.occupied}/{room.capacity} occupé{room.occupied > 1 ? 's' : ''}
                         </Badge>
                         <Badge variant={mattress.variant}>
-                          <BedDouble className="mr-1 inline h-3 w-3" /> Matelas {mattress.label}
+                          <BedDouble className="mr-1 inline h-3 w-3" /> {mattress.label}
                         </Badge>
                       </div>
                     </div>

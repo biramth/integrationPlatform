@@ -13,6 +13,7 @@ import AdminRecordsPage from './pages/admin/AdminRecordsPage';
 import AdminRoomsPage from './pages/admin/AdminRoomsPage';
 import AdminAgentsPage from './pages/admin/AdminAgentsPage';
 import ActivitiesPage from './pages/admin/ActivitiesPage';
+import ImportPage from './pages/admin/ImportPage';
 import PrintRoomManifestPage from './pages/admin/PrintRoomManifestPage';
 import PrintLuggageManifestPage from './pages/admin/PrintLuggageManifestPage';
 import MenuPage from './pages/cuisine/MenuPage';
@@ -45,6 +46,7 @@ function App() {
             <Route path="/admin/rooms" element={<AdminRoomsPage />} />
             <Route path="/admin/agents" element={<AdminAgentsPage />} />
             <Route path="/admin/activites" element={<ActivitiesPage />} />
+            <Route path="/admin/import" element={<ImportPage />} />
             <Route path="/admin/print/rooms" element={<PrintRoomManifestPage />} />
             <Route path="/admin/print/luggage" element={<PrintLuggageManifestPage />} />
           </Route>

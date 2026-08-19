@@ -20,6 +20,10 @@ export function listLuggageItems(dut1Id) {
   return axiosClient.get(`/dut1/${dut1Id}/luggage-items`).then((res) => res.data);
 }
 
+export function listMyLuggageItems() {
+  return axiosClient.get('/luggage-items/mine').then((res) => res.data);
+}
+
 export function deleteLuggageItem(itemId) {
   return axiosClient.delete(`/luggage-items/${itemId}`).then((res) => res.data);
 }

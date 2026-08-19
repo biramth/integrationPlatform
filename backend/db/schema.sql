@@ -58,6 +58,31 @@ CREATE TABLE IF NOT EXISTS dut1_records (
 
 -- Un bagage = une photo (Supabase Storage) + son statut "objet sensible" (espèces, électronique, papiers importants...)
 -- file_path stocke le chemin de l'objet dans le bucket Supabase Storage (pas un chemin disque local).
+-- Référentiel des admis au concours, importé depuis les PDF officiels (un fichier par
+-- département). Sert d'aide à la saisie (autocomplete + pré-remplissage) en phase 1,
+-- jamais de source de vérité pour dut1_records (le dossier reste saisi/validé par un agent).
+CREATE TABLE IF NOT EXISTS admitted_students (
+  id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  last_name       TEXT NOT NULL,
+  first_name      TEXT NOT NULL,
+  birth_date      TEXT,
+  birth_place     TEXT,
+  department      TEXT NOT NULL CHECK (department IN ('GC','GE','GI','GM','GCBA','Gestion')),
+  rank            INTEGER,
+  list_type       TEXT NOT NULL CHECK (list_type IN ('principale','attente')),
+  matched_dut1_id INTEGER REFERENCES dut1_records(id) ON DELETE SET NULL,
+  imported_by     INTEGER NOT NULL REFERENCES users(id),
+  imported_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Validation "liste principale / liste d'attente" du dossier DUT1 : statut informatif,
+-- ne bloque aucune autre action. Réglable par le registrar (phase 2) ou l'admin.
+ALTER TABLE dut1_records
+  ADD COLUMN IF NOT EXISTS admission_list_type TEXT
+    CHECK (admission_list_type IN ('principale','attente')),
+  ADD COLUMN IF NOT EXISTS admission_validated_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS admission_validated_by INTEGER REFERENCES users(id);
+
 CREATE TABLE IF NOT EXISTS luggage_items (
   id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   dut1_id         INTEGER NOT NULL REFERENCES dut1_records(id) ON DELETE CASCADE,
@@ -163,3 +188,5 @@ CREATE INDEX IF NOT EXISTS idx_health_restrictions_dut1 ON health_restrictions(d
 CREATE INDEX IF NOT EXISTS idx_health_restrictions_dates ON health_restrictions(start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(activity_date);
 CREATE INDEX IF NOT EXISTS idx_meal_services_date ON meal_services(service_date);
+CREATE INDEX IF NOT EXISTS idx_admitted_students_department ON admitted_students(department);
+CREATE INDEX IF NOT EXISTS idx_admitted_students_names ON admitted_students(last_name, first_name);

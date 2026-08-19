@@ -67,6 +67,19 @@ async function setLuggageCount(req, res) {
   res.json({ record });
 }
 
+async function listMyLuggageItems(req, res) {
+  const items = await db.all(
+    `SELECT li.*, d.first_name, d.last_name
+     FROM luggage_items li
+     JOIN dut1_records d ON d.id = li.dut1_id
+     WHERE li.uploaded_by = $1
+     ORDER BY li.uploaded_at DESC
+     LIMIT 100`,
+    [req.user.id]
+  );
+  res.json({ items });
+}
+
 async function getLuggagePhotoUrl(req, res) {
   const item = await db.get('SELECT file_path FROM luggage_items WHERE id = $1', [req.params.itemId]);
   if (!item) {
@@ -80,6 +93,7 @@ async function getLuggagePhotoUrl(req, res) {
 module.exports = {
   createLuggageItem,
   listLuggageItems,
+  listMyLuggageItems,
   deleteLuggageItem,
   setLuggageCount,
   getLuggagePhotoUrl,

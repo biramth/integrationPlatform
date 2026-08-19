@@ -1,32 +1,44 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ArrowLeft, Search } from 'lucide-react';
 import { listDut1, completeComplementary } from '../../api/dut1Api';
 import { setDut1Allergies } from '../../api/dut1AllergyApi';
+import { matchAdmittedStudent } from '../../api/admittedStudentsApi';
 import Dut1Card from '../../components/dut1/Dut1Card';
 import Dut1ComplementaryForm from '../../components/dut1/Dut1ComplementaryForm';
 import AllergySelect from '../../components/dut1/AllergySelect';
+import AdmissionListToggle from '../../components/dut1/AdmissionListToggle';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
+import Pagination from '../../components/common/Pagination';
 import PageHeader from '../../components/common/PageHeader';
-import { EmptyState, LoadingState } from '../../components/common/StateViews';
+import { EmptyState, ErrorState } from '../../components/common/StateViews';
+import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
+import { useFetch } from '../../hooks/useFetch';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../../utils/departments';
 import { staggerStyle } from '../../utils/stagger';
 
+const PAGE_SIZE = 25;
+
 export default function CompleteInfoFormPage() {
   const { showToast } = useToast();
-  const [search, setSearch] = useState('');
-  const [department, setDepartment] = useState('');
-  const [gender, setGender] = useState('');
-  const [results, setResults] = useState([]);
-  const [searched, setSearched] = useState(false);
-  const [searching, setSearching] = useState(false);
+  const [filters, setFilters] = useState({ search: '', department: '', gender: '' });
+  const debouncedSearch = useDebouncedValue(filters.search, 350);
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
   const [values, setValues] = useState({});
   const [allergies, setAllergies] = useState({});
+  const [admissionListType, setAdmissionListType] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const fetcher = useCallback(
+    () => listDut1({ search: debouncedSearch, department: filters.department, gender: filters.gender, page, pageSize: PAGE_SIZE }),
+    [debouncedSearch, filters.department, filters.gender, page]
+  );
+  const { data, loading, error, reload } = useFetch(fetcher, [debouncedSearch, filters.department, filters.gender, page]);
 
   const allergenIds = Object.keys(allergies).map(Number);
 
@@ -44,27 +56,30 @@ export default function CompleteInfoFormPage() {
     setAllergies((prev) => ({ ...prev, [allergenId]: severity }));
   }
 
-  async function handleSearch(e) {
-    e.preventDefault();
-    if (!search.trim() && !department && !gender) return;
-    setSearching(true);
-    try {
-      const data = await listDut1({ search: search.trim(), department, gender });
-      setResults(data.records);
-      setSearched(true);
-    } finally {
-      setSearching(false);
-    }
+  function updateFilters(patch) {
+    setFilters((f) => ({ ...f, ...patch }));
+    setPage(1);
   }
 
   function selectRecord(record) {
     setSelected(record);
     setValues(record.extra_fields || {});
+    setAdmissionListType(record.admission_list_type || null);
     const initial = {};
     for (const a of record.allergens || []) {
       initial[a.id] = a.severity || 'moderee';
     }
     setAllergies(initial);
+
+    if (!record.admission_list_type) {
+      matchAdmittedStudent({ lastName: record.last_name, firstName: record.first_name, department: record.department })
+        .then((res) => {
+          if (res.student) {
+            setAdmissionListType((current) => current ?? res.student.list_type);
+          }
+        })
+        .catch(() => {});
+    }
   }
 
   function handleChange(key, value) {
@@ -76,11 +91,12 @@ export default function CompleteInfoFormPage() {
     setSubmitting(true);
     try {
       const [data] = await Promise.all([
-        completeComplementary(selected.id, values),
+        completeComplementary(selected.id, values, admissionListType),
         setDut1Allergies(selected.id, allergies),
       ]);
       showToast('Infos complémentaires enregistrées.', 'success');
       setSelected(data.record);
+      reload();
     } catch (err) {
       showToast(err.response?.data?.error || 'Erreur lors de l\'enregistrement.', 'error');
     } finally {
@@ -95,7 +111,7 @@ export default function CompleteInfoFormPage() {
           onClick={() => setSelected(null)}
           className="mb-4 flex items-center gap-1 text-sm text-blue-900 transition-colors hover:text-blue-700"
         >
-          <ArrowLeft className="h-4 w-4" /> Retour à la recherche
+          <ArrowLeft className="h-4 w-4" /> Retour à la liste
         </button>
         <PageHeader
           eyebrow="Phase 2 — infos complémentaires"
@@ -115,6 +131,11 @@ export default function CompleteInfoFormPage() {
         />
 
         <form onSubmit={handleSubmit}>
+          <div className="mb-6 rounded-xl border border-border bg-card p-4">
+            <p className="mb-3 text-sm font-semibold text-foreground">Admission au concours</p>
+            <AdmissionListToggle value={admissionListType} onChange={setAdmissionListType} />
+          </div>
+
           <div className="mb-6 rounded-xl border border-border bg-card p-4">
             <p className="mb-3 text-sm font-semibold text-foreground">Allergies</p>
             <AllergySelect
@@ -139,59 +160,59 @@ export default function CompleteInfoFormPage() {
     <div>
       <PageHeader
         title="Compléter un dossier DUT1"
-        description="Recherche par nom, prénom, téléphone ou matricule. En cas d'homonymes, affine avec le département/genre — la date de naissance et le matricule s'affichent aussi sur chaque résultat."
+        description="Tous les dossiers sont listés ci-dessous — utilise la recherche pour affiner (nom, prénom, téléphone, matricule)."
       />
 
-      <form onSubmit={handleSearch} className="mb-4 flex flex-col gap-2 sm:flex-row">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Input
           icon={Search}
           placeholder="Nom, prénom, téléphone, matricule…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1"
+          value={filters.search}
+          onChange={(e) => updateFilters({ search: e.target.value })}
         />
         <Select
-          placeholder="Département"
-          value={department}
-          onChange={(e) => setDepartment(e.target.value)}
+          placeholder="Tous les départements"
+          value={filters.department}
+          onChange={(e) => updateFilters({ department: e.target.value })}
           options={DEPARTMENTS.map((d) => ({ value: d, label: DEPARTMENT_LABELS[d] }))}
-          className="sm:w-48"
         />
         <Select
-          placeholder="Genre"
-          value={gender}
-          onChange={(e) => setGender(e.target.value)}
+          placeholder="Tous les genres"
+          value={filters.gender}
+          onChange={(e) => updateFilters({ gender: e.target.value })}
           options={[
             { value: 'M', label: 'Masculin' },
             { value: 'F', label: 'Féminin' },
           ]}
-          className="sm:w-36"
         />
-        <Button type="submit" loading={searching}>
-          Rechercher
-        </Button>
-      </form>
-
-      {searching && <LoadingState />}
-      {!searching && searched && results.length === 0 && <EmptyState label="Aucun dossier trouvé." />}
-
-      <div className="flex flex-col gap-3">
-        {results.map((record, i) => (
-          <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
-            <Dut1Card
-              record={record}
-              onClick={() => selectRecord(record)}
-              actions={
-                record.complementary_completed_at ? (
-                  <Badge variant="success">Complémentaire OK</Badge>
-                ) : (
-                  <Badge variant="warning">À compléter</Badge>
-                )
-              }
-            />
-          </div>
-        ))}
       </div>
+
+      {loading && <CardListSkeleton rows={6} />}
+      {error && <ErrorState label={error} onRetry={reload} />}
+      {!loading && !error && data.records.length === 0 && <EmptyState label="Aucun dossier trouvé." />}
+
+      {!loading && !error && data.records.length > 0 && (
+        <>
+          <div className="flex flex-col gap-3">
+            {data.records.map((record, i) => (
+              <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
+                <Dut1Card
+                  record={record}
+                  onClick={() => selectRecord(record)}
+                  actions={
+                    record.complementary_completed_at ? (
+                      <Badge variant="success">Complémentaire OK</Badge>
+                    ) : (
+                      <Badge variant="warning">À compléter</Badge>
+                    )
+                  }
+                />
+              </div>
+            ))}
+          </div>
+          <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onPageChange={setPage} />
+        </>
+      )}
     </div>
   );
 }

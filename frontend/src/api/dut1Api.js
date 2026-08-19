@@ -32,10 +32,14 @@ export function listWithoutComplementary() {
   return axiosClient.get('/dut1/without-complementary').then((res) => res.data);
 }
 
-export function completeComplementary(id, extraFields) {
-  return axiosClient.put(`/dut1/${id}/complementary`, { extraFields }).then((res) => res.data);
+export function completeComplementary(id, extraFields, admissionListType) {
+  return axiosClient.put(`/dut1/${id}/complementary`, { extraFields, admissionListType }).then((res) => res.data);
 }
 
 export function reassignRoom(id, roomId) {
   return axiosClient.put(`/dut1/${id}/room`, { roomId }).then((res) => res.data);
+}
+
+export function getDut1RoomHistory(id) {
+  return axiosClient.get(`/dut1/${id}/room-history`).then((res) => res.data);
 }

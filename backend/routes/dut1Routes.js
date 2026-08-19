@@ -13,6 +13,7 @@ router.get('/without-complementary', requireRole('registrar', 'admin'), dut1Cont
 router.get('/', dut1Controller.listRecords);
 router.get('/export', requireRole('admin'), dut1Controller.exportRecordsCsv);
 router.get('/:id', dut1Controller.getRecord);
+router.get('/:id/room-history', requireRole('admin'), dut1Controller.getRoomHistory);
 router.put('/:id', requireRole('admin'), dut1Controller.updateRecord);
 router.delete('/:id', requireRole('admin'), dut1Controller.deleteRecord);
 router.put('/:id/complementary', requireRole('registrar', 'admin'), dut1Controller.completeComplementary);
