@@ -2,10 +2,10 @@ import { Badge as ShadBadge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 const VARIANTS = {
-  neutral: 'bg-slate-100 text-slate-700',
-  success: 'bg-green-100 text-green-700',
-  warning: 'bg-amber-100 text-amber-800',
-  danger: 'bg-red-100 text-red-700',
+  neutral: 'bg-muted text-muted-foreground',
+  success: 'bg-success-soft text-success-soft-foreground',
+  warning: 'bg-warning-soft text-warning-soft-foreground',
+  danger: 'bg-danger-soft text-danger-soft-foreground',
 };
 
 export default function Badge({ variant = 'neutral', className = '', children }) {

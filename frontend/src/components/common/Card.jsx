@@ -4,8 +4,8 @@ export default function Card({ interactive = false, accent, className = '', chil
   return (
     <div
       className={cn(
-        'group relative overflow-hidden rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm transition-all duration-150',
-        interactive && 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md',
+        'group relative overflow-hidden rounded-xl border border-border bg-card p-4 text-card-foreground shadow-soft transition-all duration-150',
+        interactive && 'cursor-pointer hover:-translate-y-0.5 hover:shadow-lifted',
         className
       )}
       {...props}

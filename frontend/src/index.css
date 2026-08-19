@@ -19,6 +19,7 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
   --primary: #1e40af;
+  --primary-hover: #1e3a8a;
   --primary-foreground: #ffffff;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -30,11 +31,31 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: #1d4ed8;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #16a34a;
+  --chart-4: #d97706;
+  --chart-5: #dc2626;
+  --chart-grid: #e1e0d9;
+  --chart-tick: #898781;
+  --success: #16a34a;
+  --success-foreground: #ffffff;
+  --success-soft: #ecfdf3;
+  --success-soft-foreground: #15803d;
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
+  --warning-soft: #fffbeb;
+  --warning-soft-foreground: #b45309;
+  --danger: #dc2626;
+  --danger-foreground: #ffffff;
+  --danger-soft: #fef2f2;
+  --danger-soft-foreground: #b91c1c;
+  --info: #2563eb;
+  --info-foreground: #ffffff;
+  --info-soft: #eff6ff;
+  --info-soft-foreground: #1d4ed8;
+  --role-accent: var(--primary);
+  --role-accent-soft: var(--info-soft);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -45,6 +66,12 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 }
+
+[data-role="registrar"] { --role-accent: #2563eb; --role-accent-soft: #eff6ff; }
+[data-role="logistics"] { --role-accent: #d97706; --role-accent-soft: #fffbeb; }
+[data-role="sante"]     { --role-accent: #dc2626; --role-accent-soft: #fef2f2; }
+[data-role="cuisine"]   { --role-accent: #16a34a; --role-accent-soft: #ecfdf3; }
+[data-role="admin"]     { --role-accent: #7c3aed; --role-accent-soft: #f5f3ff; }
 
 body {
   margin: 0;
@@ -110,6 +137,29 @@ body {
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-tick: var(--chart-tick);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-success-soft-foreground: var(--success-soft-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-soft-foreground: var(--warning-soft-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-soft-foreground: var(--danger-soft-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-soft: var(--info-soft);
+  --color-info-soft-foreground: var(--info-soft-foreground);
+  --color-role-accent: var(--role-accent);
+  --color-role-accent-soft: var(--role-accent-soft);
+  --color-primary-hover: var(--primary-hover);
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / 4%), 0 2px 8px oklch(0 0 0 / 4%);
+  --shadow-lifted: 0 4px 16px oklch(0 0 0 / 8%), 0 1px 3px oklch(0 0 0 / 6%);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -180,5 +230,14 @@ body {
   }
   html {
     @apply font-sans;
+  }
+  .text-h1 {
+    @apply text-2xl font-bold tracking-tight sm:text-3xl;
+  }
+  .text-h2 {
+    @apply text-xl font-semibold tracking-tight;
+  }
+  .text-eyebrow {
+    @apply text-xs font-semibold uppercase tracking-wider;
   }
 }

@@ -1,17 +1,27 @@
+import { Inbox } from 'lucide-react';
+
 export function LoadingState({ label = 'Chargement…' }) {
-  return <div className="flex items-center justify-center py-10 text-sm text-slate-500">{label}</div>;
+  return <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">{label}</div>;
 }
 
-export function EmptyState({ label = 'Aucun résultat.' }) {
-  return <div className="flex items-center justify-center py-10 text-sm text-slate-400">{label}</div>;
+export function EmptyState({ label = 'Aucun résultat.', icon: Icon = Inbox }) {
+  return (
+    <div className="flex flex-col items-center gap-2 py-10 text-sm text-muted-foreground">
+      <Icon className="h-8 w-8 text-muted-foreground/40" strokeWidth={1.5} />
+      <span>{label}</span>
+    </div>
+  );
 }
 
 export function ErrorState({ label = 'Une erreur est survenue.', onRetry }) {
   return (
-    <div className="flex flex-col items-center gap-3 py-10 text-sm text-red-600">
+    <div className="flex flex-col items-center gap-3 py-10 text-sm text-danger">
       <span>{label}</span>
       {onRetry && (
-        <button onClick={onRetry} className="rounded-lg bg-red-50 px-3 py-1.5 text-red-700 hover:bg-red-100">
+        <button
+          onClick={onRetry}
+          className="rounded-lg bg-danger-soft px-3 py-1.5 text-danger-soft-foreground transition-opacity hover:opacity-80"
+        >
           Réessayer
         </button>
       )}

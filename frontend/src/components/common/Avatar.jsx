@@ -1,4 +1,5 @@
 import { Avatar as ShadAvatar, AvatarFallback } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 
 function getInitials(name = '') {
   const parts = name.trim().split(/\s+/);
@@ -8,11 +9,14 @@ function getInitials(name = '') {
     .join('');
 }
 
-export default function Avatar({ name, size = 36 }) {
+export default function Avatar({ name, size = 36, ring = false }) {
   return (
-    <ShadAvatar style={{ width: size, height: size }} className="size-auto shrink-0">
+    <ShadAvatar
+      style={{ width: size, height: size }}
+      className={cn('size-auto shrink-0', ring && 'ring-2 ring-role-accent ring-offset-2 ring-offset-background')}
+    >
       <AvatarFallback
-        className="bg-blue-800 font-semibold text-white"
+        className="bg-role-accent font-semibold text-white"
         style={{ fontSize: size * 0.4 }}
       >
         {getInitials(name)}

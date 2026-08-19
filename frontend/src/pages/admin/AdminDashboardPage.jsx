@@ -65,7 +65,11 @@ export default function AdminDashboardPage() {
               <StatCard
                 label="Avec chambre"
                 value={o.withRoom}
-                sublabel={`${o.withoutRoom} en attente`}
+                sublabel={
+                  <span className={o.withoutRoom > 0 ? 'font-medium text-warning-soft-foreground' : undefined}>
+                    {o.withoutRoom} en attente
+                  </span>
+                }
                 icon={DoorOpen}
                 tone="emerald"
               />
@@ -74,7 +78,11 @@ export default function AdminDashboardPage() {
               <StatCard
                 label="Bagages photographiés"
                 value={o.withLuggage}
-                sublabel={`${o.withoutLuggage} restants`}
+                sublabel={
+                  <span className={o.withoutLuggage > 0 ? 'font-medium text-warning-soft-foreground' : undefined}>
+                    {o.withoutLuggage} restants
+                  </span>
+                }
                 icon={Luggage}
                 tone="amber"
               />
@@ -83,7 +91,11 @@ export default function AdminDashboardPage() {
               <StatCard
                 label="Phase 2 complétée"
                 value={o.complementaryDone}
-                sublabel={`${o.complementaryPending} restants`}
+                sublabel={
+                  <span className={o.complementaryPending > 0 ? 'font-medium text-warning-soft-foreground' : undefined}>
+                    {o.complementaryPending} restants
+                  </span>
+                }
                 icon={ClipboardCheck}
                 tone="violet"
               />
@@ -97,13 +109,13 @@ export default function AdminDashboardPage() {
           <Card interactive className="mb-6 animate-fade-in-up" style={staggerStyle(4)}>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="mb-1 text-sm font-semibold text-slate-900">Occupation des chambres</p>
-                <p className="text-2xl font-semibold tabular-nums text-slate-900">{occupancy.data.occupancyRate}%</p>
-                <p className="text-xs text-slate-500">
+                <p className="mb-1 text-sm font-semibold text-foreground">Occupation des chambres</p>
+                <p className="text-3xl font-bold tabular-nums text-foreground">{occupancy.data.occupancyRate}%</p>
+                <p className="text-xs text-muted-foreground">
                   {occupancy.data.totalOccupied} / {occupancy.data.totalCapacity} places occupées
                 </p>
               </div>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-800 transition-transform duration-150 group-hover:scale-110">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-info/20 to-info/5 text-info shadow-soft transition-transform duration-150 group-hover:scale-110">
                 <Home className="h-4.5 w-4.5" size={18} strokeWidth={2} />
               </span>
             </div>
