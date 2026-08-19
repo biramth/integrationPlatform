@@ -4,6 +4,7 @@ import { useFetch } from '../../hooks/useFetch';
 import * as allergenApi from '../../api/allergenApi';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
+import Badge from '../../components/common/Badge';
 import PageHeader from '../../components/common/PageHeader';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import Skeleton from '../../components/common/Skeleton';
@@ -104,7 +105,7 @@ export default function AllergensAdminPage() {
             return (
               <div
                 key={a.id}
-                className="animate-fade-in-up flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
+                className="animate-fade-in-up flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 shadow-soft transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lifted"
                 style={staggerStyle(i, 20, 200)}
               >
                 {editing ? (
@@ -117,32 +118,37 @@ export default function AllergensAdminPage() {
                         if (e.key === 'Enter') handleRename(a);
                         if (e.key === 'Escape') cancelEdit();
                       }}
-                      className="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                      className="min-w-0 flex-1 rounded-md border border-border px-2 py-1 text-sm outline-none focus:border-role-accent focus:ring-1 focus:ring-role-accent"
                     />
                     <div className="flex shrink-0 items-center gap-1">
                       <button
                         onClick={() => handleRename(a)}
                         disabled={renaming}
-                        className="flex items-center text-emerald-600 transition-colors hover:text-emerald-700"
+                        className="flex items-center text-success transition-colors hover:opacity-80"
                       >
                         <Check className="h-4 w-4" />
                       </button>
-                      <button onClick={cancelEdit} className="flex items-center text-slate-400 transition-colors hover:text-slate-600">
+                      <button onClick={cancelEdit} className="flex items-center text-muted-foreground transition-colors hover:text-foreground">
                         <X className="h-4 w-4" />
                       </button>
                     </div>
                   </>
                 ) : (
                   <>
-                    <span className="flex items-center gap-2 text-sm text-slate-900">
-                      <Leaf className="h-3.5 w-3.5 text-emerald-600" />
-                      {a.label}
-                    </span>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Leaf className="h-3.5 w-3.5 shrink-0 text-success" />
+                      <span className="truncate text-sm text-foreground">{a.label}</span>
+                      {(a.dut1_count > 0 || a.dish_count > 0) && (
+                        <Badge variant="neutral" className="shrink-0">
+                          {a.dut1_count} DUT1 · {a.dish_count} plats
+                        </Badge>
+                      )}
+                    </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <button onClick={() => startEdit(a)} className="flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700 hover:underline">
+                      <button onClick={() => startEdit(a)} className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline">
                         <Pencil className="h-3.5 w-3.5" /> Renommer
                       </button>
-                      <button onClick={() => handleDelete(a)} className="flex items-center gap-1 text-xs text-red-600 transition-colors hover:text-red-700 hover:underline">
+                      <button onClick={() => handleDelete(a)} className="flex items-center gap-1 text-xs text-danger transition-colors hover:opacity-80 hover:underline">
                         <Trash2 className="h-3.5 w-3.5" /> Supprimer
                       </button>
                     </div>

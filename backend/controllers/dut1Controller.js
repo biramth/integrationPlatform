@@ -3,7 +3,7 @@ const { DEPARTMENTS } = require('../constants/departments');
 const { autoAssignRoom } = require('../services/roomAssignmentService');
 
 const ALLERGENS_SUBQUERY = `(
-  SELECT COALESCE(json_agg(json_build_object('id', a.id, 'label', a.label)), '[]'::json)
+  SELECT COALESCE(json_agg(json_build_object('id', a.id, 'label', a.label, 'severity', da.severity)), '[]'::json)
   FROM dut1_allergens da JOIN allergens a ON a.id = da.allergen_id
   WHERE da.dut1_id = d.id
 ) AS allergens_json`;
@@ -356,12 +356,19 @@ async function setAllergies(req, res) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
 
-  const allergenIds = Array.isArray(req.body.allergenIds) ? req.body.allergenIds.map(Number) : [];
+  const VALID_SEVERITIES = ['legere', 'moderee', 'severe'];
+  const allergies = Array.isArray(req.body.allergies) ? req.body.allergies : [];
 
   await db.transaction(async (tx) => {
     await tx.run('DELETE FROM dut1_allergens WHERE dut1_id = $1', [id]);
-    for (const allergenId of allergenIds) {
-      await tx.run('INSERT INTO dut1_allergens (dut1_id, allergen_id) VALUES ($1, $2)', [id, allergenId]);
+    for (const entry of allergies) {
+      const allergenId = Number(entry.allergenId);
+      if (!allergenId) continue;
+      const severity = VALID_SEVERITIES.includes(entry.severity) ? entry.severity : 'moderee';
+      await tx.run(
+        'INSERT INTO dut1_allergens (dut1_id, allergen_id, severity) VALUES ($1, $2, $3)',
+        [id, allergenId, severity]
+      );
     }
   });
 

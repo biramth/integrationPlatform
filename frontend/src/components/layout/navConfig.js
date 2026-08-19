@@ -10,6 +10,7 @@ import {
   Stethoscope,
   Leaf,
   UtensilsCrossed,
+  CalendarDays,
 } from 'lucide-react';
 import { ROLES } from '../../utils/roles';
 
@@ -27,10 +28,11 @@ export const NAV_ITEMS = {
     { to: '/admin/records', label: 'Dossiers', icon: FolderOpen },
     { to: '/admin/rooms', label: 'Chambres', icon: DoorOpen },
     { to: '/admin/agents', label: 'Agents', icon: Users },
+    { to: '/admin/activites', label: 'Activités', icon: CalendarDays },
   ],
   [ROLES.SANTE]: [
     { to: '/sante/risques', label: 'Risques du jour', icon: AlertTriangle },
-    { to: '/sante/maladies', label: 'Maladies', icon: Stethoscope },
+    { to: '/sante/suivi', label: 'Suivi santé', icon: Stethoscope },
     { to: '/sante/allergenes', label: 'Allergènes', icon: Leaf },
   ],
   [ROLES.CUISINE]: [{ to: '/cuisine/menu', label: 'Menu du jour', icon: UtensilsCrossed }],

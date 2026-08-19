@@ -63,11 +63,11 @@ async function roomsOccupancy(req, res) {
 async function illnessTrend(req, res) {
   const days = Math.min(Number(req.query.days) || 14, 90);
   const rows = await db.all(
-    `SELECT illness_date AS date, COUNT(*) AS count
-     FROM illness_records
-     WHERE illness_date >= to_char(CURRENT_DATE - $1 * INTERVAL '1 day', 'YYYY-MM-DD')
-     GROUP BY illness_date
-     ORDER BY illness_date ASC`,
+    `SELECT start_date AS date, COUNT(*) AS count
+     FROM health_restrictions
+     WHERE start_date >= to_char(CURRENT_DATE - $1 * INTERVAL '1 day', 'YYYY-MM-DD')
+     GROUP BY start_date
+     ORDER BY start_date ASC`,
     [days]
   );
   res.json({ rows: rows.map((r) => ({ ...r, count: Number(r.count) })) });

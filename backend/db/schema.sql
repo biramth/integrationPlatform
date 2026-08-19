@@ -93,6 +93,10 @@ CREATE TABLE IF NOT EXISTS dut1_allergens (
   PRIMARY KEY (dut1_id, allergen_id)
 );
 
+ALTER TABLE dut1_allergens
+  ADD COLUMN IF NOT EXISTS severity TEXT NOT NULL DEFAULT 'moderee'
+  CHECK (severity IN ('legere','moderee','severe'));
+
 -- Services de repas (commission Cuisine) : un par jour + type de repas
 -- service_date reste TEXT (YYYY-MM-DD), comparé tel quel dans les requêtes.
 CREATE TABLE IF NOT EXISTS meal_services (
@@ -118,14 +122,34 @@ CREATE TABLE IF NOT EXISTS dish_allergens (
   PRIMARY KEY (dish_id, allergen_id)
 );
 
--- Déclarations de maladie (commission Santé). illness_date reste TEXT (YYYY-MM-DD).
-CREATE TABLE IF NOT EXISTS illness_records (
-  id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  dut1_id       INTEGER NOT NULL REFERENCES dut1_records(id) ON DELETE CASCADE,
-  illness_date  TEXT NOT NULL,
-  note          TEXT,
-  declared_by   INTEGER NOT NULL REFERENCES users(id),
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- Remplacé par activities + health_restrictions (système d'aptitude) ci-dessous.
+DROP TABLE IF EXISTS illness_records CASCADE;
+
+-- Activités de la semaine d'intégration, définies par l'admin.
+CREATE TABLE IF NOT EXISTS activities (
+  id             INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name           TEXT NOT NULL,
+  activity_date  TEXT NOT NULL,
+  end_date       TEXT,
+  description    TEXT,
+  created_by     INTEGER NOT NULL REFERENCES users(id),
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Restriction d'aptitude d'un DUT1 : couvre [start_date, end_date] (end_date
+-- NULL = jusqu'à résolution explicite), scope à une activité (activity_id)
+-- ou générale (NULL). resolved_at NULL = restriction active.
+CREATE TABLE IF NOT EXISTS health_restrictions (
+  id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  dut1_id      INTEGER NOT NULL REFERENCES dut1_records(id) ON DELETE CASCADE,
+  activity_id  INTEGER REFERENCES activities(id) ON DELETE SET NULL,
+  start_date   TEXT NOT NULL,
+  end_date     TEXT,
+  reason       TEXT NOT NULL,
+  declared_by  INTEGER NOT NULL REFERENCES users(id),
+  resolved_at  TIMESTAMPTZ,
+  resolved_by  INTEGER REFERENCES users(id),
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_dut1_department ON dut1_records(department);
@@ -135,5 +159,7 @@ CREATE INDEX IF NOT EXISTS idx_dut1_complementary ON dut1_records(complementary_
 CREATE INDEX IF NOT EXISTS idx_luggage_dut1 ON luggage_items(dut1_id);
 CREATE INDEX IF NOT EXISTS idx_dish_allergens_dish ON dish_allergens(dish_id);
 CREATE INDEX IF NOT EXISTS idx_dut1_allergens_dut1 ON dut1_allergens(dut1_id);
-CREATE INDEX IF NOT EXISTS idx_illness_dut1 ON illness_records(dut1_id);
+CREATE INDEX IF NOT EXISTS idx_health_restrictions_dut1 ON health_restrictions(dut1_id);
+CREATE INDEX IF NOT EXISTS idx_health_restrictions_dates ON health_restrictions(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(activity_date);
 CREATE INDEX IF NOT EXISTS idx_meal_services_date ON meal_services(service_date);

@@ -1,8 +1,14 @@
 const db = require('../db/database');
 
 async function listAllergens(req, res) {
-  const allergens = await db.all('SELECT * FROM allergens ORDER BY label ASC');
-  res.json({ allergens });
+  const allergens = await db.all(
+    `SELECT a.*,
+       (SELECT COUNT(*) FROM dut1_allergens da WHERE da.allergen_id = a.id) AS dut1_count,
+       (SELECT COUNT(*) FROM dish_allergens dga WHERE dga.allergen_id = a.id) AS dish_count
+     FROM allergens a
+     ORDER BY a.label ASC`
+  );
+  res.json({ allergens: allergens.map((a) => ({ ...a, dut1_count: Number(a.dut1_count), dish_count: Number(a.dish_count) })) });
 }
 
 async function createAllergen(req, res) {

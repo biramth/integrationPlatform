@@ -25,8 +25,24 @@ export default function CompleteInfoFormPage() {
   const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState(null);
   const [values, setValues] = useState({});
-  const [allergenIds, setAllergenIds] = useState([]);
+  const [allergies, setAllergies] = useState({});
   const [submitting, setSubmitting] = useState(false);
+
+  const allergenIds = Object.keys(allergies).map(Number);
+
+  function setAllergenIds(ids) {
+    setAllergies((prev) => {
+      const next = {};
+      for (const id of ids) {
+        next[id] = prev[id] || 'moderee';
+      }
+      return next;
+    });
+  }
+
+  function setSeverity(allergenId, severity) {
+    setAllergies((prev) => ({ ...prev, [allergenId]: severity }));
+  }
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -44,7 +60,11 @@ export default function CompleteInfoFormPage() {
   function selectRecord(record) {
     setSelected(record);
     setValues(record.extra_fields || {});
-    setAllergenIds((record.allergens || []).map((a) => a.id));
+    const initial = {};
+    for (const a of record.allergens || []) {
+      initial[a.id] = a.severity || 'moderee';
+    }
+    setAllergies(initial);
   }
 
   function handleChange(key, value) {
@@ -57,7 +77,7 @@ export default function CompleteInfoFormPage() {
     try {
       const [data] = await Promise.all([
         completeComplementary(selected.id, values),
-        setDut1Allergies(selected.id, allergenIds),
+        setDut1Allergies(selected.id, allergies),
       ]);
       showToast('Infos complémentaires enregistrées.', 'success');
       setSelected(data.record);
@@ -95,9 +115,14 @@ export default function CompleteInfoFormPage() {
         />
 
         <form onSubmit={handleSubmit}>
-          <div className="mb-6 rounded-xl border border-slate-200 p-4">
-            <p className="mb-3 text-sm font-semibold text-slate-900">Allergies</p>
-            <AllergySelect selectedIds={allergenIds} onChange={setAllergenIds} />
+          <div className="mb-6 rounded-xl border border-border bg-card p-4">
+            <p className="mb-3 text-sm font-semibold text-foreground">Allergies</p>
+            <AllergySelect
+              selectedIds={allergenIds}
+              onChange={setAllergenIds}
+              severities={allergies}
+              onSeverityChange={setSeverity}
+            />
           </div>
           <Dut1ComplementaryForm values={values} onChange={handleChange} />
           <div className="mt-6 flex justify-end">

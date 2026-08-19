@@ -1,6 +1,14 @@
 import { Checkbox } from '@/components/ui/checkbox';
 
-export default function AllergenCheckboxes({ allergens, selectedIds, onChange }) {
+const SEVERITY_OPTIONS = [
+  { value: 'legere', label: 'Légère', className: 'bg-muted text-muted-foreground' },
+  { value: 'moderee', label: 'Modérée', className: 'bg-warning-soft text-warning-soft-foreground' },
+  { value: 'severe', label: 'Sévère', className: 'bg-danger-soft text-danger-soft-foreground' },
+];
+
+export default function AllergenCheckboxes({ allergens, selectedIds, onChange, severities, onSeverityChange }) {
+  const withSeverity = !!severities;
+
   function toggle(id) {
     if (selectedIds.includes(id)) {
       onChange(selectedIds.filter((x) => x !== id));
@@ -14,15 +22,33 @@ export default function AllergenCheckboxes({ allergens, selectedIds, onChange })
       {allergens.map((a) => {
         const checked = selectedIds.includes(a.id);
         return (
-          <label
+          <div
             key={a.id}
-            className={`flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-              checked ? 'border-blue-600 bg-blue-50' : 'border-slate-200'
+            className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+              checked ? 'border-role-accent bg-role-accent-soft' : 'border-border'
             }`}
           >
-            <Checkbox checked={checked} onCheckedChange={() => toggle(a.id)} />
-            {a.label}
-          </label>
+            <label className="flex min-h-[28px] cursor-pointer items-center gap-2">
+              <Checkbox checked={checked} onCheckedChange={() => toggle(a.id)} />
+              {a.label}
+            </label>
+            {withSeverity && checked && (
+              <div className="mt-2 flex gap-1.5">
+                {SEVERITY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onSeverityChange(a.id, opt.value)}
+                    className={`rounded-full px-2 py-1 text-xs font-medium transition-opacity ${opt.className} ${
+                      (severities[a.id] || 'moderee') === opt.value ? '' : 'opacity-40 hover:opacity-70'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         );
       })}
     </div>

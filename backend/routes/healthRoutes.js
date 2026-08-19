@@ -7,8 +7,10 @@ const router = express.Router();
 router.use(verifyToken, requireRole('sante', 'admin'));
 
 router.get('/risks', healthController.getRisks);
-router.get('/illness', healthController.listIllnessByDate);
-router.post('/dut1/:id/illness', healthController.declareIllness);
-router.get('/dut1/:id/illness', healthController.listIllnessForDut1);
+router.get('/restrictions/active', healthController.listActiveRestrictions);
+router.post('/dut1/:id/restrictions', healthController.declareRestriction);
+router.get('/dut1/:id/restrictions', healthController.listRestrictionsForDut1);
+router.put('/restrictions/:id/resolve', healthController.resolveRestriction);
+router.delete('/restrictions/:id', healthController.deleteRestriction);
 
 module.exports = router;

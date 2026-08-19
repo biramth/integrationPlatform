@@ -15,6 +15,19 @@ types.setTypeParser(20, (val) => parseInt(val, 10));
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+});
+
+// pg fait remonter les erreurs des connexions inactives du pool via l'event
+// 'error' — sans handler, Node considère ça comme une exception non gérée et
+// FAIT PLANTER tout le process serveur (documenté par node-postgres). Sous
+// charge (plusieurs agents connectés en même temps), une simple coupure
+// réseau ponctuelle sur une connexion du pool suffirait sinon à arrêter le
+// service pour tout le monde.
+pool.on('error', (err) => {
+  console.error('Erreur inattendue sur une connexion inactive du pool Postgres :', err);
 });
 
 async function get(text, params = []) {

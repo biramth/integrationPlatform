@@ -12,6 +12,7 @@ const statsRoutes = require('./routes/statsRoutes');
 const allergenRoutes = require('./routes/allergenRoutes');
 const mealRoutes = require('./routes/mealRoutes');
 const healthRoutes = require('./routes/healthRoutes');
+const activityRoutes = require('./routes/activityRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -29,6 +30,7 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/allergens', allergenRoutes);
 app.use('/api', mealRoutes);
 app.use('/api/health', healthRoutes);
+app.use('/api/activities', activityRoutes);
 
 app.use('/api', notFoundHandler);
 
