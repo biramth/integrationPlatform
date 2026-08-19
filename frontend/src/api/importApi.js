@@ -1,14 +1,14 @@
 import axiosClient from './axiosClient';
 
-function pdfFormData(file) {
+function fileFormData(file) {
   const formData = new FormData();
-  formData.append('pdf', file);
+  formData.append('file', file);
   return formData;
 }
 
-export function previewAdmittedStudentsPdf(file) {
+export function previewAdmittedStudentsFile(file) {
   return axiosClient
-    .post('/import/admitted-students/preview', pdfFormData(file), {
+    .post('/import/admitted-students/preview', fileFormData(file), {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     .then((res) => res.data);
@@ -18,9 +18,9 @@ export function confirmAdmittedStudentsImport(candidates) {
   return axiosClient.post('/import/admitted-students/confirm', { candidates }).then((res) => res.data);
 }
 
-export function previewRoomsPdf(file) {
+export function previewRoomsFile(file) {
   return axiosClient
-    .post('/import/rooms/preview', pdfFormData(file), {
+    .post('/import/rooms/preview', fileFormData(file), {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     .then((res) => res.data);

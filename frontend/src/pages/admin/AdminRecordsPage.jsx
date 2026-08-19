@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Trash2, Download, Printer, ChevronDown } from 'lucide-react';
+import { Search, Trash2, Download, Printer, ChevronDown, Upload } from 'lucide-react';
+import AdmittedStudentsImportPanel from '../../components/admin/AdmittedStudentsImportPanel';
 import { useFetch } from '../../hooks/useFetch';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { listDut1, updateDut1, deleteDut1, reassignRoom, exportDut1Csv, getDut1RoomHistory } from '../../api/dut1Api';
@@ -38,6 +39,7 @@ export default function AdminRecordsPage() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const fetcher = useCallback(
     () => listDut1({ search: debouncedSearch, department: filters.department, gender: filters.gender, page, pageSize: PAGE_SIZE }),
@@ -178,9 +180,21 @@ export default function AdminRecordsPage() {
             <Button variant="secondary" onClick={handleExport} loading={exporting}>
               <Download className="h-4 w-4" /> Exporter CSV
             </Button>
+            <Button variant="secondary" onClick={() => setImportOpen((v) => !v)}>
+              <Upload className="h-4 w-4" /> {importOpen ? 'Fermer l\'import' : 'Importer (Excel)'}
+            </Button>
           </div>
         }
       />
+
+      {importOpen && (
+        <AdmittedStudentsImportPanel
+          onImported={() => {
+            setImportOpen(false);
+            reload();
+          }}
+        />
+      )}
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Input

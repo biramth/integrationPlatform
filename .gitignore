@@ -21,9 +21,6 @@ backend/data/*.sqlite-shm
 backend/uploads/luggage/*
 !backend/uploads/luggage/.gitkeep
 
-# Modèle OCR Tesseract, téléchargé et mis en cache à la demande (voir pdfImportService.js)
-backend/*.traineddata
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

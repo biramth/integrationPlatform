@@ -1,21 +1,19 @@
 const db = require('../db/database');
 const { DEPARTMENTS } = require('../constants/departments');
-const { extractText, parseAdmittedStudentsList, parseRoomsList } = require('../services/pdfImportService');
+const { parseAdmittedStudentsBuffer, parseRoomsBuffer } = require('../services/xlsxImportService');
 
 async function previewAdmittedStudents(req, res) {
   if (!req.file) {
-    return res.status(400).json({ error: 'Fichier PDF requis (champ "pdf").' });
+    return res.status(400).json({ error: 'Fichier Excel requis (champ "file").' });
   }
-  const text = await extractText(req.file.buffer);
-  res.json(parseAdmittedStudentsList(text));
+  res.json(await parseAdmittedStudentsBuffer(req.file.buffer));
 }
 
 async function previewRooms(req, res) {
   if (!req.file) {
-    return res.status(400).json({ error: 'Fichier PDF requis (champ "pdf").' });
+    return res.status(400).json({ error: 'Fichier Excel requis (champ "file").' });
   }
-  const text = await extractText(req.file.buffer);
-  res.json(parseRoomsList(text));
+  res.json(await parseRoomsBuffer(req.file.buffer));
 }
 
 async function confirmAdmittedStudents(req, res) {

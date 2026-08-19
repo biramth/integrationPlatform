@@ -11,7 +11,6 @@ import {
   Leaf,
   UtensilsCrossed,
   CalendarDays,
-  Upload,
 } from 'lucide-react';
 import { ROLES } from '../../utils/roles';
 
@@ -30,7 +29,6 @@ export const NAV_ITEMS = {
     { to: '/admin/rooms', label: 'Chambres', icon: DoorOpen },
     { to: '/admin/agents', label: 'Agents', icon: Users },
     { to: '/admin/activites', label: 'Activités', icon: CalendarDays },
-    { to: '/admin/import', label: 'Import PDF', icon: Upload },
   ],
   [ROLES.SANTE]: [
     { to: '/sante/risques', label: 'Risques du jour', icon: AlertTriangle },

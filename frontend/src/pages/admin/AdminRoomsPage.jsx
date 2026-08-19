@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, Plus, Pencil, ChevronDown, BedDouble, Printer } from 'lucide-react';
+import { Trash2, Plus, Pencil, ChevronDown, BedDouble, Printer, Upload } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
+import RoomsImportPanel from '../../components/admin/RoomsImportPanel';
 import * as roomApi from '../../api/roomApi';
 import { listDut1 } from '../../api/dut1Api';
 import Input from '../../components/common/Input';
@@ -33,6 +34,7 @@ export default function AdminRoomsPage() {
   const [occupantsByRoom, setOccupantsByRoom] = useState({});
   const [historyRoomId, setHistoryRoomId] = useState(null);
   const [historyByRoom, setHistoryByRoom] = useState({});
+  const [importOpen, setImportOpen] = useState(false);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -126,13 +128,27 @@ export default function AdminRoomsPage() {
       <PageHeader
         title="Chambres"
         action={
-          <Link to="/admin/print/rooms">
-            <Button variant="secondary">
-              <Printer className="h-4 w-4" /> Imprimer fiches chambres
+          <div className="flex flex-wrap gap-2">
+            <Link to="/admin/print/rooms">
+              <Button variant="secondary">
+                <Printer className="h-4 w-4" /> Imprimer fiches chambres
+              </Button>
+            </Link>
+            <Button variant="secondary" onClick={() => setImportOpen((v) => !v)}>
+              <Upload className="h-4 w-4" /> {importOpen ? "Fermer l'import" : 'Importer (Excel)'}
             </Button>
-          </Link>
+          </div>
         }
       />
+
+      {importOpen && (
+        <RoomsImportPanel
+          onImported={() => {
+            setImportOpen(false);
+            reload();
+          }}
+        />
+      )}
 
       <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
         <p className="mb-3 text-sm font-semibold text-slate-900">Ajouter une chambre</p>
