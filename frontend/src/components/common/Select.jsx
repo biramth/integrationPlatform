@@ -15,9 +15,9 @@ export default function Select({ label, error, options, placeholder, className =
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <Label htmlFor={selectId} className="text-sm font-medium text-slate-700">
+        <Label htmlFor={selectId} className="text-sm font-medium text-foreground">
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-danger"> *</span>}
         </Label>
       )}
       <ShadSelect
@@ -40,7 +40,7 @@ export default function Select({ label, error, options, placeholder, className =
           ))}
         </SelectContent>
       </ShadSelect>
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && <span className="text-xs text-danger">{error}</span>}
     </div>
   );
 }

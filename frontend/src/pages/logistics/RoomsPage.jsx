@@ -71,8 +71,8 @@ export default function RoomsPage() {
                     className="flex w-full items-start justify-between gap-2 text-left"
                   >
                     <div>
-                      <p className="font-medium text-slate-900">{room.label}</p>
-                      <p className="text-sm text-slate-500">{room.gender === 'M' ? 'Masculin' : 'Féminin'} · {room.building || '—'}</p>
+                      <p className="font-medium text-foreground">{room.label}</p>
+                      <p className="text-sm text-muted-foreground">{room.gender === 'M' ? 'Masculin' : 'Féminin'} · {room.building || '—'}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <Badge variant={room.occupied >= room.capacity ? 'danger' : 'success'}>
                           {room.occupied}/{room.capacity} occupé{room.occupied > 1 ? 's' : ''}
@@ -83,14 +83,14 @@ export default function RoomsPage() {
                       </div>
                     </div>
                     <ChevronDown
-                      className={`h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+                      className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
                     />
                   </button>
 
                   {expanded && (
-                    <div className="mt-4 flex flex-col gap-4 border-t border-slate-100 pt-4" onClick={(e) => e.stopPropagation()}>
+                    <div className="mt-4 flex flex-col gap-4 border-t border-border pt-4" onClick={(e) => e.stopPropagation()}>
                       <label className="flex flex-col gap-1 text-sm">
-                        <span className="font-medium text-slate-700">Nombre de matelas comptés</span>
+                        <span className="font-medium text-foreground">Nombre de matelas comptés</span>
                         <input
                           type="number"
                           min="0"
@@ -98,18 +98,18 @@ export default function RoomsPage() {
                           onChange={(e) => setDraftByRoom((m) => ({ ...m, [room.id]: e.target.value }))}
                           onBlur={() => handleSaveMattress(room)}
                           placeholder={`Capacité : ${room.capacity}`}
-                          className="min-h-[44px] w-32 rounded-lg border border-slate-300 px-3 py-2 text-base outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                          className="min-h-[44px] w-32 rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                         />
                       </label>
 
-                      {occupants === undefined && <p className="text-sm text-slate-400">Chargement des occupants…</p>}
-                      {occupants && occupants.length === 0 && <p className="text-sm text-slate-400">Aucun DUT1 assigné.</p>}
+                      {occupants === undefined && <p className="text-sm text-muted-foreground">Chargement des occupants…</p>}
+                      {occupants && occupants.length === 0 && <p className="text-sm text-muted-foreground">Aucun DUT1 assigné.</p>}
                       {occupants && occupants.length > 0 && (
                         <div>
-                          <p className="mb-2 text-sm font-medium text-slate-700">Occupants</p>
+                          <p className="mb-2 text-sm font-medium text-foreground">Occupants</p>
                           <ul className="flex flex-col gap-1.5">
                             {occupants.map((o) => (
-                              <li key={o.id} className="text-sm text-slate-700">
+                              <li key={o.id} className="text-sm text-foreground">
                                 {o.first_name} {o.last_name}
                               </li>
                             ))}

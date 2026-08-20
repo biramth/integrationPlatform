@@ -8,7 +8,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }) {
 
   return (
     <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted-foreground">
         Affichage {start}–{end} sur {total}
       </p>
       <div className="flex items-center gap-2">
@@ -20,7 +20,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }) {
         >
           <ChevronLeft className="h-3.5 w-3.5" /> Précédent
         </Button>
-        <span className="text-sm text-slate-600">
+        <span className="text-sm text-foreground">
           Page {page} / {totalPages}
         </span>
         <Button

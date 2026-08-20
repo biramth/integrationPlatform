@@ -130,7 +130,7 @@ export default function CompleteInfoFormPage() {
       <div>
         <button
           onClick={() => setSelected(null)}
-          className="mb-4 flex items-center gap-1 text-sm text-blue-900 transition-colors hover:text-blue-700"
+          className="mb-4 flex items-center gap-1 text-sm text-role-accent transition-colors hover:opacity-80"
         >
           <ArrowLeft className="h-4 w-4" /> Retour à la liste
         </button>

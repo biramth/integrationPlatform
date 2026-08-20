@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, ExternalLink } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import { previewRoomsFile, confirmRoomsImport } from '../../api/importApi';
@@ -11,7 +11,7 @@ function RowInput({ value, onChange, type = 'text', className = '' }) {
       type={type}
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
-      className={`h-9 w-full min-w-[8rem] rounded-lg border border-slate-300 px-2 text-sm outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 ${className}`}
+      className={`h-9 w-full min-w-[8rem] rounded-lg border border-border bg-card px-2 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary ${className}`}
     />
   );
 }
@@ -69,7 +69,15 @@ export default function RoomsImportPanel({ onImported }) {
   return (
     <div className="mb-4 flex flex-col gap-4">
       <Card>
-        <p className="mb-3 text-sm font-semibold text-foreground">1. Choisir le fichier Excel (.xlsx) de la liste des chambres</p>
+        <p className="mb-1 text-sm font-semibold text-foreground">1. Choisir le fichier Excel (.xlsx) de la liste des chambres</p>
+        <a
+          href="https://www.ilovepdf.com/fr/pdf_en_excel"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-role-accent hover:underline"
+        >
+          <ExternalLink className="h-3 w-3" /> Convertir un PDF en Excel (iLovePDF)
+        </a>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <input
             type="file"
@@ -108,7 +116,7 @@ export default function RoomsImportPanel({ onImported }) {
                       <select
                         value={row.gender}
                         onChange={(e) => updateRow(i, { gender: e.target.value })}
-                        className="h-9 rounded-lg border border-slate-300 px-2 text-sm"
+                        className="h-9 rounded-lg border border-border bg-card px-2 text-sm text-foreground"
                       >
                         <option value="M">Masculin</option>
                         <option value="F">Féminin</option>
@@ -124,7 +132,7 @@ export default function RoomsImportPanel({ onImported }) {
                       <button
                         type="button"
                         onClick={() => removeRow(i)}
-                        className="text-red-600 transition-colors hover:text-red-700"
+                        className="text-danger transition-colors hover:opacity-80"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -146,7 +154,7 @@ export default function RoomsImportPanel({ onImported }) {
             <button
               type="button"
               onClick={addRow}
-              className="flex items-center gap-1 text-xs text-blue-800 transition-colors hover:underline"
+              className="flex items-center gap-1 text-xs text-role-accent transition-colors hover:underline"
             >
               <Plus className="h-3.5 w-3.5" /> Ajouter une ligne
             </button>

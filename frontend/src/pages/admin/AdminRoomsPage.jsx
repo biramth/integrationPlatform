@@ -150,8 +150,8 @@ export default function AdminRoomsPage() {
         />
       )}
 
-      <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
-        <p className="mb-3 text-sm font-semibold text-slate-900">Ajouter une chambre</p>
+      <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-border bg-card p-4">
+        <p className="mb-3 text-sm font-semibold text-foreground">Ajouter une chambre</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           <Input
             label="Label / Numéro"
@@ -207,12 +207,12 @@ export default function AdminRoomsPage() {
               <div key={room.id} className="animate-fade-in-up" style={staggerStyle(i)}>
                 <Card accent={room.gender === 'M' ? 'bg-sky-600' : 'bg-pink-500'} className="pl-5">
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="font-medium text-slate-900">{room.label}</p>
+                    <p className="font-medium text-foreground">{room.label}</p>
                     <Badge variant={room.occupied >= room.capacity ? 'danger' : 'success'}>
                       {room.occupied}/{room.capacity}
                     </Badge>
                   </div>
-                  <p className="text-sm text-slate-500">{room.gender === 'M' ? 'Masculin' : 'Féminin'} · {room.building || '—'}</p>
+                  <p className="text-sm text-muted-foreground">{room.gender === 'M' ? 'Masculin' : 'Féminin'} · {room.building || '—'}</p>
                   <div className="mt-2">
                     <Badge variant={mattress.variant}>
                       <BedDouble className="mr-1 inline h-3 w-3" /> {mattress.label}
@@ -223,13 +223,13 @@ export default function AdminRoomsPage() {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => openEdit(room)}
-                        className="flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700 hover:underline"
+                        className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline"
                       >
                         <Pencil className="h-3.5 w-3.5" /> Modifier
                       </button>
                       <button
                         onClick={() => handleDelete(room)}
-                        className="flex items-center gap-1 text-xs text-red-600 transition-colors hover:text-red-700 hover:underline disabled:cursor-not-allowed disabled:text-slate-300 disabled:no-underline"
+                        className="flex items-center gap-1 text-xs text-danger transition-colors hover:opacity-80 hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
                         disabled={room.occupied > 0}
                       >
                         <Trash2 className="h-3.5 w-3.5" /> Supprimer
@@ -238,14 +238,14 @@ export default function AdminRoomsPage() {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => toggleExpand(room)}
-                        className="flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700"
+                        className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                       >
                         Occupants
                         <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
                       </button>
                       <button
                         onClick={() => toggleHistory(room)}
-                        className="flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700"
+                        className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                       >
                         Historique
                         <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${historyExpanded ? 'rotate-180' : ''}`} />
@@ -254,13 +254,13 @@ export default function AdminRoomsPage() {
                   </div>
 
                   {expanded && (
-                    <div className="mt-3 border-t border-slate-100 pt-3">
-                      {occupants === undefined && <p className="text-xs text-slate-400">Chargement…</p>}
-                      {occupants && occupants.length === 0 && <p className="text-xs text-slate-400">Aucun DUT1 assigné.</p>}
+                    <div className="mt-3 border-t border-border pt-3">
+                      {occupants === undefined && <p className="text-xs text-muted-foreground">Chargement…</p>}
+                      {occupants && occupants.length === 0 && <p className="text-xs text-muted-foreground">Aucun DUT1 assigné.</p>}
                       {occupants && occupants.length > 0 && (
                         <ul className="flex flex-col gap-1.5">
                           {occupants.map((o) => (
-                            <li key={o.id} className="text-sm text-slate-700">
+                            <li key={o.id} className="text-sm text-foreground">
                               {o.first_name} {o.last_name}
                             </li>
                           ))}
@@ -270,13 +270,13 @@ export default function AdminRoomsPage() {
                   )}
 
                   {historyExpanded && (
-                    <div className="mt-3 border-t border-slate-100 pt-3">
-                      {history === undefined && <p className="text-xs text-slate-400">Chargement…</p>}
-                      {history && history.length === 0 && <p className="text-xs text-slate-400">Aucun changement enregistré.</p>}
+                    <div className="mt-3 border-t border-border pt-3">
+                      {history === undefined && <p className="text-xs text-muted-foreground">Chargement…</p>}
+                      {history && history.length === 0 && <p className="text-xs text-muted-foreground">Aucun changement enregistré.</p>}
                       {history && history.length > 0 && (
                         <ul className="flex flex-col gap-1.5">
                           {history.map((h) => (
-                            <li key={h.id} className="text-xs text-slate-600">
+                            <li key={h.id} className="text-xs text-muted-foreground">
                               {h.first_name} {h.last_name} —{' '}
                               {h.old_room_label ? `${h.old_room_label} → ${h.new_room_label || 'aucune'}` : 'assigné(e) ici'}
                               {' · '}

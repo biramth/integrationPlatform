@@ -93,8 +93,8 @@ export default function AdminAgentsPage() {
     <div>
       <PageHeader title="Comptes agents" />
 
-      <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
-        <p className="mb-3 text-sm font-semibold text-slate-900">Créer un compte</p>
+      <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-border bg-card p-4">
+        <p className="mb-3 text-sm font-semibold text-foreground">Créer un compte</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           <Input
             label="Nom complet"
@@ -182,8 +182,8 @@ export default function AdminAgentsPage() {
                       <div className="flex items-center gap-3">
                         <Avatar name={agent.full_name} size={36} />
                         <div>
-                          <p className="font-medium text-slate-900">{agent.full_name}</p>
-                          <p className="text-sm text-slate-500">
+                          <p className="font-medium text-foreground">{agent.full_name}</p>
+                          <p className="text-sm text-muted-foreground">
                             {agent.username} · {ROLE_LABELS[agent.role]}
                           </p>
                         </div>

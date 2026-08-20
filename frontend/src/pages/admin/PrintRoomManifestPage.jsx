@@ -42,17 +42,17 @@ export default function PrintRoomManifestPage() {
           {roomsFetch.data.rooms.map((room) => {
             const occupants = occupantsFetch.data?.[room.id] || [];
             return (
-              <div key={room.id} className="break-inside-avoid rounded-lg border border-slate-200 p-4 print:border-black">
-                <h2 className="mb-2 text-base font-semibold text-slate-900">
+              <div key={room.id} className="break-inside-avoid rounded-lg border border-border p-4 print:border-black">
+                <h2 className="mb-2 text-base font-semibold text-foreground">
                   Chambre {room.label} — {room.gender === 'M' ? 'Masculin' : 'Féminin'} · {room.building || '—'} ·{' '}
                   {occupants.length}/{room.capacity}
                 </h2>
                 {occupants.length === 0 ? (
-                  <p className="text-sm text-slate-400">Aucun occupant assigné.</p>
+                  <p className="text-sm text-muted-foreground">Aucun occupant assigné.</p>
                 ) : (
                   <table className="w-full border-collapse text-sm">
                     <thead>
-                      <tr className="border-b border-slate-300 text-left text-xs uppercase text-slate-500">
+                      <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
                         <th className="py-1 pr-4">Nom</th>
                         <th className="py-1 pr-4">Département</th>
                         <th className="py-1">Genre</th>
@@ -60,7 +60,7 @@ export default function PrintRoomManifestPage() {
                     </thead>
                     <tbody>
                       {occupants.map((o) => (
-                        <tr key={o.id} className="border-b border-slate-100">
+                        <tr key={o.id} className="border-b border-border">
                           <td className="py-1 pr-4">{o.first_name} {o.last_name}</td>
                           <td className="py-1 pr-4">{DEPARTMENT_LABELS[o.department] || o.department}</td>
                           <td className="py-1">{o.gender}</td>

@@ -41,7 +41,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-background">
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 p-10 text-white lg:flex">
         <div
           className="pointer-events-none absolute inset-0 opacity-20"
@@ -88,11 +88,11 @@ export default function LoginPage() {
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-800 text-white">
               <GraduationCap className="h-5 w-5" />
             </span>
-            <span className="text-lg font-semibold text-slate-900">Intégration DUT1</span>
+            <span className="text-lg font-semibold text-foreground">Intégration DUT1</span>
           </div>
 
-          <h2 className="mb-1 text-xl font-semibold text-slate-900">Connexion</h2>
-          <p className="mb-6 text-sm text-slate-500">ESP Dakar — Espace agents et commissions</p>
+          <h2 className="mb-1 text-xl font-semibold text-foreground">Connexion</h2>
+          <p className="mb-6 text-sm text-muted-foreground">ESP Dakar — Espace agents et commissions</p>
 
           <div className="flex flex-col gap-4">
             <Input
@@ -110,7 +110,7 @@ export default function LoginPage() {
               required
             />
             {error && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+              <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-soft-foreground">{error}</p>
             )}
             <Button type="submit" loading={submitting} className="w-full">
               Se connecter

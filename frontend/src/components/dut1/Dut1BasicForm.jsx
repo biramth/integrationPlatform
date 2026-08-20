@@ -6,8 +6,8 @@ export default function Dut1BasicForm({ values, errors = {}, onChange }) {
   return (
     <div className="flex flex-col gap-6">
       {DUT1_BASIC_SECTIONS.map((section) => (
-        <fieldset key={section.title} className="rounded-xl border border-slate-200 p-4">
-          <legend className="px-1 text-sm font-semibold text-slate-900">{section.title}</legend>
+        <fieldset key={section.title} className="rounded-xl border border-border p-4">
+          <legend className="px-1 text-sm font-semibold text-foreground">{section.title}</legend>
           <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {section.fields.map((field) => {
               const commonProps = {
@@ -27,7 +27,7 @@ export default function Dut1BasicForm({ values, errors = {}, onChange }) {
           </div>
         </fieldset>
       ))}
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted-foreground">
         * Au moins un numéro de téléphone parent (père ou mère) est requis.
       </p>
     </div>

@@ -30,10 +30,10 @@ function RecentLuggageTab() {
         <div key={item.id} className="animate-fade-in-up" style={staggerStyle(i)}>
           <Card className="flex items-center justify-between gap-3">
             <div>
-              <p className="font-medium text-slate-900">
+              <p className="font-medium text-foreground">
                 {item.first_name} {item.last_name}
               </p>
-              <p className="text-xs text-slate-500">{new Date(item.uploaded_at).toLocaleString('fr-FR')}</p>
+              <p className="text-xs text-muted-foreground">{new Date(item.uploaded_at).toLocaleString('fr-FR')}</p>
             </div>
             {item.is_sensitive && (
               <Badge variant="warning">
@@ -153,95 +153,95 @@ export default function LogisticsListPage() {
 
           <div className="flex flex-col gap-3">
             {filtered.map((record, i) => {
-          const expanded = expandedId === record.id;
-          const items = itemsByDut1[record.id];
-          const hasCount = record.luggage_count !== null && record.luggage_count !== undefined;
+              const expanded = expandedId === record.id;
+              const items = itemsByDut1[record.id];
+              const hasCount = record.luggage_count !== null && record.luggage_count !== undefined;
 
-          return (
-            <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
-              <Card>
-                <button
-                  type="button"
-                  onClick={() => toggleExpand(record)}
-                  className="flex w-full items-start justify-between gap-2 text-left"
-                >
-                  <div>
-                    <p className="font-medium text-slate-900">
-                      {record.first_name} {record.last_name}
-                    </p>
-                    <p className="text-sm text-slate-500">{DEPARTMENT_LABELS[record.department] || record.department}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Badge variant={record.room_label ? 'success' : 'warning'}>
-                        {record.room_label ? `Chambre ${record.room_label}` : 'Sans chambre'}
-                      </Badge>
-                      <Badge variant={hasCount && record.luggage_items_count > 0 ? 'neutral' : 'warning'}>
-                        <LuggageIcon className="mr-1 inline h-3 w-3" />
-                        {record.luggage_items_count}
-                        {hasCount ? `/${record.luggage_count}` : ''} bagage{record.luggage_items_count > 1 ? 's' : ''}
-                      </Badge>
-                      {record.luggage_sensitive_count > 0 && (
-                        <Badge variant="warning">
-                          <ShieldAlert className="mr-1 inline h-3 w-3" />
-                          {record.luggage_sensitive_count} sensible{record.luggage_sensitive_count > 1 ? 's' : ''}
-                        </Badge>
-                      )}
-                    </div>
-                    {hasCount && (
-                      <Progress
-                        value={Math.min((record.luggage_items_count / Math.max(record.luggage_count, 1)) * 100, 100)}
-                        className="mt-2 h-1.5 w-40"
+              return (
+                <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
+                  <Card>
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(record)}
+                      className="flex w-full items-start justify-between gap-2 text-left"
+                    >
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {record.first_name} {record.last_name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">{DEPARTMENT_LABELS[record.department] || record.department}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <Badge variant={record.room_label ? 'success' : 'warning'}>
+                            {record.room_label ? `Chambre ${record.room_label}` : 'Sans chambre'}
+                          </Badge>
+                          <Badge variant={hasCount && record.luggage_items_count > 0 ? 'neutral' : 'warning'}>
+                            <LuggageIcon className="mr-1 inline h-3 w-3" />
+                            {record.luggage_items_count}
+                            {hasCount ? `/${record.luggage_count}` : ''} bagage{record.luggage_items_count > 1 ? 's' : ''}
+                          </Badge>
+                          {record.luggage_sensitive_count > 0 && (
+                            <Badge variant="warning">
+                              <ShieldAlert className="mr-1 inline h-3 w-3" />
+                              {record.luggage_sensitive_count} sensible{record.luggage_sensitive_count > 1 ? 's' : ''}
+                            </Badge>
+                          )}
+                        </div>
+                        {hasCount && (
+                          <Progress
+                            value={Math.min((record.luggage_items_count / Math.max(record.luggage_count, 1)) * 100, 100)}
+                            className="mt-2 h-1.5 w-40"
+                          />
+                        )}
+                      </div>
+                      <ChevronDown
+                        className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
                       />
-                    )}
-                  </div>
-                  <ChevronDown
-                    className={`h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-                  />
-                </button>
+                    </button>
 
-                {expanded && (
-                  <div className="mt-4 flex flex-col gap-4 border-t border-slate-100 pt-4" onClick={(e) => e.stopPropagation()}>
-                    <label className="flex flex-col gap-1 text-sm">
-                      <span className="font-medium text-slate-700">Nombre de bagages déclaré</span>
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          value={countDraft}
-                          onChange={(e) => setCountDraft(e.target.value)}
-                          onBlur={() => handleSaveCount(record)}
-                          placeholder="Ex : 3"
-                          className="min-h-[44px] w-28 rounded-lg border border-slate-300 px-3 py-2 text-base outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                    {expanded && (
+                      <div className="mt-4 flex flex-col gap-4 border-t border-border pt-4" onClick={(e) => e.stopPropagation()}>
+                        <label className="flex flex-col gap-1 text-sm">
+                          <span className="font-medium text-foreground">Nombre de bagages déclaré</span>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              min="0"
+                              value={countDraft}
+                              onChange={(e) => setCountDraft(e.target.value)}
+                              onBlur={() => handleSaveCount(record)}
+                              placeholder="Ex : 3"
+                              className="min-h-[44px] w-28 rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            />
+                          </div>
+                        </label>
+
+                        {items === undefined && <p className="text-sm text-muted-foreground">Chargement des bagages…</p>}
+                        {items && items.length > 0 && (
+                          <div>
+                            <p className="mb-2 text-sm font-medium text-foreground">Bagages photographiés</p>
+                            <div className="flex flex-wrap gap-2">
+                              {items.map((item, idx) => (
+                                <LuggageItemThumb
+                                  key={item.id}
+                                  item={item}
+                                  index={idx}
+                                  onDelete={() => handleDeleteItem(record, item)}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <PhotoCapture
+                          submitting={submittingId === record.id}
+                          onCapture={(file, isSensitive, sensitiveNote) => handleCapture(record, file, isSensitive, sensitiveNote)}
                         />
                       </div>
-                    </label>
-
-                    {items === undefined && <p className="text-sm text-slate-400">Chargement des bagages…</p>}
-                    {items && items.length > 0 && (
-                      <div>
-                        <p className="mb-2 text-sm font-medium text-slate-700">Bagages photographiés</p>
-                        <div className="flex flex-wrap gap-2">
-                          {items.map((item, idx) => (
-                            <LuggageItemThumb
-                              key={item.id}
-                              item={item}
-                              index={idx}
-                              onDelete={() => handleDeleteItem(record, item)}
-                            />
-                          ))}
-                        </div>
-                      </div>
                     )}
-
-                    <PhotoCapture
-                      submitting={submittingId === record.id}
-                      onCapture={(file, isSensitive, sensitiveNote) => handleCapture(record, file, isSensitive, sensitiveNote)}
-                    />
-                  </div>
-                )}
-              </Card>
-            </div>
-          );
-        })}
+                  </Card>
+                </div>
+              );
+            })}
           </div>
         </>
       )}

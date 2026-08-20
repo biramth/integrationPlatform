@@ -244,8 +244,8 @@ export default function AdminRecordsPage() {
       </div>
 
       {selectedIds.size > 0 && (
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5">
-          <p className="text-sm font-medium text-blue-900">{selectedIds.size} sélectionné(s)</p>
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-info bg-info-soft px-4 py-2.5">
+          <p className="text-sm font-medium text-info-soft-foreground">{selectedIds.size} sélectionné(s)</p>
           <Button variant="danger" onClick={handleBulkDelete} loading={bulkDeleting} className="px-3 py-1.5 text-xs">
             <Trash2 className="h-3.5 w-3.5" /> Supprimer la sélection
           </Button>
@@ -275,7 +275,7 @@ export default function AdminRecordsPage() {
             <Dut1BasicForm values={formValues} onChange={(key, value) => setFormValues((v) => ({ ...v, [key]: value }))} />
 
             <div>
-              <p className="mb-1.5 text-sm font-medium text-slate-700">Admission au concours</p>
+              <p className="mb-1.5 text-sm font-medium text-foreground">Admission au concours</p>
               <AdmissionListToggle value={admissionListType} onChange={setAdmissionListType} />
             </div>
 
@@ -296,19 +296,19 @@ export default function AdminRecordsPage() {
               <button
                 type="button"
                 onClick={toggleHistory}
-                className="flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700"
+                className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
                 Historique des chambres
                 <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${historyOpen ? 'rotate-180' : ''}`} />
               </button>
               {historyOpen && (
-                <div className="mt-2 border-t border-slate-100 pt-2">
-                  {!roomHistory && <p className="text-xs text-slate-400">Chargement…</p>}
-                  {roomHistory && roomHistory.length === 0 && <p className="text-xs text-slate-400">Aucun changement de chambre.</p>}
+                <div className="mt-2 border-t border-border pt-2">
+                  {!roomHistory && <p className="text-xs text-muted-foreground">Chargement…</p>}
+                  {roomHistory && roomHistory.length === 0 && <p className="text-xs text-muted-foreground">Aucun changement de chambre.</p>}
                   {roomHistory && roomHistory.length > 0 && (
                     <ul className="flex flex-col gap-1.5">
                       {roomHistory.map((h) => (
-                        <li key={h.id} className="text-xs text-slate-600">
+                        <li key={h.id} className="text-xs text-muted-foreground">
                           {h.old_room_label ? `${h.old_room_label} → ${h.new_room_label || 'aucune'}` : `Assigné à ${h.new_room_label}`}
                           {' · '}
                           {new Date(h.changed_at).toLocaleString('fr-FR')} par {h.changed_by_name || '—'}

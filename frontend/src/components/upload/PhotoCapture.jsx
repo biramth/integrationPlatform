@@ -36,14 +36,14 @@ export default function PhotoCapture({ onCapture, submitting }) {
         <div className="flex flex-col gap-3">
           <img src={previewUrl} alt="Aperçu bagage" className="max-h-72 w-full rounded-xl object-cover" />
 
-          <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm has-[:checked]:border-amber-400 has-[:checked]:bg-amber-50">
+          <label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-sm has-[:checked]:border-warning has-[:checked]:bg-warning-soft">
             <input
               type="checkbox"
               checked={isSensitive}
               onChange={(e) => setIsSensitive(e.target.checked)}
-              className="h-4 w-4 accent-amber-500"
+              className="h-4 w-4 accent-warning"
             />
-            <ShieldAlert className={`h-4 w-4 ${isSensitive ? 'text-amber-600' : 'text-slate-400'}`} />
+            <ShieldAlert className={`h-4 w-4 ${isSensitive ? 'text-warning' : 'text-muted-foreground'}`} />
             Objet sensible à l'intérieur (espèces, électronique, papiers…)
           </label>
 
@@ -52,7 +52,7 @@ export default function PhotoCapture({ onCapture, submitting }) {
               placeholder="Précise quoi (ex: ordinateur portable, espèces, passeport…)"
               value={sensitiveNote}
               onChange={(e) => setSensitiveNote(e.target.value)}
-              className="min-h-[70px] rounded-lg border border-slate-300 px-3 py-2 text-base outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+              className="min-h-[70px] rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           )}
 

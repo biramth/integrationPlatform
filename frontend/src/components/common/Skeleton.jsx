@@ -1,10 +1,10 @@
 export default function Skeleton({ className = '' }) {
-  return <div className={`animate-pulse-skeleton rounded-lg bg-slate-200 ${className}`} />;
+  return <div className={`animate-pulse-skeleton rounded-lg bg-muted ${className}`} />;
 }
 
 export function StatCardSkeleton() {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <Skeleton className="h-4 w-20" />
       <Skeleton className="mt-2 h-7 w-14" />
       <Skeleton className="mt-2 h-3 w-24" />
@@ -14,7 +14,7 @@ export function StatCardSkeleton() {
 
 export function CardRowSkeleton() {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1">
           <Skeleton className="h-4 w-32" />

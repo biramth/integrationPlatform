@@ -8,9 +8,9 @@ export default function Input({ label, error, icon: Icon, className = '', id, ..
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <Label htmlFor={inputId} className="text-sm font-medium text-slate-700">
+        <Label htmlFor={inputId} className="text-sm font-medium text-foreground">
           {label}
-          {props.required && <span className="text-red-500"> *</span>}
+          {props.required && <span className="text-danger"> *</span>}
         </Label>
       )}
       <div className="relative">
@@ -22,7 +22,7 @@ export default function Input({ label, error, icon: Icon, className = '', id, ..
           {...props}
         />
       </div>
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && <span className="text-xs text-danger">{error}</span>}
     </div>
   );
 }
