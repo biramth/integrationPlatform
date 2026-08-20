@@ -13,7 +13,6 @@ import RouteFallback from './routes/RouteFallback';
 const BasicInfoFormPage = lazy(() => import('./pages/registrar/BasicInfoFormPage'));
 const CompleteInfoFormPage = lazy(() => import('./pages/registrar/CompleteInfoFormPage'));
 const LogisticsListPage = lazy(() => import('./pages/logistics/LogisticsListPage'));
-const RoomsPage = lazy(() => import('./pages/logistics/RoomsPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminRecordsPage = lazy(() => import('./pages/admin/AdminRecordsPage'));
 const AdminRoomsPage = lazy(() => import('./pages/admin/AdminRoomsPage'));
@@ -49,8 +48,11 @@ function App() {
               <Route path="/orga/luggage" element={<LogisticsListPage />} />
             </Route>
 
+            {/* Chambres : gérées par la commission Orga (sous-domaine chambres) au
+                quotidien, et par IT via le bypass superuser de RoleRoute — même
+                page pour les deux, montée sur les deux chemins. */}
             <Route element={<RoleRoute roles={['orga']} orgaScope="chambres" />}>
-              <Route path="/orga/rooms" element={<RoomsPage />} />
+              <Route path="/orga/rooms" element={<AdminRoomsPage />} />
             </Route>
 
             {/* Pas de rôle "admin" séparé : ces pages sont accessibles via le

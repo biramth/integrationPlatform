@@ -4,13 +4,14 @@ import { useFetch } from '../../hooks/useFetch';
 import * as activityApi from '../../api/activityApi';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
-import Card from '../../components/common/Card';
+import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import PageHeader from '../../components/common/PageHeader';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
+import { formatDateLong, formatDateShort, isToday, groupActivitiesByDate } from '../../utils/activityDates';
 
 const EMPTY_FORM = { name: '', activityDate: '', endDate: '', description: '' };
 
@@ -127,32 +128,47 @@ export default function ActivitiesPage() {
       )}
 
       {!loading && !error && data.activities.length > 0 && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {data.activities.map((activity, i) => (
-            <div key={activity.id} className="animate-fade-in-up" style={staggerStyle(i)}>
-              <Card accent="bg-role-accent" className="pl-5">
-                <p className="font-medium text-foreground">{activity.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {activity.activity_date}
-                  {activity.end_date ? ` → ${activity.end_date}` : ''}
-                </p>
-                {activity.description && <p className="mt-1 text-xs text-muted-foreground">{activity.description}</p>}
+        <div className="flex flex-col">
+          {groupActivitiesByDate(data.activities).map((group, groupIndex) => (
+            <div key={group.date} className="animate-fade-in-up" style={staggerStyle(groupIndex, 60)}>
+              <div className="sticky top-0 z-10 -mx-1 flex items-center gap-2 bg-background/95 px-1 py-2 backdrop-blur-sm">
+                <h2 className="text-sm font-semibold capitalize text-foreground">{formatDateLong(group.date)}</h2>
+                {isToday(group.date) && <Badge variant="info">Aujourd'hui</Badge>}
+              </div>
 
-                <div className="mt-3 flex items-center gap-3">
-                  <button
-                    onClick={() => openEdit(activity)}
-                    className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline"
-                  >
-                    <Pencil className="h-3.5 w-3.5" /> Modifier
-                  </button>
-                  <button
-                    onClick={() => handleDelete(activity)}
-                    className="flex items-center gap-1 text-xs text-danger transition-colors hover:opacity-80 hover:underline"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Supprimer
-                  </button>
-                </div>
-              </Card>
+              <ul className="relative ml-2.5 flex flex-col gap-3 border-l-2 border-border pb-2 pl-6">
+                {group.items.map((activity) => (
+                  <li key={activity.id} className="relative">
+                    <span className="absolute -left-[1.85rem] top-1.5 h-3 w-3 rounded-full border-2 border-card bg-role-accent" />
+                    <div className="rounded-xl border border-border bg-card p-3.5 shadow-soft">
+                      <p className="font-medium text-foreground">{activity.name}</p>
+                      {activity.end_date && activity.end_date !== activity.activity_date && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Jusqu'au {formatDateShort(activity.end_date)}
+                        </p>
+                      )}
+                      {activity.description && (
+                        <p className="mt-1.5 text-sm text-muted-foreground">{activity.description}</p>
+                      )}
+
+                      <div className="mt-3 flex items-center gap-3">
+                        <button
+                          onClick={() => openEdit(activity)}
+                          className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline"
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Modifier
+                        </button>
+                        <button
+                          onClick={() => handleDelete(activity)}
+                          className="flex items-center gap-1 text-xs text-danger transition-colors hover:opacity-80 hover:underline"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
         </div>

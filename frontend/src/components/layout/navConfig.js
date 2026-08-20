@@ -30,16 +30,21 @@ const ORGA_ITEMS = {
 // Le planning est un calendrier d'activités sans donnée sensible : visible par
 // toutes les commissions, en plus de leurs pages dédiées.
 const PLANNING_ITEM = { to: '/planning', label: 'Planning', icon: CalendarDays };
+// Un chef de commission gère les comptes de sa propre commission (backend déjà
+// en place, cf. requireAgentManagement) — sans ce lien, /admin/agents n'était
+// atteignable que par IT, la page restait invisible pour les chefs.
+const AGENTS_ITEM = { to: '/admin/agents', label: 'Agents', icon: Users };
 
 export function getNavItems(user) {
   if (!user) return [];
+  const leadItems = user.isCommissionLead && user.role !== ROLES.IT ? [AGENTS_ITEM] : [];
   if (user.role === ROLES.ORGA) {
     const scoped = user.subRole
       ? ORGA_ITEMS[user.subRole] || []
       : [...ORGA_ITEMS.enregistrement, ...ORGA_ITEMS.bagages, ...ORGA_ITEMS.chambres];
-    return [...scoped, PLANNING_ITEM];
+    return [...scoped, PLANNING_ITEM, ...leadItems];
   }
-  return NAV_ITEMS[user.role] || [];
+  return [...(NAV_ITEMS[user.role] || []), ...leadItems];
 }
 
 export const NAV_ITEMS = {

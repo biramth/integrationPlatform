@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, Plus, Pencil, ChevronDown, BedDouble, Printer, Upload } from 'lucide-react';
+import { Trash2, Plus, Pencil, ChevronDown, BedDouble, Printer, Upload, DoorOpen, Users, PercentCircle, ArrowRightLeft } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import RoomsImportPanel from '../../components/admin/RoomsImportPanel';
 import * as roomApi from '../../api/roomApi';
-import { listDut1 } from '../../api/dut1Api';
+import * as statsApi from '../../api/statsApi';
+import { listDut1, reassignRoom } from '../../api/dut1Api';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
@@ -12,8 +13,10 @@ import Badge from '../../components/common/Badge';
 import Card from '../../components/common/Card';
 import Modal from '../../components/common/Modal';
 import PageHeader from '../../components/common/PageHeader';
+import StatCard from '../../components/stats/StatCard';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
+import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
 import { getMattressStatus } from '../../utils/mattressStatus';
@@ -22,8 +25,13 @@ import { DEPARTMENT_LABELS } from '../../utils/departments';
 const EMPTY_FORM = { label: '', gender: '', capacity: '', building: '' };
 
 export default function AdminRoomsPage() {
+  const { user } = useAuth();
   const { showToast } = useToast();
   const { data, loading, error, reload } = useFetch(roomApi.listRooms, []);
+  const occupancyFetch = useFetch(statsApi.getRoomsOccupancy, []);
+  const [movingOccupant, setMovingOccupant] = useState(null);
+  const [moveTargetRoomId, setMoveTargetRoomId] = useState('');
+  const [moving, setMoving] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
 
@@ -124,23 +132,66 @@ export default function AdminRoomsPage() {
     }
   }
 
+  function openMove(occupant, fromRoomId) {
+    setMovingOccupant({ ...occupant, fromRoomId });
+    setMoveTargetRoomId('');
+  }
+
+  function closeMove() {
+    setMovingOccupant(null);
+  }
+
+  async function handleMove() {
+    if (!moveTargetRoomId) return;
+    setMoving(true);
+    try {
+      await reassignRoom(movingOccupant.id, Number(moveTargetRoomId));
+      showToast(`${movingOccupant.first_name} ${movingOccupant.last_name} déplacé(e).`, 'success');
+      setOccupantsByRoom({});
+      setExpandedId(null);
+      closeMove();
+      reload();
+      occupancyFetch.reload();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Déplacement impossible.', 'error');
+    } finally {
+      setMoving(false);
+    }
+  }
+
+  const occ = occupancyFetch.data;
+  const targetRooms = (data?.rooms || []).filter(
+    (r) => movingOccupant && r.id !== movingOccupant.fromRoomId && r.gender === movingOccupant.gender && r.occupied < r.capacity
+  );
+
   return (
     <div>
       <PageHeader
         title="Chambres"
         action={
           <div className="flex flex-wrap gap-2">
-            <Link to="/admin/print/rooms">
-              <Button variant="secondary">
-                <Printer className="h-4 w-4" /> Imprimer fiches chambres
-              </Button>
-            </Link>
+            {user.role === 'it' && (
+              <Link to="/admin/print/rooms">
+                <Button variant="secondary">
+                  <Printer className="h-4 w-4" /> Imprimer fiches chambres
+                </Button>
+              </Link>
+            )}
             <Button variant="secondary" onClick={() => setImportOpen((v) => !v)}>
               <Upload className="h-4 w-4" /> {importOpen ? "Fermer l'import" : 'Importer (Excel)'}
             </Button>
           </div>
         }
       />
+
+      {occ && (
+        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="Chambres" value={occ.rooms.length} icon={DoorOpen} tone="blue" />
+          <StatCard label="Places occupées" value={occ.totalOccupied} sublabel={`sur ${occ.totalCapacity}`} icon={Users} tone="violet" />
+          <StatCard label="Places libres" value={occ.totalCapacity - occ.totalOccupied} icon={BedDouble} tone="emerald" />
+          <StatCard label="Taux d'occupation" value={`${occ.occupancyRate}%`} icon={PercentCircle} tone="amber" />
+        </div>
+      )}
 
       {importOpen && (
         <RoomsImportPanel
@@ -261,13 +312,21 @@ export default function AdminRoomsPage() {
                       {occupants && occupants.length > 0 && (
                         <ul className="flex flex-col gap-2">
                           {occupants.map((o) => (
-                            <li key={o.id} className="text-sm">
-                              <span className="text-foreground">
-                                {o.first_name} {o.last_name}
+                            <li key={o.id} className="flex items-center justify-between gap-2 text-sm">
+                              <span>
+                                <span className="text-foreground">
+                                  {o.first_name} {o.last_name}
+                                </span>
+                                <span className="ml-1.5 text-xs text-muted-foreground">
+                                  {DEPARTMENT_LABELS[o.department] || o.department}
+                                </span>
                               </span>
-                              <span className="ml-1.5 text-xs text-muted-foreground">
-                                {DEPARTMENT_LABELS[o.department] || o.department}
-                              </span>
+                              <button
+                                onClick={() => openMove(o, room.id)}
+                                className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline"
+                              >
+                                <ArrowRightLeft className="h-3.5 w-3.5" /> Déplacer
+                              </button>
                             </li>
                           ))}
                         </ul>
@@ -344,6 +403,35 @@ export default function AdminRoomsPage() {
               </Button>
               <Button onClick={handleSaveEdit} loading={saving}>
                 Enregistrer
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!movingOccupant}
+        onClose={closeMove}
+        title={movingOccupant ? `Déplacer ${movingOccupant.first_name} ${movingOccupant.last_name}` : ''}
+      >
+        {movingOccupant && (
+          <div className="flex flex-col gap-3">
+            <Select
+              label="Nouvelle chambre"
+              placeholder="Choisir une chambre…"
+              value={moveTargetRoomId}
+              onChange={(e) => setMoveTargetRoomId(e.target.value)}
+              options={targetRooms.map((r) => ({ value: r.id, label: `${r.label} (${r.occupied}/${r.capacity})` }))}
+            />
+            {targetRooms.length === 0 && (
+              <p className="text-xs text-muted-foreground">Aucune autre chambre disponible pour ce genre.</p>
+            )}
+            <div className="mt-2 flex justify-end gap-2">
+              <Button variant="secondary" onClick={closeMove}>
+                Annuler
+              </Button>
+              <Button onClick={handleMove} loading={moving} disabled={!moveTargetRoomId}>
+                Déplacer
               </Button>
             </div>
           </div>

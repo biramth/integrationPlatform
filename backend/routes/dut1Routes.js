@@ -22,7 +22,7 @@ router.get('/', requireRole('orga', 'sante', 'cuisine', 'communication'), dut1Co
 router.get('/export', requireRole('it'), dut1Controller.exportRecordsCsv);
 router.get('/export-contacts', requireRole('it'), dut1Controller.exportContactsCsv);
 router.get('/:id', requireRole('orga', 'sante', 'cuisine', 'communication'), dut1Controller.getRecord);
-router.get('/:id/room-history', requireRole('it'), dut1Controller.getRoomHistory);
+router.get('/:id/room-history', requireRole('orga'), requireOrgaScope('chambres'), dut1Controller.getRoomHistory);
 router.put('/:id', requireRole('it'), dut1Controller.updateRecord);
 router.delete('/:id', requireRole('it'), dut1Controller.deleteRecord);
 router.put(
@@ -32,6 +32,6 @@ router.put(
   dut1Controller.completeComplementary
 );
 router.put('/:id/allergies', requireRole('orga', 'sante'), requireOrgaScope('enregistrement'), dut1Controller.setAllergies);
-router.put('/:id/room', requireRole('it'), roomController.reassignDut1Room);
+router.put('/:id/room', requireRole('orga'), requireOrgaScope('chambres'), roomController.reassignDut1Room);
 
 module.exports = router;
