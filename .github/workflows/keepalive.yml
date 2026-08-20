@@ -1,6 +1,12 @@
 # Le plan gratuit de Render met le service en veille après 15 min sans trafic,
-# et le réveil coûte ~50 s à la première requête. Ce ping toutes les 10 minutes
-# (aux heures ouvrées, UTC) garde l'API chaude sans service externe.
+# et le réveil coûte ~50 s à la première requête. Ce ping toutes les 10 minutes,
+# 24h/24, garde l'API chaude sans service externe — la marge de 5 min sous le
+# seuil de 15 min absorbe les délais/retards habituels des cron GitHub Actions
+# (pas garantis à la minute près).
+#
+# Note : ceci réduit très fortement le risque de veille mais ne l'élimine pas à
+# 100 % (un run en retard reste possible) ; seul le plan payant Render
+# (`starter`, ~7$/mois, cf. render.yaml) supprime la veille avec certitude.
 #
 # Par défaut l'URL est celle du service décrit dans render.yaml ; si Render en a
 # attribué une autre, créer une *variable* de repo nommée API_URL
@@ -13,7 +19,7 @@ name: Keep-alive API
 
 on:
   schedule:
-    - cron: '*/10 6-21 * * *'
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 jobs:

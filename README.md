@@ -178,11 +178,13 @@ reste instantané — l'utilisateur voit donc l'interface tout de suite mais
 attend sur le premier appel API. Deux façons d'y remédier :
 
 - le workflow [`keepalive.yml`](.github/workflows/keepalive.yml) s'en charge
-  déjà : il ping `/healthz` toutes les 10 min entre 6 h et 21 h UTC depuis
-  GitHub Actions (gratuit sur un repo public), donc l'API reste chaude sans
-  service externe. Pour l'arrêter hors période d'intégration :
-  **Actions → Keep-alive API → « … » → Disable workflow** ;
-- passer Render en plan `starter` (~7 $/mois), qui supprime la veille.
+  déjà : il ping `/healthz` toutes les 10 min, 24h/24, depuis GitHub Actions
+  (gratuit), donc l'API reste chaude sans service externe. Ça réduit très
+  fortement le risque de veille mais ne l'élimine pas à 100 % (un run en
+  retard reste possible sur un cron). Pour l'arrêter hors période
+  d'intégration : **Actions → Keep-alive API → « … » → Disable workflow** ;
+- passer Render en plan `starter` (~7 $/mois) : seule option qui supprime la
+  veille avec certitude.
 
 La région du service Render ne peut pas être changée après création : pour un
 public ouest-africain, créer le service en **Frankfurt** (ligne `region`
@@ -191,27 +193,15 @@ commentée dans `render.yaml`) plutôt que dans une région américaine.
 ### Mise à jour de la production
 
 Il n'y a rien à faire à la main : **un `git push` sur `main` met la production
-à jour des deux côtés.**
-
-```
-git push origin main
-        │
-        ├─→ GitHub Actions (ci.yml) : build du frontend + install du backend
-        ├─→ Vercel  : rebuild du frontend, mise en ligne sur le CDN (~1 min)
-        └─→ Render  : rebuild de l'API, migrations, redémarrage (~2-3 min)
-```
-
-Vercel redéploie via son intégration Git (branche de production `main`) et
-Render via `autoDeploy: true` dans [`render.yaml`](render.yaml) — les deux
-écoutent le même push, en parallèle. Les migrations (`migrate.js`, `seed.js`)
-sont idempotentes et rejouées à chaque déploiement sans toucher aux données.
-
-Les pull requests obtiennent en plus une preview Vercel automatique, dont
-l'URL est autorisée par le `*.vercel.app` de `CORS_ORIGIN`.
+à jour des deux côtés.** Vercel redéploie via son intégration Git et Render
+via `autoDeploy: true` dans [`render.yaml`](render.yaml) — les deux écoutent
+le même push, en parallèle (`ci.yml` vérifie en plus que le frontend build et
+que le backend s'installe proprement). Les migrations (`migrate.js`,
+`seed.js`) sont idempotentes et rejouées à chaque déploiement sans toucher aux
+données.
 
 **Revenir en arrière** : `Deployments → Rollback` sur Render, `Deployments →
-Promote to Production` sur un déploiement précédent côté Vercel. Aucun des
-deux ne nécessite de toucher au code.
+Promote to Production` sur un déploiement précédent côté Vercel.
 
 ### Développement local
 
