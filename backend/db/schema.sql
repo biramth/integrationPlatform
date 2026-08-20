@@ -3,12 +3,16 @@ CREATE TABLE IF NOT EXISTS users (
   full_name     TEXT NOT NULL,
   username      TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
-  role          TEXT NOT NULL CHECK (role IN ('orga','admin','sante','cuisine','it','communication','culturelle','activites')),
+  -- Pas de rôle "admin" séparé : la commission IT EST l'administration de la
+  -- plateforme (super-utilisateur, cf. requireRole dans middleware/auth.js).
+  -- "presidentielle" = commission qui fixe le programme des activités
+  -- d'intégration (son vrai nom, pas "activités").
+  role          TEXT NOT NULL CHECK (role IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle')),
   -- Sous-rôle : ne s'applique qu'à la commission Orga, pour restreindre un agent à
   -- un seul sous-domaine (chambres / enregistrement / bagages). NULL = accès aux trois.
   sub_role      TEXT CHECK (sub_role IN ('chambres','enregistrement','bagages')),
   -- Chef de commission : droits supplémentaires pour gérer les autres agents de sa
-  -- propre commission (hors admin/it, qui gèrent déjà tout le monde).
+  -- propre commission (hors it, qui gère déjà tout le monde).
   is_commission_lead  BOOLEAN NOT NULL DEFAULT FALSE,
   can_reset_platform  BOOLEAN NOT NULL DEFAULT FALSE,
   is_active     BOOLEAN NOT NULL DEFAULT TRUE,
@@ -139,6 +143,21 @@ ALTER TABLE users
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_sub_role_check;
 ALTER TABLE users ADD CONSTRAINT users_sub_role_check
   CHECK (sub_role IN ('chambres','enregistrement','bagages'));
+
+-- "admin" n'est pas une commission à part : la commission IT EST l'admin de la
+-- plateforme, donc les comptes admin deviennent des comptes it (chef +
+-- habilité à réinitialiser la plateforme, pour conserver leurs pleins
+-- pouvoirs). "activites" est renommé "presidentielle", son vrai nom.
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_check
+  CHECK (role IN ('orga','admin','sante','cuisine','it','communication','culturelle','activites','presidentielle'));
+
+UPDATE users SET role = 'it', is_commission_lead = TRUE, can_reset_platform = TRUE WHERE role = 'admin';
+UPDATE users SET role = 'presidentielle' WHERE role = 'activites';
+
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_check
+  CHECK (role IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle'));
 
 ALTER TABLE admitted_students DROP CONSTRAINT IF EXISTS admitted_students_department_check;
 ALTER TABLE admitted_students ADD CONSTRAINT admitted_students_department_check

@@ -1,23 +1,37 @@
+// Pas de rôle "admin" séparé : la commission IT EST l'administration de la
+// plateforme (super-utilisateur, cf. RoleRoute et middleware/auth.js côté back).
 export const ROLES = {
   ORGA: 'orga',
-  ADMIN: 'admin',
   SANTE: 'sante',
   CUISINE: 'cuisine',
   IT: 'it',
   COMMUNICATION: 'communication',
   CULTURELLE: 'culturelle',
-  ACTIVITES: 'activites',
+  PRESIDENTIELLE: 'presidentielle',
 };
 
 export const ROLE_LABELS = {
   [ROLES.ORGA]: 'Commission Orga',
-  [ROLES.ADMIN]: 'Administrateur',
   [ROLES.SANTE]: 'Commission Santé',
   [ROLES.CUISINE]: 'Commission Cuisine',
   [ROLES.IT]: 'Commission IT',
   [ROLES.COMMUNICATION]: 'Commission Communication',
   [ROLES.CULTURELLE]: 'Commission Culturelle',
-  [ROLES.ACTIVITES]: 'Commission Activités',
+  [ROLES.PRESIDENTIELLE]: 'Commission Présidentielle',
+};
+
+// Reprend les couleurs de --role-accent (index.css) pour donner à chaque
+// commission un repère visuel dans les listes de rôles (ex: sélecteur de
+// rôle à la création d'un compte) — sans ça, une liste de 7 libellés très
+// proches ("Commission X") est difficile à scanner d'un coup d'œil.
+export const ROLE_COLORS = {
+  [ROLES.ORGA]: '#2563eb',
+  [ROLES.SANTE]: '#dc2626',
+  [ROLES.CUISINE]: '#16a34a',
+  [ROLES.IT]: '#7c3aed',
+  [ROLES.COMMUNICATION]: '#0891b2',
+  [ROLES.CULTURELLE]: '#c026d3',
+  [ROLES.PRESIDENTIELLE]: '#ea580c',
 };
 
 export const ORGA_SUB_ROLES = {
@@ -43,7 +57,6 @@ export function homePathForRole(role, subRole) {
       if (subRole === ORGA_SUB_ROLES.CHAMBRES) return '/orga/rooms';
       if (subRole === ORGA_SUB_ROLES.BAGAGES) return '/orga/luggage';
       return '/orga/basic';
-    case ROLES.ADMIN:
     case ROLES.IT:
       return '/admin';
     case ROLES.SANTE:
@@ -54,7 +67,7 @@ export function homePathForRole(role, subRole) {
       return '/communication/annuaire';
     case ROLES.CULTURELLE:
       return '/planning';
-    case ROLES.ACTIVITES:
+    case ROLES.PRESIDENTIELLE:
       return '/admin/activites';
     default:
       return '/login';

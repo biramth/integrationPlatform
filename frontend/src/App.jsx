@@ -40,43 +40,42 @@ function App() {
             {/* Planning : accessible à toutes les commissions, aucune restriction de rôle. */}
             <Route path="/planning" element={<PlanningReadOnlyPage />} />
 
-            <Route element={<RoleRoute roles={['orga', 'admin']} orgaScope="enregistrement" />}>
+            <Route element={<RoleRoute roles={['orga']} orgaScope="enregistrement" />}>
               <Route path="/orga/basic" element={<BasicInfoFormPage />} />
               <Route path="/orga/complementary" element={<CompleteInfoFormPage />} />
             </Route>
 
-            <Route element={<RoleRoute roles={['orga', 'admin']} orgaScope="bagages" />}>
+            <Route element={<RoleRoute roles={['orga']} orgaScope="bagages" />}>
               <Route path="/orga/luggage" element={<LogisticsListPage />} />
             </Route>
 
-            <Route element={<RoleRoute roles={['orga', 'admin']} orgaScope="chambres" />}>
+            <Route element={<RoleRoute roles={['orga']} orgaScope="chambres" />}>
               <Route path="/orga/rooms" element={<RoomsPage />} />
             </Route>
 
-            <Route element={<RoleRoute roles={['admin']} />}>
+            {/* Pas de rôle "admin" séparé : ces pages sont accessibles via le
+                bypass superuser de la commission IT dans RoleRoute. */}
+            <Route element={<RoleRoute roles={['it']} />}>
               <Route path="/admin" element={<AdminDashboardPage />} />
               <Route path="/admin/records" element={<AdminRecordsPage />} />
               <Route path="/admin/rooms" element={<AdminRoomsPage />} />
               <Route path="/admin/print/rooms" element={<PrintRoomManifestPage />} />
-            </Route>
-
-            <Route element={<RoleRoute roles={['admin']} allowLeads />}>
-              <Route path="/admin/agents" element={<AdminAgentsPage />} />
-            </Route>
-
-            <Route element={<RoleRoute roles={['admin', 'activites']} />}>
-              <Route path="/admin/activites" element={<ActivitiesPage />} />
-            </Route>
-
-            <Route element={<RoleRoute roles={['it']} />}>
               <Route path="/admin/plateforme" element={<PlatformResetPage />} />
             </Route>
 
-            <Route element={<RoleRoute roles={['cuisine', 'admin']} />}>
+            <Route element={<RoleRoute roles={['it']} allowLeads />}>
+              <Route path="/admin/agents" element={<AdminAgentsPage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={['presidentielle']} />}>
+              <Route path="/admin/activites" element={<ActivitiesPage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={['cuisine']} />}>
               <Route path="/cuisine/menu" element={<MenuPage />} />
             </Route>
 
-            <Route element={<RoleRoute roles={['sante', 'admin']} />}>
+            <Route element={<RoleRoute roles={['sante']} />}>
               <Route path="/sante/risques" element={<RisksPage />} />
               <Route path="/sante/suivi" element={<HealthTrackingPage />} />
               <Route path="/sante/allergenes" element={<AllergensAdminPage />} />

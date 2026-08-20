@@ -5,7 +5,7 @@ const { uploadSpreadsheet } = require('../middleware/uploadSpreadsheet');
 
 const router = express.Router();
 
-router.use(verifyToken, requireRole('admin'));
+router.use(verifyToken, requireRole('it'));
 
 router.post('/admitted-students/preview', uploadSpreadsheet.single('file'), importController.previewAdmittedStudents);
 router.post('/admitted-students/confirm', importController.confirmAdmittedStudents);

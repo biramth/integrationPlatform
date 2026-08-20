@@ -43,13 +43,6 @@ export function getNavItems(user) {
 }
 
 export const NAV_ITEMS = {
-  [ROLES.ADMIN]: [
-    { to: '/admin', label: 'Tableau de bord', shortLabel: 'Accueil', icon: LayoutDashboard },
-    { to: '/admin/records', label: 'Dossiers', icon: FolderOpen },
-    { to: '/admin/rooms', label: 'Chambres', icon: DoorOpen },
-    { to: '/admin/agents', label: 'Agents', icon: Users },
-    { to: '/admin/activites', label: 'Activités', icon: CalendarDays },
-  ],
   [ROLES.IT]: [
     { to: '/admin', label: 'Tableau de bord', shortLabel: 'Accueil', icon: LayoutDashboard },
     { to: '/admin/records', label: 'Dossiers', icon: FolderOpen },
@@ -67,5 +60,5 @@ export const NAV_ITEMS = {
   [ROLES.CUISINE]: [{ to: '/cuisine/menu', label: 'Menu du jour', icon: UtensilsCrossed }, PLANNING_ITEM],
   [ROLES.COMMUNICATION]: [{ to: '/communication/annuaire', label: 'Annuaire', icon: Contact }, PLANNING_ITEM],
   [ROLES.CULTURELLE]: [PLANNING_ITEM],
-  [ROLES.ACTIVITES]: [{ to: '/admin/activites', label: 'Activités', icon: CalendarDays }],
+  [ROLES.PRESIDENTIELLE]: [{ to: '/admin/activites', label: 'Activités', icon: CalendarDays }],
 };

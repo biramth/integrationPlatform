@@ -33,8 +33,8 @@ function requireRole(...roles) {
 
 // Restreint un agent Orga à son sous-domaine (chambres / enregistrement / bagages)
 // quand on lui en a assigné un. sub_role NULL = accès aux trois. Ne s'applique
-// qu'au rôle "orga" : les autres rôles autorisés par requireRole (admin, it via
-// le bypass ci-dessus) ne sont jamais restreints par un sous-rôle.
+// qu'au rôle "orga" : les autres rôles autorisés par requireRole (it via le
+// bypass ci-dessus) ne sont jamais restreints par un sous-rôle.
 function requireOrgaScope(scope) {
   return (req, res, next) => {
     if (req.user.role === 'orga' && req.user.subRole && req.user.subRole !== scope) {
@@ -44,12 +44,12 @@ function requireOrgaScope(scope) {
   };
 }
 
-// Gestion des comptes agents : admin et it gèrent tout le monde ; un chef de
-// commission (is_commission_lead) peut gérer les comptes de sa propre
-// commission (la portée exacte — même commission, pas de promotion de
-// privilèges — est vérifiée dans agentController.js).
+// Gestion des comptes agents : it gère tout le monde ; un chef de commission
+// (is_commission_lead) peut gérer les comptes de sa propre commission (la
+// portée exacte — même commission, pas de promotion de privilèges — est
+// vérifiée dans agentController.js).
 function requireAgentManagement(req, res, next) {
-  if (req.user && (req.user.role === 'admin' || req.user.role === 'it' || req.user.isCommissionLead)) {
+  if (req.user && (req.user.role === 'it' || req.user.isCommissionLead)) {
     return next();
   }
   return res.status(403).json({ error: 'Accès refusé pour ce rôle.' });

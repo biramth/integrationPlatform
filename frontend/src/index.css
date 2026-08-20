@@ -69,12 +69,11 @@
 
 [data-role="orga"]          { --role-accent: #2563eb; --role-accent-soft: #eff6ff; }
 [data-role="sante"]         { --role-accent: #dc2626; --role-accent-soft: #fef2f2; }
-[data-role="cuisine"]       { --role-accent: #16a34a; --role-accent-soft: #ecfdf3; }
-[data-role="admin"]         { --role-accent: #7c3aed; --role-accent-soft: #f5f3ff; }
-[data-role="it"]            { --role-accent: #0f172a; --role-accent-soft: #f1f5f9; }
-[data-role="communication"] { --role-accent: #0891b2; --role-accent-soft: #ecfeff; }
-[data-role="culturelle"]    { --role-accent: #c026d3; --role-accent-soft: #fdf4ff; }
-[data-role="activites"]     { --role-accent: #ea580c; --role-accent-soft: #fff7ed; }
+[data-role="cuisine"]        { --role-accent: #16a34a; --role-accent-soft: #ecfdf3; }
+[data-role="it"]             { --role-accent: #7c3aed; --role-accent-soft: #f5f3ff; }
+[data-role="communication"]  { --role-accent: #0891b2; --role-accent-soft: #ecfeff; }
+[data-role="culturelle"]     { --role-accent: #c026d3; --role-accent-soft: #fdf4ff; }
+[data-role="presidentielle"] { --role-accent: #ea580c; --role-accent-soft: #fff7ed; }
 
 body {
   margin: 0;

@@ -4,7 +4,7 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.use(verifyToken, requireRole('sante', 'admin'));
+router.use(verifyToken, requireRole('sante'));
 
 router.get('/risks', healthController.getRisks);
 router.get('/restrictions/active', healthController.listActiveRestrictions);

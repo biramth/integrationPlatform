@@ -4,7 +4,7 @@ const { verifyToken, requireRole, requireOrgaScope } = require('../middleware/au
 
 const router = express.Router();
 
-router.use(verifyToken, requireRole('orga', 'admin'), requireOrgaScope('enregistrement'));
+router.use(verifyToken, requireRole('orga'), requireOrgaScope('enregistrement'));
 
 router.get('/', controller.search);
 router.get('/match', controller.match);

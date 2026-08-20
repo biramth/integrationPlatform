@@ -1,7 +1,7 @@
 const db = require('../db/database');
 const { hashPassword } = require('../services/passwordService');
 
-const ROLES = ['orga', 'admin', 'sante', 'cuisine', 'it', 'communication', 'culturelle', 'activites'];
+const ROLES = ['orga', 'sante', 'cuisine', 'it', 'communication', 'culturelle', 'presidentielle'];
 const ORGA_SUB_ROLES = ['chambres', 'enregistrement', 'bagages'];
 
 function serialize(user) {
@@ -9,15 +9,15 @@ function serialize(user) {
   return rest;
 }
 
-// admin/it gèrent tout le monde. Un chef de commission ne gère que les comptes
-// de sa propre commission (jamais admin/it, jamais lui-même en promotion).
+// it gère tout le monde. Un chef de commission ne gère que les comptes de sa
+// propre commission (jamais it, jamais lui-même en promotion).
 function canManage(requester, targetRole) {
-  if (requester.role === 'admin' || requester.role === 'it') return true;
+  if (requester.role === 'it') return true;
   return !!requester.isCommissionLead && requester.role === targetRole;
 }
 
 async function listAgents(req, res) {
-  const isPrivileged = req.user.role === 'admin' || req.user.role === 'it';
+  const isPrivileged = req.user.role === 'it';
   const agents = isPrivileged
     ? await db.all('SELECT * FROM users ORDER BY full_name ASC')
     : await db.all('SELECT * FROM users WHERE role = $1 ORDER BY full_name ASC', [req.user.role]);
@@ -43,10 +43,10 @@ async function createAgent(req, res) {
   if (subRole && (role !== 'orga' || !ORGA_SUB_ROLES.includes(subRole))) {
     return res.status(400).json({ error: 'sub_role invalide (uniquement chambres, enregistrement ou bagages pour Orga).' });
   }
-  // Seuls admin/it peuvent désigner un chef de commission ou accorder le droit
-  // de réinitialiser la plateforme — un chef de commission ne peut pas
+  // Seul it peut désigner un chef de commission ou accorder le droit de
+  // réinitialiser la plateforme — un chef de commission ne peut pas
   // s'auto-répliquer ni élever les privilèges d'un compte qu'il crée.
-  if (req.user.role !== 'admin' && req.user.role !== 'it') {
+  if (req.user.role !== 'it') {
     isCommissionLead = false;
     canResetPlatform = false;
   }
@@ -83,7 +83,7 @@ async function updateAgent(req, res) {
 
   const { fullName, role, isActive } = req.body;
   let { subRole, isCommissionLead, canResetPlatform } = req.body;
-  const isPrivileged = req.user.role === 'admin' || req.user.role === 'it';
+  const isPrivileged = req.user.role === 'it';
 
   if (role && !ROLES.includes(role)) {
     return res.status(400).json({ error: 'role invalide.' });
@@ -92,7 +92,7 @@ async function updateAgent(req, res) {
   // à le faire changer de commission) ni toucher aux drapeaux de privilège.
   if (!isPrivileged) {
     if (role && role !== agent.role) {
-      return res.status(403).json({ error: 'Seuls admin/it peuvent changer le rôle d\'un agent.' });
+      return res.status(403).json({ error: "Seul it peut changer le rôle d'un agent." });
     }
     isCommissionLead = undefined;
     canResetPlatform = undefined;
@@ -159,7 +159,7 @@ async function deactivateAgent(req, res) {
   res.status(204).send();
 }
 
-// Suppression définitive du compte — réservée à admin/it (jamais aux chefs de
+// Suppression définitive du compte — réservée à it (jamais aux chefs de
 // commission, action trop sensible). Si l'agent a créé des dossiers/bagages/etc.
 // historiques, la FK bloque la suppression : on renvoie un message clair plutôt
 // que l'erreur Postgres brute, la désactivation restant l'alternative.

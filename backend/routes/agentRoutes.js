@@ -11,6 +11,6 @@ router.post('/', agentController.createAgent);
 router.put('/:id', agentController.updateAgent);
 router.put('/:id/password', agentController.resetPassword);
 router.delete('/:id', agentController.deactivateAgent);
-router.delete('/:id/permanent', requireRole('admin'), agentController.hardDeleteAgent);
+router.delete('/:id/permanent', requireRole('it'), agentController.hardDeleteAgent);
 
 module.exports = router;

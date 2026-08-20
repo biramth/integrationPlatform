@@ -11,19 +11,19 @@ import Avatar from '../../components/common/Avatar';
 import PageHeader from '../../components/common/PageHeader';
 import { ErrorState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
-import { ROLE_LABELS, ROLES, ORGA_SUB_ROLE_LABELS } from '../../utils/roles';
+import { ROLE_LABELS, ROLES, ROLE_COLORS, ORGA_SUB_ROLE_LABELS } from '../../utils/roles';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
 
 const EMPTY_FORM = { fullName: '', username: '', password: '', role: '', subRole: '', isCommissionLead: false, canResetPlatform: false };
 
-const ROLE_OPTIONS = Object.values(ROLES).map((value) => ({ value, label: ROLE_LABELS[value] }));
+const ROLE_OPTIONS = Object.values(ROLES).map((value) => ({ value, label: ROLE_LABELS[value], dotColor: ROLE_COLORS[value] }));
 const SUB_ROLE_OPTIONS = Object.entries(ORGA_SUB_ROLE_LABELS).map(([value, label]) => ({ value, label }));
 
 export default function AdminAgentsPage() {
   const { user } = useAuth();
-  const isPrivileged = user.role === 'admin' || user.role === 'it';
+  const isPrivileged = user.role === 'it';
   const { showToast } = useToast();
   const { data, loading, error, reload } = useFetch(agentApi.listAgents, []);
   const [form, setForm] = useState(isPrivileged ? EMPTY_FORM : { ...EMPTY_FORM, role: user.role });

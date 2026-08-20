@@ -9,11 +9,15 @@ async function seed() {
   const existingAdmin = await db.get('SELECT id FROM users WHERE username = $1', [adminUsername]);
 
   if (!existingAdmin) {
+    // Pas de rôle "admin" séparé : le compte bootstrap est un compte it, chef
+    // de commission et habilité à réinitialiser la plateforme — la commission
+    // IT EST l'administration de la plateforme.
     await db.run(
-      `INSERT INTO users (full_name, username, password_hash, role) VALUES ($1, $2, $3, 'admin')`,
+      `INSERT INTO users (full_name, username, password_hash, role, is_commission_lead, can_reset_platform)
+       VALUES ($1, $2, $3, 'it', TRUE, TRUE)`,
       ['Administrateur', adminUsername, hashPassword(adminPassword)]
     );
-    console.log(`Compte admin créé : ${adminUsername} / ${adminPassword}`);
+    console.log(`Compte admin (rôle it) créé : ${adminUsername} / ${adminPassword}`);
   } else {
     console.log('Compte admin déjà existant, non recréé.');
   }
@@ -41,7 +45,7 @@ async function seed() {
     { fullName: 'Khadim Sarr', username: 'it1', role: 'it', canResetPlatform: true },
     { fullName: 'Astou Diagne', username: 'communication1', role: 'communication' },
     { fullName: 'Ibrahima Kane', username: 'culturelle1', role: 'culturelle' },
-    { fullName: 'Mariama Cissé', username: 'activites1', role: 'activites' },
+    { fullName: 'Mariama Cissé', username: 'presidentielle1', role: 'presidentielle' },
   ];
 
   for (const agent of testAgents) {

@@ -10,8 +10,8 @@ router.use(verifyToken);
 // accessible en lecture à toutes les commissions, pas seulement à celles qui
 // l'utilisent explicitement dans leur propre page.
 router.get('/', activityController.listActivities);
-router.post('/', requireRole('admin', 'activites'), activityController.createActivity);
-router.put('/:id', requireRole('admin', 'activites'), activityController.updateActivity);
-router.delete('/:id', requireRole('admin', 'activites'), activityController.deleteActivity);
+router.post('/', requireRole('presidentielle'), activityController.createActivity);
+router.put('/:id', requireRole('presidentielle'), activityController.updateActivity);
+router.delete('/:id', requireRole('presidentielle'), activityController.deleteActivity);
 
 module.exports = router;

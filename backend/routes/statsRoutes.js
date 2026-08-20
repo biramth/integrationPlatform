@@ -6,12 +6,12 @@ const router = express.Router();
 
 router.use(verifyToken);
 
-router.get('/overview', requireRole('admin'), statsController.overview);
-router.get('/by-department', requireRole('admin'), statsController.byDepartment);
-router.get('/by-gender', requireRole('admin'), statsController.byGender);
-router.get('/rooms-occupancy', requireRole('admin'), statsController.roomsOccupancy);
-router.get('/illness-trend', requireRole('sante', 'admin'), statsController.illnessTrend);
-router.get('/allergy-prevalence', requireRole('sante', 'admin'), statsController.allergyPrevalence);
-router.get('/by-admission-list', requireRole('admin'), statsController.byAdmissionList);
+router.get('/overview', requireRole('it'), statsController.overview);
+router.get('/by-department', requireRole('it'), statsController.byDepartment);
+router.get('/by-gender', requireRole('it'), statsController.byGender);
+router.get('/rooms-occupancy', requireRole('it'), statsController.roomsOccupancy);
+router.get('/illness-trend', requireRole('sante'), statsController.illnessTrend);
+router.get('/allergy-prevalence', requireRole('sante'), statsController.allergyPrevalence);
+router.get('/by-admission-list', requireRole('it'), statsController.byAdmissionList);
 
 module.exports = router;

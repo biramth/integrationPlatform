@@ -9,13 +9,13 @@ router.use(verifyToken);
 
 router.put(
   '/dut1/:id/luggage-count',
-  requireRole('orga', 'admin'),
+  requireRole('orga'),
   requireOrgaScope('bagages'),
   luggageController.setLuggageCount
 );
 router.post(
   '/dut1/:id/luggage-items',
-  requireRole('orga', 'admin'),
+  requireRole('orga'),
   requireOrgaScope('bagages'),
   upload.single('photo'),
   luggageController.createLuggageItem
@@ -23,14 +23,14 @@ router.post(
 router.get('/dut1/:id/luggage-items', luggageController.listLuggageItems);
 router.get(
   '/luggage-items/mine',
-  requireRole('orga', 'admin'),
+  requireRole('orga'),
   requireOrgaScope('bagages'),
   luggageController.listMyLuggageItems
 );
 router.get('/luggage-items/:itemId/photo', luggageController.getLuggagePhotoUrl);
 router.delete(
   '/luggage-items/:itemId',
-  requireRole('orga', 'admin'),
+  requireRole('orga'),
   requireOrgaScope('bagages'),
   luggageController.deleteLuggageItem
 );

@@ -35,6 +35,13 @@ export default function Select({ label, error, options, placeholder, className =
         <SelectContent>
           {options.map((opt) => (
             <SelectItem key={opt.value} value={String(opt.value)}>
+              {opt.dotColor && (
+                <span
+                  className="inline-block h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: opt.dotColor }}
+                  aria-hidden="true"
+                />
+              )}
               {opt.label}
             </SelectItem>
           ))}
