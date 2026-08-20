@@ -3,6 +3,7 @@ import { ArrowLeft, Search } from 'lucide-react';
 import { listDut1, completeComplementary } from '../../api/dut1Api';
 import { setDut1Allergies } from '../../api/dut1AllergyApi';
 import { matchAdmittedStudent } from '../../api/admittedStudentsApi';
+import { listAllergens } from '../../api/allergenApi';
 import Dut1Card from '../../components/dut1/Dut1Card';
 import Dut1ComplementaryForm from '../../components/dut1/Dut1ComplementaryForm';
 import AllergySelect from '../../components/dut1/AllergySelect';
@@ -11,6 +12,7 @@ import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
+import Modal from '../../components/common/Modal';
 import Pagination from '../../components/common/Pagination';
 import PageHeader from '../../components/common/PageHeader';
 import { EmptyState, ErrorState } from '../../components/common/StateViews';
@@ -19,9 +21,13 @@ import { useToast } from '../../hooks/useToast';
 import { useFetch } from '../../hooks/useFetch';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../../utils/departments';
+import { DUT1_COMPLEMENTARY_FIELDS } from '../../utils/dut1ComplementaryFields';
 import { staggerStyle } from '../../utils/stagger';
 
 const PAGE_SIZE = 25;
+
+const SEVERITY_LABELS = { legere: 'Légère', moderee: 'Modérée', severe: 'Sévère' };
+const SEVERITY_BADGE_VARIANT = { legere: 'neutral', moderee: 'warning', severe: 'danger' };
 
 export default function CompleteInfoFormPage() {
   const { showToast } = useToast();
@@ -33,12 +39,15 @@ export default function CompleteInfoFormPage() {
   const [allergies, setAllergies] = useState({});
   const [admissionListType, setAdmissionListType] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [recapOpen, setRecapOpen] = useState(false);
 
   const fetcher = useCallback(
     () => listDut1({ search: debouncedSearch, department: filters.department, gender: filters.gender, page, pageSize: PAGE_SIZE }),
     [debouncedSearch, filters.department, filters.gender, page]
   );
   const { data, loading, error, reload } = useFetch(fetcher, [debouncedSearch, filters.department, filters.gender, page]);
+  const allergensFetch = useFetch(listAllergens, []);
+  const allergenLabelById = Object.fromEntries((allergensFetch.data?.allergens || []).map((a) => [a.id, a.label]));
 
   const allergenIds = Object.keys(allergies).map(Number);
 
@@ -86,15 +95,12 @@ export default function CompleteInfoFormPage() {
     setValues((v) => ({ ...v, [key]: value }));
   }
 
-  async function handleSubmit(e) {
+  function openRecap(e) {
     e.preventDefault();
-    if (
-      !window.confirm(
-        "Une fois enregistré, ce dossier ne sera plus modifiable depuis cette page. Confirmer l'enregistrement ?"
-      )
-    ) {
-      return;
-    }
+    setRecapOpen(true);
+  }
+
+  async function confirmAndSave() {
     setSubmitting(true);
     try {
       const [data] = await Promise.all([
@@ -102,6 +108,7 @@ export default function CompleteInfoFormPage() {
         setDut1Allergies(selected.id, allergies),
       ]);
       showToast('Infos complémentaires enregistrées.', 'success');
+      setRecapOpen(false);
       setSelected(data.record);
       reload();
     } catch (err) {
@@ -139,7 +146,7 @@ export default function CompleteInfoFormPage() {
           }
         />
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={openRecap}>
           <div className="mb-6 rounded-xl border border-border bg-card p-4">
             <p className="mb-3 text-sm font-semibold text-foreground">Admission au concours</p>
             <AdmissionListToggle value={admissionListType} onChange={setAdmissionListType} disabled={isLocked} />
@@ -158,12 +165,62 @@ export default function CompleteInfoFormPage() {
           <Dut1ComplementaryForm values={values} onChange={handleChange} disabled={isLocked} />
           {!isLocked && (
             <div className="mt-6 flex justify-end">
-              <Button type="submit" loading={submitting} className="w-full sm:w-auto">
+              <Button type="submit" className="w-full sm:w-auto">
                 Enregistrer
               </Button>
             </div>
           )}
         </form>
+
+        <Modal open={recapOpen} onClose={() => setRecapOpen(false)} title="Vérifier avant de confirmer">
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Admission au concours</p>
+              <p className="mt-1 text-sm text-foreground">
+                {admissionListType === 'principale' && 'Liste principale'}
+                {admissionListType === 'attente' && "Liste d'attente"}
+                {!admissionListType && <span className="text-muted-foreground">Non renseigné</span>}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Allergies</p>
+              {allergenIds.length === 0 ? (
+                <p className="mt-1 text-sm text-muted-foreground">Aucune allergie déclarée.</p>
+              ) : (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {allergenIds.map((id) => (
+                    <Badge key={id} variant={SEVERITY_BADGE_VARIANT[allergies[id]] || 'neutral'}>
+                      {allergenLabelById[id] || `#${id}`} — {SEVERITY_LABELS[allergies[id]] || allergies[id]}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {DUT1_COMPLEMENTARY_FIELDS.map((field) => (
+              <div key={field.key}>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{field.label}</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+                  {values[field.key]?.trim() ? values[field.key] : <span className="text-muted-foreground">—</span>}
+                </p>
+              </div>
+            ))}
+
+            <p className="rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
+              Une fois confirmé, ce dossier ne sera plus modifiable depuis cette page.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setRecapOpen(false)}>
+                Modifier
+              </Button>
+              <Button onClick={confirmAndSave} loading={submitting}>
+                Confirmer et enregistrer
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     );
   }
