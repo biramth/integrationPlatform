@@ -53,8 +53,10 @@ export default function PlatformResetPage() {
         <PageHeader title="Réinitialiser la plateforme" />
         <Card className="border-success bg-success-soft">
           <p className="text-sm font-medium text-success-soft-foreground">
-            La plateforme a été réinitialisée. Les dossiers DUT1, chambres, admis importés, repas et activités de
-            cette édition ont été effacés. Les comptes agents et la liste des allergènes sont conservés.
+            La plateforme a été réinitialisée. Les dossiers DUT1, chambres, admis importés, repas, activités et tous
+            les comptes agents de cette édition ont été effacés — seul ton compte a été conservé. La liste des
+            allergènes de référence est conservée. Tu peux maintenant créer les comptes de la nouvelle génération
+            depuis « Agents ».
           </p>
         </Card>
       </div>
@@ -72,8 +74,9 @@ export default function PlatformResetPage() {
             <p className="font-semibold text-foreground">Cette action est irréversible.</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Elle efface définitivement : les dossiers DUT1 (et bagages, allergies déclarées, restrictions santé,
-              historique des chambres associés), la liste des admis importés, les chambres, les repas et les
-              activités. Les comptes agents et la liste des allergènes de référence sont conservés.
+              historique des chambres associés), la liste des admis importés, les chambres, les repas, les activités,
+              et <strong>tous les comptes agents sauf le tien</strong> — c'est un vrai reset complet pour la
+              transmission à la nouvelle génération IT. Seule la liste des allergènes de référence est conservée.
             </p>
           </div>
         </div>
@@ -81,8 +84,8 @@ export default function PlatformResetPage() {
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} className="mt-0.5" />
           <span className="text-foreground">
-            Je comprends que cette action supprime définitivement les données de cette édition et ne peut pas être
-            annulée.
+            Je comprends que cette action supprime définitivement les données de cette édition, ainsi que tous les
+            comptes agents sauf le mien, et ne peut pas être annulée.
           </span>
         </label>
 
