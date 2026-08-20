@@ -110,21 +110,20 @@ ALTER TABLE dut1_records
 
 -- Réorganisation des commissions : "registrar" et "logistics" étaient deux rôles
 -- distincts alors qu'ils appartiennent à la même commission Orga (chambres +
--- enregistrement + bagages) — fusionnés en un seul rôle "orga". Nouveaux rôles :
--- "it" (super-utilisateur, cf. requireRole dans middleware/auth.js), "communication"
--- (annuaire non-médical + planning en lecture), "culturelle" (planning en lecture),
--- "activites" (gère le planning des activités). La contrainte doit d'abord être
--- élargie pour accepter 'orga' AVANT l'UPDATE, sinon les lignes en cours de
--- migration la violeraient.
+-- enregistrement + bagages) — fusionnés en un seul rôle "orga".
+--
+-- migrate.js réexécute ce fichier en entier à CHAQUE déploiement (ce n'est pas
+-- un système de migrations versionnées) : toute étape qui resserre la
+-- contrainte à une liste figée devient un piège pour les déploiements futurs
+-- dès qu'un nouveau rôle est ajouté plus tard (une ligne déjà migrée vers ce
+-- nouveau rôle violerait la liste resserrée). D'où un seul élargissement en
+-- haut couvrant tout l'historique, puis un seul resserrement à la toute fin de
+-- ce fichier, sur l'ensemble des rôles réellement valides aujourd'hui.
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check
-  CHECK (role IN ('orga','admin','sante','cuisine','it','communication','culturelle','activites','registrar','logistics'));
+  CHECK (role IN ('orga','admin','sante','cuisine','it','communication','culturelle','activites','presidentielle','registrar','logistics'));
 
 UPDATE users SET role = 'orga' WHERE role IN ('registrar', 'logistics');
-
-ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
-ALTER TABLE users ADD CONSTRAINT users_role_check
-  CHECK (role IN ('orga','admin','sante','cuisine','it','communication','culturelle','activites'));
 
 -- Transmission de la plateforme entre générations IT : seule une poignée de comptes
 -- "it" (ceux qui portent ce flag) peuvent déclencher la remise à zéro des données
@@ -147,14 +146,12 @@ ALTER TABLE users ADD CONSTRAINT users_sub_role_check
 -- "admin" n'est pas une commission à part : la commission IT EST l'admin de la
 -- plateforme, donc les comptes admin deviennent des comptes it (chef +
 -- habilité à réinitialiser la plateforme, pour conserver leurs pleins
--- pouvoirs). "activites" est renommé "presidentielle", son vrai nom.
-ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
-ALTER TABLE users ADD CONSTRAINT users_role_check
-  CHECK (role IN ('orga','admin','sante','cuisine','it','communication','culturelle','activites','presidentielle'));
-
+-- pouvoirs). "activites" est renommé "presidentielle", son vrai nom. (La
+-- contrainte a déjà été élargie pour ces deux valeurs plus haut.)
 UPDATE users SET role = 'it', is_commission_lead = TRUE, can_reset_platform = TRUE WHERE role = 'admin';
 UPDATE users SET role = 'presidentielle' WHERE role = 'activites';
 
+-- Resserrement final : seuls ces rôles sont valides aujourd'hui.
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check
   CHECK (role IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle'));
