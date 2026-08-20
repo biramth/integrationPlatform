@@ -3,7 +3,14 @@ CREATE TABLE IF NOT EXISTS users (
   full_name     TEXT NOT NULL,
   username      TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
-  role          TEXT NOT NULL CHECK (role IN ('registrar','logistics','admin','sante','cuisine')),
+  role          TEXT NOT NULL CHECK (role IN ('orga','admin','sante','cuisine','it','communication','culturelle','activites')),
+  -- Sous-rôle : ne s'applique qu'à la commission Orga, pour restreindre un agent à
+  -- un seul sous-domaine (chambres / enregistrement / bagages). NULL = accès aux trois.
+  sub_role      TEXT CHECK (sub_role IN ('chambres','enregistrement','bagages')),
+  -- Chef de commission : droits supplémentaires pour gérer les autres agents de sa
+  -- propre commission (hors admin/it, qui gèrent déjà tout le monde).
+  is_commission_lead  BOOLEAN NOT NULL DEFAULT FALSE,
+  can_reset_platform  BOOLEAN NOT NULL DEFAULT FALSE,
   is_active     BOOLEAN NOT NULL DEFAULT TRUE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -96,6 +103,42 @@ ALTER TABLE dut1_records ADD CONSTRAINT dut1_records_department_check
 ALTER TABLE dut1_records
   ADD COLUMN IF NOT EXISTS on_treatment BOOLEAN,
   ADD COLUMN IF NOT EXISTS treatment_details TEXT;
+
+-- Réorganisation des commissions : "registrar" et "logistics" étaient deux rôles
+-- distincts alors qu'ils appartiennent à la même commission Orga (chambres +
+-- enregistrement + bagages) — fusionnés en un seul rôle "orga". Nouveaux rôles :
+-- "it" (super-utilisateur, cf. requireRole dans middleware/auth.js), "communication"
+-- (annuaire non-médical + planning en lecture), "culturelle" (planning en lecture),
+-- "activites" (gère le planning des activités). La contrainte doit d'abord être
+-- élargie pour accepter 'orga' AVANT l'UPDATE, sinon les lignes en cours de
+-- migration la violeraient.
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_check
+  CHECK (role IN ('orga','admin','sante','cuisine','it','communication','culturelle','activites','registrar','logistics'));
+
+UPDATE users SET role = 'orga' WHERE role IN ('registrar', 'logistics');
+
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_check
+  CHECK (role IN ('orga','admin','sante','cuisine','it','communication','culturelle','activites'));
+
+-- Transmission de la plateforme entre générations IT : seule une poignée de comptes
+-- "it" (ceux qui portent ce flag) peuvent déclencher la remise à zéro des données
+-- d'une édition pour la suivante (cf. resetPlatform dans adminController.js).
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS can_reset_platform BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Sous-rôles de commission : un agent Orga peut être restreint à un seul sous-domaine
+-- (chambres / enregistrement / bagages) au lieu d'avoir accès aux trois par défaut.
+-- Un "chef de commission" (toutes commissions) peut gérer les autres agents de sa
+-- propre commission, en plus de son rôle habituel.
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS sub_role TEXT,
+  ADD COLUMN IF NOT EXISTS is_commission_lead BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_sub_role_check;
+ALTER TABLE users ADD CONSTRAINT users_sub_role_check
+  CHECK (sub_role IN ('chambres','enregistrement','bagages'));
 
 ALTER TABLE admitted_students DROP CONSTRAINT IF EXISTS admitted_students_department_check;
 ALTER TABLE admitted_students ADD CONSTRAINT admitted_students_department_check

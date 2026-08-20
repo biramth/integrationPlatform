@@ -1,15 +1,20 @@
 const express = require('express');
 const roomController = require('../controllers/roomController');
-const { verifyToken, requireRole } = require('../middleware/auth');
+const { verifyToken, requireRole, requireOrgaScope } = require('../middleware/auth');
 
 const router = express.Router();
 
 router.use(verifyToken);
 
-router.get('/', requireRole('logistics', 'admin'), roomController.listRooms);
+router.get('/', requireRole('orga', 'admin'), requireOrgaScope('chambres'), roomController.listRooms);
 router.post('/', requireRole('admin'), roomController.createRoom);
 router.put('/:id', requireRole('admin'), roomController.updateRoom);
-router.put('/:id/mattress-count', requireRole('logistics', 'admin'), roomController.updateMattressCount);
+router.put(
+  '/:id/mattress-count',
+  requireRole('orga', 'admin'),
+  requireOrgaScope('chambres'),
+  roomController.updateMattressCount
+);
 router.get('/:id/history', requireRole('admin'), roomController.getRoomHistory);
 router.delete('/:id', requireRole('admin'), roomController.deleteRoom);
 

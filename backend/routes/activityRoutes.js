@@ -6,9 +6,13 @@ const router = express.Router();
 
 router.use(verifyToken);
 
-router.get('/', requireRole('sante', 'admin'), activityController.listActivities);
-router.post('/', requireRole('admin'), activityController.createActivity);
-router.put('/:id', requireRole('admin'), activityController.updateActivity);
-router.delete('/:id', requireRole('admin'), activityController.deleteActivity);
+router.get(
+  '/',
+  requireRole('sante', 'admin', 'communication', 'culturelle', 'activites'),
+  activityController.listActivities
+);
+router.post('/', requireRole('admin', 'activites'), activityController.createActivity);
+router.put('/:id', requireRole('admin', 'activites'), activityController.updateActivity);
+router.delete('/:id', requireRole('admin', 'activites'), activityController.deleteActivity);
 
 module.exports = router;

@@ -23,7 +23,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (user) {
-    return <Navigate to={homePathForRole(user.role)} replace />;
+    return <Navigate to={homePathForRole(user.role, user.subRole)} replace />;
   }
 
   async function handleSubmit(e) {
@@ -32,7 +32,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       const loggedInUser = await login(username, password);
-      navigate(homePathForRole(loggedInUser.role), { replace: true });
+      navigate(homePathForRole(loggedInUser.role, loggedInUser.subRole), { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Connexion impossible.');
     } finally {

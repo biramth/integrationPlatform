@@ -20,10 +20,13 @@ const AdminRoomsPage = lazy(() => import('./pages/admin/AdminRoomsPage'));
 const AdminAgentsPage = lazy(() => import('./pages/admin/AdminAgentsPage'));
 const ActivitiesPage = lazy(() => import('./pages/admin/ActivitiesPage'));
 const PrintRoomManifestPage = lazy(() => import('./pages/admin/PrintRoomManifestPage'));
+const PlatformResetPage = lazy(() => import('./pages/admin/PlatformResetPage'));
 const MenuPage = lazy(() => import('./pages/cuisine/MenuPage'));
 const RisksPage = lazy(() => import('./pages/sante/RisksPage'));
 const HealthTrackingPage = lazy(() => import('./pages/sante/HealthTrackingPage'));
 const AllergensAdminPage = lazy(() => import('./pages/sante/AllergensAdminPage'));
+const DirectoryPage = lazy(() => import('./pages/communication/DirectoryPage'));
+const PlanningReadOnlyPage = lazy(() => import('./pages/shared/PlanningReadOnlyPage'));
 
 function App() {
   return (
@@ -34,23 +37,36 @@ function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
-            <Route element={<RoleRoute roles={['registrar', 'admin']} />}>
-              <Route path="/registrar/basic" element={<BasicInfoFormPage />} />
-              <Route path="/registrar/complementary" element={<CompleteInfoFormPage />} />
+            <Route element={<RoleRoute roles={['orga', 'admin']} orgaScope="enregistrement" />}>
+              <Route path="/orga/basic" element={<BasicInfoFormPage />} />
+              <Route path="/orga/complementary" element={<CompleteInfoFormPage />} />
             </Route>
 
-            <Route element={<RoleRoute roles={['logistics', 'admin']} />}>
-              <Route path="/logistics" element={<LogisticsListPage />} />
-              <Route path="/logistics/rooms" element={<RoomsPage />} />
+            <Route element={<RoleRoute roles={['orga', 'admin']} orgaScope="bagages" />}>
+              <Route path="/orga/luggage" element={<LogisticsListPage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={['orga', 'admin']} orgaScope="chambres" />}>
+              <Route path="/orga/rooms" element={<RoomsPage />} />
             </Route>
 
             <Route element={<RoleRoute roles={['admin']} />}>
               <Route path="/admin" element={<AdminDashboardPage />} />
               <Route path="/admin/records" element={<AdminRecordsPage />} />
               <Route path="/admin/rooms" element={<AdminRoomsPage />} />
-              <Route path="/admin/agents" element={<AdminAgentsPage />} />
-              <Route path="/admin/activites" element={<ActivitiesPage />} />
               <Route path="/admin/print/rooms" element={<PrintRoomManifestPage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={['admin']} allowLeads />}>
+              <Route path="/admin/agents" element={<AdminAgentsPage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={['admin', 'activites']} />}>
+              <Route path="/admin/activites" element={<ActivitiesPage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={['it']} />}>
+              <Route path="/admin/plateforme" element={<PlatformResetPage />} />
             </Route>
 
             <Route element={<RoleRoute roles={['cuisine', 'admin']} />}>
@@ -61,6 +77,15 @@ function App() {
               <Route path="/sante/risques" element={<RisksPage />} />
               <Route path="/sante/suivi" element={<HealthTrackingPage />} />
               <Route path="/sante/allergenes" element={<AllergensAdminPage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={['communication']} />}>
+              <Route path="/communication/annuaire" element={<DirectoryPage />} />
+              <Route path="/communication/planning" element={<PlanningReadOnlyPage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={['culturelle']} />}>
+              <Route path="/culturelle/planning" element={<PlanningReadOnlyPage />} />
             </Route>
           </Route>
         </Route>

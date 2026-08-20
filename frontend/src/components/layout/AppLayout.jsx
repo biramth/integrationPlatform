@@ -3,14 +3,14 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { GraduationCap, Power } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_LABELS } from '../../utils/roles';
-import { NAV_ITEMS } from './navConfig';
+import { getNavItems } from './navConfig';
 import Avatar from '../common/Avatar';
 import RouteFallback from '../../routes/RouteFallback';
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const items = NAV_ITEMS[user.role] || [];
+  const items = getNavItems(user);
 
   return (
     <div

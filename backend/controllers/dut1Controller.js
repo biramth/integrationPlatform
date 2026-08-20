@@ -25,6 +25,18 @@ function serializeRecord(record) {
   };
 }
 
+// La commission Communication a accès à l'annuaire (nom, département, chambre,
+// téléphone…) mais rien de médical : ni allergènes, ni traitement, ni les champs
+// libres de la phase 2 qui peuvent contenir des informations de santé.
+const MEDICAL_FIELDS = ['allergens', 'allergens_json', 'on_treatment', 'treatment_details', 'extra_fields', 'extra_fields_json'];
+
+function stripMedicalFields(record) {
+  if (!record) return record;
+  const clean = { ...record };
+  for (const field of MEDICAL_FIELDS) delete clean[field];
+  return clean;
+}
+
 function validateBasicPayload(body) {
   const required = ['lastName', 'firstName', 'birthDate', 'birthPlace', 'gender', 'department'];
   for (const field of required) {
@@ -178,8 +190,9 @@ async function listRecords(req, res) {
     [...params, limit, offset]
   );
 
+  const serialized = records.map(serializeRecord);
   res.json({
-    records: records.map(serializeRecord),
+    records: req.user.role === 'communication' ? serialized.map(stripMedicalFields) : serialized,
     total,
     page: Number(page) || 1,
     pageSize: limit,
@@ -260,6 +273,10 @@ async function getRecord(req, res) {
 
   if (!record) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
+  }
+
+  if (req.user.role === 'communication') {
+    return res.json({ record: stripMedicalFields(serializeRecord(record)), luggageItems: [] });
   }
 
   const luggageItems = await db.all(

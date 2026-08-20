@@ -34,16 +34,29 @@ async function seed() {
   console.log('Chambres de test vérifiées/créées.');
 
   const testAgents = [
-    { fullName: 'Fatou Ndiaye', username: 'registrar1', role: 'registrar' },
-    { fullName: 'Moussa Diop', username: 'logistics1', role: 'logistics' },
+    { fullName: 'Fatou Ndiaye', username: 'orga1', role: 'orga', subRole: null, isCommissionLead: true },
+    { fullName: 'Moussa Diop', username: 'orga2', role: 'orga', subRole: 'chambres' },
     { fullName: 'Aminata Ba', username: 'sante1', role: 'sante' },
     { fullName: 'Ousmane Fall', username: 'cuisine1', role: 'cuisine' },
+    { fullName: 'Khadim Sarr', username: 'it1', role: 'it', canResetPlatform: true },
+    { fullName: 'Astou Diagne', username: 'communication1', role: 'communication' },
+    { fullName: 'Ibrahima Kane', username: 'culturelle1', role: 'culturelle' },
+    { fullName: 'Mariama Cissé', username: 'activites1', role: 'activites' },
   ];
 
   for (const agent of testAgents) {
     await db.run(
-      'INSERT INTO users (full_name, username, password_hash, role) VALUES ($1, $2, $3, $4) ON CONFLICT (username) DO NOTHING',
-      [agent.fullName, agent.username, hashPassword('pass123'), agent.role]
+      `INSERT INTO users (full_name, username, password_hash, role, sub_role, is_commission_lead, can_reset_platform)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (username) DO NOTHING`,
+      [
+        agent.fullName,
+        agent.username,
+        hashPassword('pass123'),
+        agent.role,
+        agent.subRole || null,
+        !!agent.isCommissionLead,
+        !!agent.canResetPlatform,
+      ]
     );
   }
   console.log('Comptes agents de test vérifiés/créés (mot de passe : pass123).');

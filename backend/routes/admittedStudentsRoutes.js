@@ -1,10 +1,10 @@
 const express = require('express');
 const controller = require('../controllers/admittedStudentsController');
-const { verifyToken, requireRole } = require('../middleware/auth');
+const { verifyToken, requireRole, requireOrgaScope } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.use(verifyToken, requireRole('registrar', 'admin'));
+router.use(verifyToken, requireRole('orga', 'admin'), requireOrgaScope('enregistrement'));
 
 router.get('/', controller.search);
 router.get('/match', controller.match);

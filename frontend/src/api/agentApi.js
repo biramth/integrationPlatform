@@ -19,3 +19,7 @@ export function resetAgentPassword(id, password) {
 export function deactivateAgent(id) {
   return axiosClient.delete(`/agents/${id}`).then((res) => res.data);
 }
+
+export function hardDeleteAgent(id) {
+  return axiosClient.delete(`/agents/${id}/permanent`).then((res) => res.data);
+}
