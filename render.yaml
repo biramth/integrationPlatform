@@ -5,6 +5,10 @@ services:
     plan: free
     branch: main
     rootDir: backend
+    # Redéploiement automatique à chaque push sur main : Render rebuild et
+    # redémarre l'API sans intervention (Vercel fait de même de son côté via
+    # l'intégration Git). Un push = la production à jour.
+    autoDeploy: true
     # Seul le backend vit ici : le frontend est buildé et servi par Vercel.
     # Render n'installe donc plus les dépendances du frontend (vite, tailwind,
     # react...), ce qui raccourcit nettement le build et la reprise après veille.

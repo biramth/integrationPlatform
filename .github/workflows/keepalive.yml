@@ -1,0 +1,36 @@
+# Le plan gratuit de Render met le service en veille après 15 min sans trafic,
+# et le réveil coûte ~50 s à la première requête. Ce ping toutes les 10 minutes
+# (aux heures ouvrées, UTC) garde l'API chaude sans service externe.
+#
+# Par défaut l'URL est celle du service décrit dans render.yaml ; si Render en a
+# attribué une autre, créer une *variable* de repo nommée API_URL
+# (Settings → Secrets and variables → Actions → Variables) — pas besoin de
+# toucher à ce fichier.
+#
+# Pour arrêter le ping hors période d'intégration : Actions → Keep-alive API →
+# menu "..." → Disable workflow.
+name: Keep-alive API
+
+on:
+  schedule:
+    - cron: '*/10 6-21 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /healthz
+        env:
+          API_URL: ${{ vars.API_URL || 'https://integration-dut1-api.onrender.com' }}
+        run: |
+          # --max-time large : si le service dormait, la réponse arrive après le
+          # démarrage à froid, ce qui est précisément le but du ping.
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 "$API_URL/healthz")
+          echo "GET $API_URL/healthz -> $code"
+          if [ "$code" != "200" ]; then
+            # Warning plutôt qu'échec : une API injoignable ne doit pas envoyer
+            # un mail d'échec toutes les 10 minutes. Le run reste visible en
+            # jaune dans l'onglet Actions.
+            echo "::warning::L'API n'a pas répondu 200 (code $code). Vérifier que la variable de repo API_URL pointe bien sur le service Render."
+          fi
