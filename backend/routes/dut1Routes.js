@@ -12,6 +12,7 @@ router.get('/without-luggage', requireRole('logistics', 'admin'), dut1Controller
 router.get('/without-complementary', requireRole('registrar', 'admin'), dut1Controller.listWithoutComplementary);
 router.get('/', dut1Controller.listRecords);
 router.get('/export', requireRole('admin'), dut1Controller.exportRecordsCsv);
+router.get('/export-contacts', requireRole('admin'), dut1Controller.exportContactsCsv);
 router.get('/:id', dut1Controller.getRecord);
 router.get('/:id/room-history', requireRole('admin'), dut1Controller.getRoomHistory);
 router.put('/:id', requireRole('admin'), dut1Controller.updateRecord);

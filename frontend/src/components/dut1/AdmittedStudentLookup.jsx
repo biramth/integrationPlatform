@@ -5,6 +5,13 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { searchAdmittedStudents } from '../../api/admittedStudentsApi';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
 
+function formatBirthDate(birthDate) {
+  if (!birthDate) return null;
+  const d = new Date(birthDate);
+  if (Number.isNaN(d.getTime())) return birthDate;
+  return d.toLocaleDateString('fr-FR');
+}
+
 export default function AdmittedStudentLookup({ department, onSelect }) {
   const [query, setQuery] = useState('');
   const debounced = useDebouncedValue(query, 300);
@@ -51,24 +58,39 @@ export default function AdmittedStudentLookup({ department, onSelect }) {
           {!loading && results.length === 0 && (
             <p className="p-3 text-sm text-muted-foreground">Aucun admis trouvé (ou déjà enregistré).</p>
           )}
+          {!loading && results.length > 1 && (
+            <p className="border-b border-border px-3 py-1.5 text-xs text-warning-soft-foreground">
+              Plusieurs résultats — vérifie la date/lieu de naissance avant de choisir.
+            </p>
+          )}
           {!loading &&
-            results.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => handleSelect(s)}
-                className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
-              >
-                <span className="font-medium text-foreground">
-                  {s.first_name} {s.last_name}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {DEPARTMENT_LABELS[s.department] || s.department} ·{' '}
-                  {s.list_type === 'principale' ? 'Liste principale' : "Liste d'attente"}
-                </span>
-              </button>
-            ))}
+            results.map((s) => {
+              const birthDate = formatBirthDate(s.birth_date);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleSelect(s)}
+                  className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
+                >
+                  <span className="font-medium text-foreground">
+                    {s.first_name} {s.last_name}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {DEPARTMENT_LABELS[s.department] || s.department} ·{' '}
+                    {s.list_type === 'principale' ? 'Liste principale' : "Liste d'attente"}
+                  </span>
+                  {(birthDate || s.birth_place) && (
+                    <span className="text-xs text-muted-foreground">
+                      {birthDate && <>Né(e) le {birthDate}</>}
+                      {birthDate && s.birth_place && ' à '}
+                      {s.birth_place}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
         </div>
       )}
     </div>

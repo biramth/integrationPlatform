@@ -35,11 +35,18 @@ async function match(req, res) {
     clauses.push(`department = $${params.length}`);
   }
 
-  const student = await db.get(
-    `SELECT * FROM admitted_students WHERE ${clauses.join(' AND ')} ORDER BY id LIMIT 1`,
+  // Deux personnes différentes peuvent porter le même nom (homonymes) : dans ce cas on
+  // ne choisit jamais automatiquement entre elles, au risque de rattacher le dossier à
+  // la mauvaise personne. L'agent doit alors passer par la recherche manuelle.
+  const matches = await db.all(
+    `SELECT * FROM admitted_students WHERE ${clauses.join(' AND ')} ORDER BY id LIMIT 2`,
     params
   );
-  res.json({ student: student || null });
+
+  if (matches.length > 1) {
+    return res.json({ student: null, ambiguous: true });
+  }
+  res.json({ student: matches[0] || null, ambiguous: false });
 }
 
 async function progress(req, res) {

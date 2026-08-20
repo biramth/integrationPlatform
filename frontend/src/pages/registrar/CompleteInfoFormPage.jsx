@@ -85,6 +85,11 @@ export default function CompleteInfoFormPage() {
         .then((res) => {
           if (res.student) {
             setAdmissionListType((current) => current ?? res.student.list_type);
+          } else if (res.ambiguous) {
+            showToast(
+              'Plusieurs admis portent ce nom — vérifie la liste principale/attente manuellement.',
+              'info'
+            );
           }
         })
         .catch(() => {});

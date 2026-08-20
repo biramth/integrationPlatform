@@ -24,6 +24,10 @@ export function exportDut1Csv(params = {}) {
   return axiosClient.get('/dut1/export', { params, responseType: 'blob' }).then((res) => res.data);
 }
 
+export function exportDut1ContactsCsv(params = {}) {
+  return axiosClient.get('/dut1/export-contacts', { params, responseType: 'blob' }).then((res) => res.data);
+}
+
 export function listWithoutLuggage() {
   return axiosClient.get('/dut1/without-luggage').then((res) => res.data);
 }

@@ -1,5 +1,5 @@
 const db = require('../db/database');
-const { DEPARTMENTS } = require('../constants/departments');
+const { DEPARTMENTS, DEPARTMENT_LABELS } = require('../constants/departments');
 const { autoAssignRoom, getHistoryForDut1 } = require('../services/roomAssignmentService');
 
 const ALLERGENS_SUBQUERY = `(
@@ -223,6 +223,29 @@ async function exportRecordsCsv(req, res) {
   res.send('﻿' + csv);
 }
 
+const CONTACTS_CSV_HEADER = ['Nom', 'Prénom', 'Département', 'Téléphone'];
+
+async function exportContactsCsv(req, res) {
+  const { whereSql, params } = buildRecordsFilter(req.query);
+
+  const records = await db.all(
+    `SELECT d.last_name, d.first_name, d.department, d.phone_number
+     FROM dut1_records d
+     ${whereSql}
+     ORDER BY d.last_name, d.first_name`,
+    params
+  );
+
+  const csvRows = records.map((r) => [
+    r.last_name, r.first_name, DEPARTMENT_LABELS[r.department] || r.department, r.phone_number,
+  ]);
+  const csv = [CONTACTS_CSV_HEADER, ...csvRows].map((row) => row.map(csvEscape).join(',')).join('\r\n');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="dut1_contacts.csv"');
+  res.send('﻿' + csv);
+}
+
 async function getRecord(req, res) {
   const record = await db.get(
     `SELECT d.*, r.label AS room_label,
@@ -430,6 +453,7 @@ module.exports = {
   createRecord,
   listRecords,
   exportRecordsCsv,
+  exportContactsCsv,
   getRecord,
   updateRecord,
   deleteRecord,

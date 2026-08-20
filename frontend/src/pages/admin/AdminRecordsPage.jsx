@@ -1,10 +1,17 @@
 import { useCallback, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, Trash2, Download, Printer, ChevronDown, Upload } from 'lucide-react';
+import { Search, Trash2, Download, Phone, ChevronDown, Upload } from 'lucide-react';
 import AdmittedStudentsImportPanel from '../../components/admin/AdmittedStudentsImportPanel';
 import { useFetch } from '../../hooks/useFetch';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { listDut1, updateDut1, deleteDut1, reassignRoom, exportDut1Csv, getDut1RoomHistory } from '../../api/dut1Api';
+import {
+  listDut1,
+  updateDut1,
+  deleteDut1,
+  reassignRoom,
+  exportDut1Csv,
+  exportDut1ContactsCsv,
+  getDut1RoomHistory,
+} from '../../api/dut1Api';
 import { listRooms } from '../../api/roomApi';
 import RecordsTable from '../../components/table/RecordsTable';
 import Pagination from '../../components/common/Pagination';
@@ -39,6 +46,7 @@ export default function AdminRecordsPage() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingContacts, setExportingContacts] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
   const fetcher = useCallback(
@@ -166,17 +174,32 @@ export default function AdminRecordsPage() {
     }
   }
 
+  async function handleExportContacts() {
+    setExportingContacts(true);
+    try {
+      const blob = await exportDut1ContactsCsv({ search: debouncedSearch, department: filters.department, gender: filters.gender });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'dut1_contacts.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      showToast("Erreur lors de l'export.", 'error');
+    } finally {
+      setExportingContacts(false);
+    }
+  }
+
   return (
     <div>
       <PageHeader
         title="Dossiers DUT1"
         action={
           <div className="flex flex-wrap gap-2">
-            <Link to="/admin/print/luggage">
-              <Button variant="secondary">
-                <Printer className="h-4 w-4" /> Imprimer manifeste bagages
-              </Button>
-            </Link>
+            <Button variant="secondary" onClick={handleExportContacts} loading={exportingContacts}>
+              <Phone className="h-4 w-4" /> Exporter contacts
+            </Button>
             <Button variant="secondary" onClick={handleExport} loading={exporting}>
               <Download className="h-4 w-4" /> Exporter CSV
             </Button>

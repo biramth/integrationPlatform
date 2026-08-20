@@ -14,7 +14,6 @@ import AdminRoomsPage from './pages/admin/AdminRoomsPage';
 import AdminAgentsPage from './pages/admin/AdminAgentsPage';
 import ActivitiesPage from './pages/admin/ActivitiesPage';
 import PrintRoomManifestPage from './pages/admin/PrintRoomManifestPage';
-import PrintLuggageManifestPage from './pages/admin/PrintLuggageManifestPage';
 import MenuPage from './pages/cuisine/MenuPage';
 import RisksPage from './pages/sante/RisksPage';
 import HealthTrackingPage from './pages/sante/HealthTrackingPage';
@@ -46,7 +45,6 @@ function App() {
             <Route path="/admin/agents" element={<AdminAgentsPage />} />
             <Route path="/admin/activites" element={<ActivitiesPage />} />
             <Route path="/admin/print/rooms" element={<PrintRoomManifestPage />} />
-            <Route path="/admin/print/luggage" element={<PrintLuggageManifestPage />} />
           </Route>
 
           <Route element={<RoleRoute roles={['cuisine', 'admin']} />}>
