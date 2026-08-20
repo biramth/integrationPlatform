@@ -3,7 +3,7 @@ import { listAllergens } from '../../api/allergenApi';
 import AllergenCheckboxes from '../common/AllergenCheckboxes';
 import { LoadingState, ErrorState } from '../common/StateViews';
 
-export default function AllergySelect({ selectedIds, onChange, severities, onSeverityChange }) {
+export default function AllergySelect({ selectedIds, onChange, severities, onSeverityChange, disabled = false }) {
   const { data, loading, error, reload } = useFetch(listAllergens, []);
 
   if (loading) return <LoadingState label="Chargement des allergènes…" />;
@@ -16,6 +16,7 @@ export default function AllergySelect({ selectedIds, onChange, severities, onSev
       onChange={onChange}
       severities={severities}
       onSeverityChange={onSeverityChange}
+      disabled={disabled}
     />
   );
 }

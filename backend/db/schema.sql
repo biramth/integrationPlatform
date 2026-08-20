@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS dut1_records (
   birth_place                 TEXT NOT NULL,
   gender                      TEXT NOT NULL CHECK (gender IN ('M','F')),
   phone_number                TEXT,
-  department                  TEXT NOT NULL CHECK (department IN ('GC','GE','GI','GM','GCBA','Gestion')),
+  department                  TEXT NOT NULL CHECK (department IN ('GC','GE','GI','ITR','GM','GCBA','Gestion')),
   father_name                 TEXT,
   mother_name                 TEXT,
   father_phone                TEXT,
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS admitted_students (
   first_name      TEXT NOT NULL,
   birth_date      TEXT,
   birth_place     TEXT,
-  department      TEXT NOT NULL CHECK (department IN ('GC','GE','GI','GM','GCBA','Gestion')),
+  department      TEXT NOT NULL CHECK (department IN ('GC','GE','GI','ITR','GM','GCBA','Gestion')),
   rank            INTEGER,
   list_type       TEXT NOT NULL CHECK (list_type IN ('principale','attente')),
   matched_dut1_id INTEGER REFERENCES dut1_records(id) ON DELETE SET NULL,
@@ -82,6 +82,17 @@ ALTER TABLE dut1_records
     CHECK (admission_list_type IN ('principale','attente')),
   ADD COLUMN IF NOT EXISTS admission_validated_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS admission_validated_by INTEGER REFERENCES users(id);
+
+-- Génie Informatique se scinde en deux départements à part entière : GI (option
+-- Informatique) et ITR (option Informatique, Télécommunications et Réseaux). Contraintes
+-- redéfinies (drop puis recreate) pour rester ré-exécutables sans erreur à chaque migration.
+ALTER TABLE dut1_records DROP CONSTRAINT IF EXISTS dut1_records_department_check;
+ALTER TABLE dut1_records ADD CONSTRAINT dut1_records_department_check
+  CHECK (department IN ('GC','GE','GI','ITR','GM','GCBA','Gestion'));
+
+ALTER TABLE admitted_students DROP CONSTRAINT IF EXISTS admitted_students_department_check;
+ALTER TABLE admitted_students ADD CONSTRAINT admitted_students_department_check
+  CHECK (department IN ('GC','GE','GI','ITR','GM','GCBA','Gestion'));
 
 CREATE TABLE IF NOT EXISTS luggage_items (
   id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

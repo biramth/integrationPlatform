@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ArrowLeft, Search, CheckCircle2, Trash2 } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { listDut1 } from '../../api/dut1Api';
 import { listActivities } from '../../api/activityApi';
 import * as healthApi from '../../api/healthApi';
@@ -10,11 +11,15 @@ import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import Card from '../../components/common/Card';
+import Pagination from '../../components/common/Pagination';
 import PageHeader from '../../components/common/PageHeader';
 import { LoadingState, EmptyState, ErrorState } from '../../components/common/StateViews';
+import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
-import { DEPARTMENT_LABELS } from '../../utils/departments';
+import { DEPARTMENTS, DEPARTMENT_LABELS } from '../../utils/departments';
+
+const PAGE_SIZE = 25;
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -22,9 +27,9 @@ function todayIso() {
 
 export default function HealthTrackingPage() {
   const { showToast } = useToast();
-  const [search, setSearch] = useState('');
-  const [results, setResults] = useState([]);
-  const [searching, setSearching] = useState(false);
+  const [filters, setFilters] = useState({ search: '', department: '', gender: '' });
+  const debouncedSearch = useDebouncedValue(filters.search, 350);
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
 
   const [startDate, setStartDate] = useState(todayIso());
@@ -33,6 +38,12 @@ export default function HealthTrackingPage() {
   const [activityId, setActivityId] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const fetcher = useCallback(
+    () => listDut1({ search: debouncedSearch, department: filters.department, gender: filters.gender, page, pageSize: PAGE_SIZE }),
+    [debouncedSearch, filters.department, filters.gender, page]
+  );
+  const { data, loading, error, reload } = useFetch(fetcher, [debouncedSearch, filters.department, filters.gender, page]);
+
   const activeFetch = useFetch(healthApi.getActiveRestrictions, []);
   const activitiesFetch = useFetch(listActivities, []);
   const historyFetch = useFetch(
@@ -40,16 +51,14 @@ export default function HealthTrackingPage() {
     [selected]
   );
 
-  async function handleSearch(e) {
-    e.preventDefault();
-    if (!search.trim()) return;
-    setSearching(true);
-    try {
-      const data = await listDut1({ search: search.trim() });
-      setResults(data.records);
-    } finally {
-      setSearching(false);
-    }
+  const activeDut1Ids = useMemo(
+    () => new Set((activeFetch.data?.restrictions || []).map((r) => r.dut1_id)),
+    [activeFetch.data]
+  );
+
+  function updateFilters(patch) {
+    setFilters((f) => ({ ...f, ...patch }));
+    setPage(1);
   }
 
   function resetForm() {
@@ -151,28 +160,59 @@ export default function HealthTrackingPage() {
       </Card>
 
       {!selected && (
-        <>
-          <form onSubmit={handleSearch} className="mb-4 flex gap-2">
+        <div>
+          <PageHeader
+            title="Dossiers DUT1"
+            description="Tous les dossiers sont listés ci-dessous — utilise la recherche pour affiner, puis sélectionne un DUT1 pour déclarer une restriction ou voir son historique."
+          />
+
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Input
               icon={Search}
-              placeholder="Nom ou prénom…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1"
+              placeholder="Nom, prénom, téléphone, matricule…"
+              value={filters.search}
+              onChange={(e) => updateFilters({ search: e.target.value })}
             />
-            <Button type="submit" loading={searching}>
-              Rechercher
-            </Button>
-          </form>
-          {!searching && results.length === 0 && search && <EmptyState label="Aucun dossier trouvé." />}
-          <div className="flex flex-col gap-3">
-            {results.map((record, i) => (
-              <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
-                <Dut1Card record={record} onClick={() => selectRecord(record)} />
-              </div>
-            ))}
+            <Select
+              placeholder="Tous les départements"
+              value={filters.department}
+              onChange={(e) => updateFilters({ department: e.target.value })}
+              options={DEPARTMENTS.map((d) => ({ value: d, label: DEPARTMENT_LABELS[d] }))}
+            />
+            <Select
+              placeholder="Tous les genres"
+              value={filters.gender}
+              onChange={(e) => updateFilters({ gender: e.target.value })}
+              options={[
+                { value: 'M', label: 'Masculin' },
+                { value: 'F', label: 'Féminin' },
+              ]}
+            />
           </div>
-        </>
+
+          {loading && <CardListSkeleton rows={6} />}
+          {error && <ErrorState label={error} onRetry={reload} />}
+          {!loading && !error && data.records.length === 0 && <EmptyState label="Aucun dossier trouvé." />}
+
+          {!loading && !error && data.records.length > 0 && (
+            <>
+              <div className="flex flex-col gap-3">
+                {data.records.map((record, i) => (
+                  <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
+                    <Dut1Card
+                      record={record}
+                      onClick={() => selectRecord(record)}
+                      actions={
+                        activeDut1Ids.has(record.id) ? <Badge variant="danger">Restriction active</Badge> : undefined
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+              <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onPageChange={setPage} />
+            </>
+          )}
+        </div>
       )}
 
       {selected && (
@@ -181,7 +221,7 @@ export default function HealthTrackingPage() {
             onClick={() => setSelected(null)}
             className="mb-4 flex items-center gap-1 text-sm text-role-accent transition-colors hover:opacity-80"
           >
-            <ArrowLeft className="h-4 w-4" /> Retour à la recherche
+            <ArrowLeft className="h-4 w-4" /> Retour à la liste
           </button>
           <h2 className="text-h2 mb-3 text-foreground">
             {selected.first_name} {selected.last_name}

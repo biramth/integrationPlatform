@@ -1,6 +1,6 @@
 import { DUT1_COMPLEMENTARY_FIELDS } from '../../utils/dut1ComplementaryFields';
 
-export default function Dut1ComplementaryForm({ values, onChange }) {
+export default function Dut1ComplementaryForm({ values, onChange, disabled = false }) {
   return (
     <div className="flex flex-col gap-4">
       {DUT1_COMPLEMENTARY_FIELDS.map((field) => (
@@ -8,13 +8,15 @@ export default function Dut1ComplementaryForm({ values, onChange }) {
           <span className="font-medium text-slate-700">{field.label}</span>
           {field.type === 'textarea' ? (
             <textarea
-              className="min-h-[88px] rounded-lg border border-slate-300 px-3 py-2 text-base outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+              disabled={disabled}
+              className="min-h-[88px] rounded-lg border border-slate-300 px-3 py-2 text-base outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
               value={values[field.key] ?? ''}
               onChange={(e) => onChange(field.key, e.target.value)}
             />
           ) : (
             <input
-              className="min-h-[44px] rounded-lg border border-slate-300 px-3 py-2 text-base outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+              disabled={disabled}
+              className="min-h-[44px] rounded-lg border border-slate-300 px-3 py-2 text-base outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
               value={values[field.key] ?? ''}
               onChange={(e) => onChange(field.key, e.target.value)}
             />

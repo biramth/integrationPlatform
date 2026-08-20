@@ -6,10 +6,11 @@ const SEVERITY_OPTIONS = [
   { value: 'severe', label: 'Sévère', className: 'bg-danger-soft text-danger-soft-foreground' },
 ];
 
-export default function AllergenCheckboxes({ allergens, selectedIds, onChange, severities, onSeverityChange }) {
+export default function AllergenCheckboxes({ allergens, selectedIds, onChange, severities, onSeverityChange, disabled = false }) {
   const withSeverity = !!severities;
 
   function toggle(id) {
+    if (disabled) return;
     if (selectedIds.includes(id)) {
       onChange(selectedIds.filter((x) => x !== id));
     } else {
@@ -28,8 +29,8 @@ export default function AllergenCheckboxes({ allergens, selectedIds, onChange, s
               checked ? 'border-role-accent bg-role-accent-soft' : 'border-border'
             }`}
           >
-            <label className="flex min-h-[28px] cursor-pointer items-center gap-2">
-              <Checkbox checked={checked} onCheckedChange={() => toggle(a.id)} />
+            <label className={`flex min-h-[28px] items-center gap-2 ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+              <Checkbox checked={checked} onCheckedChange={() => toggle(a.id)} disabled={disabled} />
               {a.label}
             </label>
             {withSeverity && checked && (
@@ -38,8 +39,9 @@ export default function AllergenCheckboxes({ allergens, selectedIds, onChange, s
                   <button
                     key={opt.value}
                     type="button"
+                    disabled={disabled}
                     onClick={() => onSeverityChange(a.id, opt.value)}
-                    className={`rounded-full px-2 py-1 text-xs font-medium transition-opacity ${opt.className} ${
+                    className={`rounded-full px-2 py-1 text-xs font-medium transition-opacity disabled:cursor-not-allowed ${opt.className} ${
                       (severities[a.id] || 'moderee') === opt.value ? '' : 'opacity-40 hover:opacity-70'
                     }`}
                   >

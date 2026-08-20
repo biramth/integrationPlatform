@@ -88,6 +88,13 @@ export default function CompleteInfoFormPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (
+      !window.confirm(
+        "Une fois enregistré, ce dossier ne sera plus modifiable depuis cette page. Confirmer l'enregistrement ?"
+      )
+    ) {
+      return;
+    }
     setSubmitting(true);
     try {
       const [data] = await Promise.all([
@@ -105,6 +112,8 @@ export default function CompleteInfoFormPage() {
   }
 
   if (selected) {
+    const isLocked = !!selected.complementary_completed_at;
+
     return (
       <div>
         <button
@@ -117,13 +126,13 @@ export default function CompleteInfoFormPage() {
           eyebrow="Phase 2 — infos complémentaires"
           title={`${selected.first_name} ${selected.last_name}`}
           description={
-            selected.complementary_completed_at
-              ? undefined
+            isLocked
+              ? 'Dossier complété — verrouillé. Une correction doit passer par un administrateur.'
               : "Ces informations viennent du questionnaire de la commission Santé."
           }
           action={
-            selected.complementary_completed_at ? (
-              <Badge variant="success">Déjà complété — modification possible</Badge>
+            isLocked ? (
+              <Badge variant="success">Déjà complété — verrouillé</Badge>
             ) : (
               <Badge variant="warning">Pas encore complété</Badge>
             )
@@ -133,7 +142,7 @@ export default function CompleteInfoFormPage() {
         <form onSubmit={handleSubmit}>
           <div className="mb-6 rounded-xl border border-border bg-card p-4">
             <p className="mb-3 text-sm font-semibold text-foreground">Admission au concours</p>
-            <AdmissionListToggle value={admissionListType} onChange={setAdmissionListType} />
+            <AdmissionListToggle value={admissionListType} onChange={setAdmissionListType} disabled={isLocked} />
           </div>
 
           <div className="mb-6 rounded-xl border border-border bg-card p-4">
@@ -143,14 +152,17 @@ export default function CompleteInfoFormPage() {
               onChange={setAllergenIds}
               severities={allergies}
               onSeverityChange={setSeverity}
+              disabled={isLocked}
             />
           </div>
-          <Dut1ComplementaryForm values={values} onChange={handleChange} />
-          <div className="mt-6 flex justify-end">
-            <Button type="submit" loading={submitting} className="w-full sm:w-auto">
-              Enregistrer
-            </Button>
-          </div>
+          <Dut1ComplementaryForm values={values} onChange={handleChange} disabled={isLocked} />
+          {!isLocked && (
+            <div className="mt-6 flex justify-end">
+              <Button type="submit" loading={submitting} className="w-full sm:w-auto">
+                Enregistrer
+              </Button>
+            </div>
+          )}
         </form>
       </div>
     );

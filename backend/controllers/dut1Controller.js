@@ -358,9 +358,12 @@ async function listWithoutComplementary(req, res) {
 
 async function completeComplementary(req, res) {
   const { id } = req.params;
-  const existing = await db.get('SELECT id FROM dut1_records WHERE id = $1', [id]);
+  const existing = await db.get('SELECT id, complementary_completed_at FROM dut1_records WHERE id = $1', [id]);
   if (!existing) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
+  }
+  if (existing.complementary_completed_at) {
+    return res.status(409).json({ error: 'Ce dossier a déjà été complété et ne peut plus être modifié depuis cette page.' });
   }
 
   const extraFields = req.body.extraFields || {};
