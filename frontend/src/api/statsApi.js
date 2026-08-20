@@ -24,6 +24,6 @@ export function getAllergyPrevalence() {
   return axiosClient.get('/stats/allergy-prevalence').then((res) => res.data);
 }
 
-export function getCompletionByDepartment() {
-  return axiosClient.get('/stats/completion-by-department').then((res) => res.data);
+export function getByAdmissionList() {
+  return axiosClient.get('/stats/by-admission-list').then((res) => res.data);
 }

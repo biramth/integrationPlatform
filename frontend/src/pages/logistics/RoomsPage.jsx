@@ -11,6 +11,7 @@ import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
 import { getMattressStatus } from '../../utils/mattressStatus';
+import { DEPARTMENT_LABELS } from '../../utils/departments';
 
 export default function RoomsPage() {
   const { showToast } = useToast();
@@ -107,10 +108,15 @@ export default function RoomsPage() {
                       {occupants && occupants.length > 0 && (
                         <div>
                           <p className="mb-2 text-sm font-medium text-foreground">Occupants</p>
-                          <ul className="flex flex-col gap-1.5">
+                          <ul className="flex flex-col gap-2">
                             {occupants.map((o) => (
-                              <li key={o.id} className="text-sm text-foreground">
-                                {o.first_name} {o.last_name}
+                              <li key={o.id} className="text-sm">
+                                <span className="text-foreground">
+                                  {o.first_name} {o.last_name}
+                                </span>
+                                <span className="ml-1.5 text-xs text-muted-foreground">
+                                  {DEPARTMENT_LABELS[o.department] || o.department}
+                                </span>
                               </li>
                             ))}
                           </ul>

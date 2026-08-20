@@ -1,4 +1,4 @@
-import { Users, DoorOpen, Luggage, ClipboardCheck, Home } from 'lucide-react';
+import { Users, DoorOpen, Luggage, HeartPulse, Home } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as statsApi from '../../api/statsApi';
 import StatCard from '../../components/stats/StatCard';
@@ -6,7 +6,7 @@ import DepartmentBarChart from '../../components/stats/DepartmentBarChart';
 import GenderPieChart from '../../components/stats/GenderPieChart';
 import IllnessTrendChart from '../../components/stats/IllnessTrendChart';
 import AllergyPrevalenceChart from '../../components/stats/AllergyPrevalenceChart';
-import CompletionByDepartmentChart from '../../components/stats/CompletionByDepartmentChart';
+import AdmissionListChart from '../../components/stats/AdmissionListChart';
 import Card from '../../components/common/Card';
 import PageHeader from '../../components/common/PageHeader';
 import { Progress } from '@/components/ui/progress';
@@ -21,7 +21,7 @@ export default function AdminDashboardPage() {
   const occupancy = useFetch(statsApi.getRoomsOccupancy, []);
   const illnessTrend = useFetch(statsApi.getIllnessTrend, []);
   const allergyPrevalence = useFetch(statsApi.getAllergyPrevalence, []);
-  const completionByDept = useFetch(statsApi.getCompletionByDepartment, []);
+  const admissionList = useFetch(statsApi.getByAdmissionList, []);
 
   const loading =
     overview.loading ||
@@ -30,7 +30,7 @@ export default function AdminDashboardPage() {
     occupancy.loading ||
     illnessTrend.loading ||
     allergyPrevalence.loading ||
-    completionByDept.loading;
+    admissionList.loading;
   const error =
     overview.error ||
     byDepartment.error ||
@@ -38,7 +38,7 @@ export default function AdminDashboardPage() {
     occupancy.error ||
     illnessTrend.error ||
     allergyPrevalence.error ||
-    completionByDept.error;
+    admissionList.error;
 
   if (error) return <ErrorState label={error} onRetry={() => window.location.reload()} />;
 
@@ -89,15 +89,17 @@ export default function AdminDashboardPage() {
             </div>
             <div className="animate-fade-in-up" style={staggerStyle(3)}>
               <StatCard
-                label="Phase 2 complétée"
-                value={o.complementaryDone}
+                label="Restrictions santé actives"
+                value={o.activeRestrictions}
                 sublabel={
-                  <span className={o.complementaryPending > 0 ? 'font-medium text-warning-soft-foreground' : undefined}>
-                    {o.complementaryPending} restants
-                  </span>
+                  o.activeRestrictions > 0 ? (
+                    <span className="font-medium text-warning-soft-foreground">à suivre</span>
+                  ) : (
+                    'aucune'
+                  )
                 }
-                icon={ClipboardCheck}
-                tone="violet"
+                icon={HeartPulse}
+                tone="rose"
               />
             </div>
           </>
@@ -133,7 +135,7 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="mt-4 animate-fade-in-up" style={staggerStyle(7)}>
-            <CompletionByDepartmentChart rows={completionByDept.data.rows} />
+            <AdmissionListChart rows={admissionList.data.rows} />
           </div>
         </>
       )}

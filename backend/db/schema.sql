@@ -90,6 +90,13 @@ ALTER TABLE dut1_records DROP CONSTRAINT IF EXISTS dut1_records_department_check
 ALTER TABLE dut1_records ADD CONSTRAINT dut1_records_department_check
   CHECK (department IN ('GC','GE','GI','ITR','GM','GCBA','Gestion'));
 
+-- Traitement médical en cours, déclaré en phase 2 (question fermée oui/non +
+-- détail libre si oui). on_treatment reste NULL tant que la phase 2 n'a pas
+-- été complétée (distingue "pas encore répondu" de "a répondu non").
+ALTER TABLE dut1_records
+  ADD COLUMN IF NOT EXISTS on_treatment BOOLEAN,
+  ADD COLUMN IF NOT EXISTS treatment_details TEXT;
+
 ALTER TABLE admitted_students DROP CONSTRAINT IF EXISTS admitted_students_department_check;
 ALTER TABLE admitted_students ADD CONSTRAINT admitted_students_department_check
   CHECK (department IN ('GC','GE','GI','ITR','GM','GCBA','Gestion'));

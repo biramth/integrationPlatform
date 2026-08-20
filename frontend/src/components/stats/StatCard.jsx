@@ -6,6 +6,7 @@ const TONES = {
   emerald: { accent: 'bg-success', iconBg: 'bg-gradient-to-br from-success/20 to-success/5', iconText: 'text-success' },
   amber: { accent: 'bg-warning', iconBg: 'bg-gradient-to-br from-warning/20 to-warning/5', iconText: 'text-warning' },
   violet: { accent: 'bg-violet-600', iconBg: 'bg-gradient-to-br from-violet-500/20 to-violet-500/5', iconText: 'text-violet-600' },
+  rose: { accent: 'bg-danger', iconBg: 'bg-gradient-to-br from-danger/20 to-danger/5', iconText: 'text-danger' },
 };
 
 export default function StatCard({ label, value, sublabel, icon: Icon, tone = 'blue', trend }) {

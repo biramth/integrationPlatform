@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Plus, Trash2, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, CheckCircle2 } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import Select from '../common/Select';
 import { previewAdmittedStudentsFile, confirmAdmittedStudentsImport } from '../../api/importApi';
+import { admittedStudentsProgress } from '../../api/admittedStudentsApi';
 import { useToast } from '../../hooks/useToast';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../../utils/departments';
+
+const LIST_LABELS = { principale: 'Liste principale', attente: "Liste d'attente" };
 
 function RowInput({ value, onChange, type = 'text', className = '' }) {
   return (
@@ -25,6 +28,7 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
   const [candidates, setCandidates] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [lastImport, setLastImport] = useState(null);
 
   async function handleAnalyze() {
     if (!file) return;
@@ -67,7 +71,9 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
     setConfirming(true);
     try {
       const res = await confirmAdmittedStudentsImport(rows);
+      const progress = await admittedStudentsProgress();
       showToast(`${res.createdCount} candidat(s) ajouté(s) au référentiel des admis.`, 'success');
+      setLastImport({ createdCount: res.createdCount, department, progress: progress.progress });
       setCandidates(null);
       setFile(null);
       onImported?.();
@@ -76,6 +82,10 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
     } finally {
       setConfirming(false);
     }
+  }
+
+  function startNewImport() {
+    setLastImport(null);
   }
 
   return (
@@ -105,6 +115,48 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
           </Button>
         </div>
       </Card>
+
+      {lastImport && candidates === null && (
+        <Card>
+          <div className="mb-3 flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-success" />
+            <p className="text-sm font-semibold text-foreground">
+              {lastImport.createdCount} candidat(s) ajouté(s) au référentiel — {DEPARTMENT_LABELS[lastImport.department] || lastImport.department}
+            </p>
+          </div>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Ces admis ne sont pas encore des dossiers DUT1 : ils apparaîtront en suggestion quand un agent enregistrera
+            la personne dans <strong>Enregistrer → Nouvelle fiche</strong>, en cherchant son nom.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                  <th className="py-2 pr-2">Département</th>
+                  <th className="py-2 pr-2">Liste</th>
+                  <th className="py-2 pr-2">Total importés</th>
+                  <th className="py-2">Déjà associés à un dossier</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lastImport.progress.map((row) => (
+                  <tr key={`${row.department}-${row.list_type}`} className="border-b border-border/50">
+                    <td className="py-1.5 pr-2">{DEPARTMENT_LABELS[row.department] || row.department}</td>
+                    <td className="py-1.5 pr-2">{LIST_LABELS[row.list_type] || row.list_type}</td>
+                    <td className="py-1.5 pr-2">{row.total}</td>
+                    <td className="py-1.5">{row.matched}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button variant="secondary" onClick={startNewImport}>
+              Importer un autre fichier
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {candidates !== null && (
         <Card>

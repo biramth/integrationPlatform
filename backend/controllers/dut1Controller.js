@@ -390,9 +390,15 @@ async function completeComplementary(req, res) {
   }
 
   const extraFields = req.body.extraFields || {};
-  const { admissionListType } = req.body;
+  const { admissionListType, onTreatment, treatmentDetails } = req.body;
   if (admissionListType && !['principale', 'attente'].includes(admissionListType)) {
     return res.status(400).json({ error: 'admissionListType doit être "principale" ou "attente".' });
+  }
+  if (typeof onTreatment !== 'boolean') {
+    return res.status(400).json({ error: 'La question "suis-tu un traitement médical ?" (oui/non) est requise.' });
+  }
+  if (onTreatment && !treatmentDetails?.trim()) {
+    return res.status(400).json({ error: 'Précise quels traitements sont suivis.' });
   }
 
   await db.run(
@@ -401,9 +407,11 @@ async function completeComplementary(req, res) {
          complementary_completed_at = NOW(),
          complementary_completed_by = $2,
          updated_by = $2,
-         updated_at = NOW()
+         updated_at = NOW(),
+         on_treatment = $4,
+         treatment_details = $5
      WHERE id = $3`,
-    [JSON.stringify(extraFields), req.user.id, id]
+    [JSON.stringify(extraFields), req.user.id, id, onTreatment, onTreatment ? treatmentDetails.trim() : null]
   );
 
   if (admissionListType) {

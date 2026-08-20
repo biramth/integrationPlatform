@@ -15,6 +15,9 @@ async function overview(req, res) {
   const complementaryDone = Number(
     (await db.get('SELECT COUNT(*) AS n FROM dut1_records WHERE complementary_completed_at IS NOT NULL')).n
   );
+  const activeRestrictions = Number(
+    (await db.get('SELECT COUNT(*) AS n FROM health_restrictions WHERE resolved_at IS NULL')).n
+  );
 
   res.json({
     total,
@@ -24,6 +27,7 @@ async function overview(req, res) {
     withoutLuggage: total - withLuggage,
     complementaryDone,
     complementaryPending: total - complementaryDone,
+    activeRestrictions,
   });
 }
 
@@ -84,28 +88,13 @@ async function allergyPrevalence(req, res) {
   res.json({ rows: rows.map((r) => ({ ...r, count: Number(r.count) })) });
 }
 
-async function completionByDepartment(req, res) {
+async function byAdmissionList(req, res) {
   const rows = await db.all(
-    `SELECT department,
-            COUNT(*) AS total,
-            SUM(CASE WHEN complementary_completed_at IS NOT NULL THEN 1 ELSE 0 END) AS completed
+    `SELECT COALESCE(admission_list_type, 'non_validee') AS status, COUNT(*) AS count
      FROM dut1_records
-     GROUP BY department
-     ORDER BY department`
+     GROUP BY status`
   );
-
-  res.json({
-    rows: rows.map((r) => {
-      const total = Number(r.total);
-      const completed = Number(r.completed);
-      return {
-        department: r.department,
-        total,
-        completed,
-        rate: total ? Number(((completed / total) * 100).toFixed(1)) : 0,
-      };
-    }),
-  });
+  res.json({ rows: rows.map((r) => ({ ...r, count: Number(r.count) })) });
 }
 
 module.exports = {
@@ -115,5 +104,5 @@ module.exports = {
   roomsOccupancy,
   illnessTrend,
   allergyPrevalence,
-  completionByDepartment,
+  byAdmissionList,
 };

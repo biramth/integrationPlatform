@@ -17,6 +17,7 @@ import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
 import { getMattressStatus } from '../../utils/mattressStatus';
+import { DEPARTMENT_LABELS } from '../../utils/departments';
 
 const EMPTY_FORM = { label: '', gender: '', capacity: '', building: '' };
 
@@ -258,10 +259,15 @@ export default function AdminRoomsPage() {
                       {occupants === undefined && <p className="text-xs text-muted-foreground">Chargement…</p>}
                       {occupants && occupants.length === 0 && <p className="text-xs text-muted-foreground">Aucun DUT1 assigné.</p>}
                       {occupants && occupants.length > 0 && (
-                        <ul className="flex flex-col gap-1.5">
+                        <ul className="flex flex-col gap-2">
                           {occupants.map((o) => (
-                            <li key={o.id} className="text-sm text-foreground">
-                              {o.first_name} {o.last_name}
+                            <li key={o.id} className="text-sm">
+                              <span className="text-foreground">
+                                {o.first_name} {o.last_name}
+                              </span>
+                              <span className="ml-1.5 text-xs text-muted-foreground">
+                                {DEPARTMENT_LABELS[o.department] || o.department}
+                              </span>
                             </li>
                           ))}
                         </ul>

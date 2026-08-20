@@ -8,6 +8,7 @@ import Dut1Card from '../../components/dut1/Dut1Card';
 import Dut1ComplementaryForm from '../../components/dut1/Dut1ComplementaryForm';
 import AllergySelect from '../../components/dut1/AllergySelect';
 import AdmissionListToggle from '../../components/dut1/AdmissionListToggle';
+import Dut1TreatmentQuestion from '../../components/dut1/Dut1TreatmentQuestion';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
@@ -38,6 +39,8 @@ export default function CompleteInfoFormPage() {
   const [values, setValues] = useState({});
   const [allergies, setAllergies] = useState({});
   const [admissionListType, setAdmissionListType] = useState(null);
+  const [onTreatment, setOnTreatment] = useState(null);
+  const [treatmentDetails, setTreatmentDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
 
@@ -74,6 +77,8 @@ export default function CompleteInfoFormPage() {
     setSelected(record);
     setValues(record.extra_fields || {});
     setAdmissionListType(record.admission_list_type || null);
+    setOnTreatment(record.on_treatment ?? null);
+    setTreatmentDetails(record.treatment_details || '');
     const initial = {};
     for (const a of record.allergens || []) {
       initial[a.id] = a.severity || 'moderee';
@@ -102,6 +107,14 @@ export default function CompleteInfoFormPage() {
 
   function openRecap(e) {
     e.preventDefault();
+    if (typeof onTreatment !== 'boolean') {
+      showToast('Réponds à la question "suis-tu un traitement médical ?" avant de continuer.', 'error');
+      return;
+    }
+    if (onTreatment && !treatmentDetails.trim()) {
+      showToast('Précise quels traitements sont suivis.', 'error');
+      return;
+    }
     setRecapOpen(true);
   }
 
@@ -109,7 +122,7 @@ export default function CompleteInfoFormPage() {
     setSubmitting(true);
     try {
       const [data] = await Promise.all([
-        completeComplementary(selected.id, values, admissionListType),
+        completeComplementary(selected.id, { extraFields: values, admissionListType, onTreatment, treatmentDetails }),
         setDut1Allergies(selected.id, allergies),
       ]);
       showToast('Infos complémentaires enregistrées.', 'success');
@@ -158,6 +171,17 @@ export default function CompleteInfoFormPage() {
           </div>
 
           <div className="mb-6 rounded-xl border border-border bg-card p-4">
+            <p className="mb-3 text-sm font-semibold text-foreground">Traitement médical</p>
+            <Dut1TreatmentQuestion
+              value={onTreatment}
+              details={treatmentDetails}
+              onChangeValue={setOnTreatment}
+              onChangeDetails={setTreatmentDetails}
+              disabled={isLocked}
+            />
+          </div>
+
+          <div className="mb-6 rounded-xl border border-border bg-card p-4">
             <p className="mb-3 text-sm font-semibold text-foreground">Allergies</p>
             <AllergySelect
               selectedIds={allergenIds}
@@ -186,6 +210,15 @@ export default function CompleteInfoFormPage() {
                 {admissionListType === 'attente' && "Liste d'attente"}
                 {!admissionListType && <span className="text-muted-foreground">Non renseigné</span>}
               </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Traitement médical</p>
+              {onTreatment ? (
+                <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{treatmentDetails}</p>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground">Aucun traitement déclaré.</p>
+              )}
             </div>
 
             <div>

@@ -36,8 +36,10 @@ export function listWithoutComplementary() {
   return axiosClient.get('/dut1/without-complementary').then((res) => res.data);
 }
 
-export function completeComplementary(id, extraFields, admissionListType) {
-  return axiosClient.put(`/dut1/${id}/complementary`, { extraFields, admissionListType }).then((res) => res.data);
+export function completeComplementary(id, { extraFields, admissionListType, onTreatment, treatmentDetails }) {
+  return axiosClient
+    .put(`/dut1/${id}/complementary`, { extraFields, admissionListType, onTreatment, treatmentDetails })
+    .then((res) => res.data);
 }
 
 export function reassignRoom(id, roomId) {
