@@ -114,18 +114,6 @@ frontend ne transite par Render après le premier chargement. Render ne
 build plus que le backend, ce qui raccourcit nettement les déploiements, et
 ses réponses JSON sont désormais gzippées (`compression`).
 
-### Mise en route (une seule fois)
-
-Ces deux liens font l'essentiel du branchement ; ensuite tout est automatique.
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/biramth/integrationPlatform)
-&nbsp;
-[**Importer le frontend sur Vercel →**](https://vercel.com/import/git?s=https://github.com/biramth/integrationPlatform)
-
-Le bouton Render lit `render.yaml`, crée le service et demande directement les
-variables manquantes ; le lien Vercel importe le repo (penser à régler **Root
-Directory** sur `frontend`). Le détail des variables à saisir est ci-dessous.
-
 ### 1. Backend sur Render
 
 1. Sur [render.com](https://render.com), **New → Blueprint**, connecter le
