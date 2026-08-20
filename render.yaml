@@ -1,20 +1,30 @@
 services:
   - type: web
-    name: integration-dut1
+    name: integration-dut1-api
     runtime: node
     plan: free
     branch: main
+    rootDir: backend
+    # Seul le backend vit ici : le frontend est buildé et servi par Vercel.
+    # Render n'installe donc plus les dépendances du frontend (vite, tailwind,
+    # react...), ce qui raccourcit nettement le build et la reprise après veille.
     # Les données (Postgres + photos) vivent sur Supabase, pas sur le disque de
-    # Render : plus besoin de disque persistant ni de préoccupation liée au
-    # plan "free" qui réinitialise le système de fichiers à chaque déploiement.
-    # --include=dev reste nécessaire car NODE_ENV=production ferait sinon
-    # sauter les devDependencies du frontend (vite, @vitejs/plugin-react)
-    # pendant le build, alors qu'elles sont indispensables pour "npm run build".
-    buildCommand: "cd frontend && npm install --include=dev && npm run build && cd ../backend && npm install && node db/migrate.js && node db/setupStorage.js && node db/seed.js"
-    startCommand: "cd backend && node server.js"
+    # Render : pas besoin de disque persistant.
+    buildCommand: "npm install && node db/migrate.js && node db/setupStorage.js && node db/seed.js"
+    startCommand: "node server.js"
+    healthCheckPath: /healthz
+    # La région ne peut pas être modifiée après la création du service : si le
+    # service existe déjà, il faut le recréer pour en changer. Frankfurt est la
+    # région Render la plus proche de l'Afrique de l'Ouest.
+    # region: frankfurt
     envVars:
       - key: NODE_ENV
         value: production
+      # Origine(s) autorisée(s) à appeler l'API, séparées par des virgules.
+      # Ex: https://integration-dut1.vercel.app,*.vercel.app
+      # (le "*." couvre les URLs de preview générées par Vercel sur les PR).
+      - key: CORS_ORIGIN
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: DEFAULT_ADMIN_USERNAME

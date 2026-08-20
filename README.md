@@ -7,7 +7,7 @@ l'équipe logistique, attribution automatique des chambres, et back-office admin
 
 ## Stack
 
-- **Backend** : Node.js / Express 5, SQLite (`better-sqlite3`), JWT + bcrypt, uploads via `multer`.
+- **Backend** : Node.js / Express 5, Postgres (Supabase), JWT + bcrypt, uploads via `multer` vers Supabase Storage.
 - **Frontend** : React 19 + Vite, Tailwind CSS v4, React Router, Recharts.
 
 ## Installation
@@ -45,8 +45,8 @@ cd frontend
 npm run dev
 ```
 
-Le frontend (http://localhost:5173) proxifie automatiquement `/api` et
-`/uploads` vers le backend (http://localhost:3000).
+Le frontend (http://localhost:5173) proxifie automatiquement `/api` vers le
+backend (http://localhost:3000).
 
 ## Rôles
 
@@ -97,57 +97,84 @@ depuis **Admin → Chambres**. L'attribution à la création d'un dossier est
 automatique (première chambre disponible du bon genre) ; l'admin peut
 réassigner manuellement depuis **Admin → Dossiers**.
 
-## Déploiement sur Render (préprod)
+## Déploiement : frontend sur Vercel, API sur Render
 
-L'app est déployée comme **un seul service web** : au démarrage en
-production, le backend Express sert directement les fichiers statiques du
-frontend buildé (`frontend/dist`) en plus de l'API — pas de second service,
-pas de CORS à configurer. C'est le fichier [`render.yaml`](render.yaml) à la
-racine qui décrit ce service (Render le détecte automatiquement via
-"New → Blueprint").
+L'app est déployée en **deux services séparés** :
 
-### ⚠️ Important : stockage éphémère sur le plan gratuit
+| Service | Hébergeur | Contenu |
+| --- | --- | --- |
+| Frontend | Vercel | build Vite statique (`frontend/dist`), servi par le CDN |
+| API | Render | serveur Express (`backend/`), décrit par [`render.yaml`](render.yaml) |
+| Données | Supabase | Postgres + bucket privé pour les photos de bagages |
 
-Le plan `free` de Render n'a pas de disque persistant : à chaque redéploiement
-ou redémarrage (veille après 15 min d'inactivité sur le plan gratuit), le
-fichier SQLite et les photos de bagages sont perdus — `seed.js` recrée
-automatiquement l'admin, les chambres et les allergènes de test au
-redémarrage, mais **tous les dossiers DUT1 créés pendant une démo seront
-réinitialisés à la prochaine veille/déploiement**. C'est suffisant pour une
-démo ponctuelle ; pour une préprod où les données doivent survivre entre deux
-sessions, voir la section "Passer en préprod persistante" ci-dessous.
+Pourquoi séparer : le CDN Vercel sert le HTML/JS/CSS depuis un point de
+présence proche de l'utilisateur, avec un cache immuable d'un an sur
+`/assets/*` (les noms de fichiers sont hashés) — donc plus aucun octet de
+frontend ne transite par Render après le premier chargement. Render ne
+build plus que le backend, ce qui raccourcit nettement les déploiements, et
+ses réponses JSON sont désormais gzippées (`compression`).
 
-### Étapes
+### 1. Backend sur Render
 
-1. **Pousser le code sur GitHub** (Render déploie depuis un repo Git) :
-   ```bash
-   git add -A
-   git commit -m "Initial commit"
-   git remote add origin <url-de-ton-repo-github>
-   git push -u origin main
-   ```
-2. Sur [render.com](https://render.com), **New → Blueprint**, connecter le
-   repo GitHub — Render lit `render.yaml` et propose de créer le service
-   `integration-dut1` automatiquement.
-3. Render va demander de renseigner les variables marquées `sync: false` :
-   - `DEFAULT_ADMIN_PASSWORD` : choisis un mot de passe fort pour le compte
-     admin de la démo (`JWT_SECRET` est généré automatiquement par Render,
-     pas besoin d'y toucher).
-4. Cliquer **Apply** — Render build (`npm install` + `npm run build` du
-   frontend), exécute `migrate.js`/`seed.js` en pré-déploiement, puis démarre
-   le serveur. L'app est accessible à l'URL `https://integration-dut1.onrender.com`
-   (ou le nom choisi).
-5. Se connecter avec `admin` / le mot de passe défini à l'étape 3, puis créer
-   les comptes des commissions depuis **Admin → Agents** (ou utiliser les
-   comptes de test `registrar1`/`logistics1`/`sante1`/`cuisine1`, mot de passe
-   `pass123`, créés par le seed — à changer si la démo doit être partagée
-   publiquement).
+1. Sur [render.com](https://render.com), **New → Blueprint**, connecter le
+   repo GitHub — Render lit `render.yaml` et crée le service
+   `integration-dut1-api`.
+2. Renseigner les variables marquées `sync: false` :
+   - `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (projet Supabase)
+   - `DEFAULT_ADMIN_PASSWORD` : mot de passe du compte admin initial
+   - `CORS_ORIGIN` : laisser vide pour ce premier déploiement, on le remplira
+     à l'étape 3 une fois l'URL Vercel connue.
+   (`JWT_SECRET` est généré automatiquement par Render.)
+3. **Apply** — le build installe les dépendances backend puis exécute
+   `migrate.js` / `setupStorage.js` / `seed.js` (tous idempotents). L'API
+   répond ensuite sur `https://integration-dut1-api.onrender.com`, avec une
+   sonde de santé sur `/healthz`.
 
-### Passer en préprod persistante (données conservées entre les démos)
+### 2. Frontend sur Vercel
 
-Dans `render.yaml`, passer `plan: free` à `plan: starter` (~7$/mois) et
-décommenter le bloc `disk` ainsi que le second bloc `envVars` en bas du
-fichier (qui pointe `DB_PATH`/`UPLOAD_DIR` vers le disque monté) — les
-commentaires dans le fichier indiquent exactement quoi activer. Un plan payant
-supprime aussi la mise en veille après inactivité (pas de temps de démarrage
-à froid pendant une démo client).
+1. Sur [vercel.com](https://vercel.com), **Add New → Project**, importer le
+   même repo GitHub.
+2. Régler **Root Directory** sur `frontend` — Vercel détecte Vite et lit
+   [`frontend/vercel.json`](frontend/vercel.json) (build, réécriture SPA vers
+   `index.html`, cache des assets).
+3. Ajouter la variable d'environnement `VITE_API_URL` avec l'origine du
+   backend Render, **sans `/api` ni slash final** :
+   `https://integration-dut1-api.onrender.com`
+4. **Deploy**.
+
+### 3. Refermer le CORS
+
+Une fois l'URL Vercel connue, retourner dans les variables d'environnement du
+service Render et poser :
+
+```
+CORS_ORIGIN=https://integration-dut1.vercel.app,*.vercel.app
+```
+
+La première entrée est le domaine de production ; `*.vercel.app` autorise en
+plus les URLs de preview générées à chaque PR (à retirer si l'on veut
+verrouiller strictement). Une origine non listée reçoit un `403`. Tant que
+`CORS_ORIGIN` est vide, l'API accepte toutes les origines — pratique en local,
+à ne pas laisser ainsi en production.
+
+### ⚠️ Veille du plan gratuit Render
+
+Le plan `free` met le service en veille après 15 min d'inactivité : la
+première requête suivante attend ~50 s le temps du redémarrage (les données,
+elles, sont sur Supabase et ne sont jamais perdues). Le frontend Vercel, lui,
+reste instantané — l'utilisateur voit donc l'interface tout de suite mais
+attend sur le premier appel API. Deux façons d'y remédier :
+
+- pinger `https://integration-dut1-api.onrender.com/healthz` toutes les 10 min
+  depuis un cron externe (UptimeRobot, cron-job.org) ;
+- passer Render en plan `starter` (~7 $/mois), qui supprime la veille.
+
+La région du service Render ne peut pas être changée après création : pour un
+public ouest-africain, créer le service en **Frankfurt** (ligne `region`
+commentée dans `render.yaml`) plutôt que dans une région américaine.
+
+### Développement local
+
+Rien ne change : `VITE_API_URL` reste vide, et le proxy de
+[`vite.config.js`](frontend/vite.config.js) envoie `/api` vers
+`http://localhost:3000`.

@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const axiosClient = axios.create({ baseURL: '/api' });
+// En développement, Vite proxifie /api vers le backend local (vite.config.js).
+// En production le frontend est sur Vercel et l'API sur Render : VITE_API_URL
+// porte l'origine du backend (ex: https://integration-dut1.onrender.com).
+const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
+const baseURL = apiUrl ? `${apiUrl}/api` : '/api';
+
+const axiosClient = axios.create({ baseURL });
 
 axiosClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');

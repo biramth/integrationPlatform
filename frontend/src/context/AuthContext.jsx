@@ -18,7 +18,19 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    const check = token ? authApi.me().then((data) => setUser(data.user)).catch(() => localStorage.removeItem('token')) : Promise.resolve();
+    const check = token
+      ? authApi.me()
+          .then((data) => setUser(data.user))
+          .catch((err) => {
+            // Seul un 401 (token vraiment invalide/expiré) doit déconnecter. Un incident
+            // réseau ou serveur transitoire ne doit pas faire perdre la session — l'agent
+            // reste non connecté pour ce chargement mais retentera au suivant, sans avoir
+            // à se ré-authentifier pour une simple coupure passagère.
+            if (err.response?.status === 401) {
+              localStorage.removeItem('token');
+            }
+          })
+      : Promise.resolve();
     check.finally(() => setInitializing(false));
   }, []);
 

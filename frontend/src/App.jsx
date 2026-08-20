@@ -23,11 +23,10 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/" element={<HomeRedirect />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<HomeRedirect />} />
-
           <Route element={<RoleRoute roles={['registrar', 'admin']} />}>
             <Route path="/registrar/basic" element={<BasicInfoFormPage />} />
             <Route path="/registrar/complementary" element={<CompleteInfoFormPage />} />
