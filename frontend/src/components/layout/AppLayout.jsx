@@ -1,9 +1,11 @@
+import { Suspense } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { GraduationCap, Power } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_LABELS } from '../../utils/roles';
 import { NAV_ITEMS } from './navConfig';
 import Avatar from '../common/Avatar';
+import RouteFallback from '../../routes/RouteFallback';
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
@@ -85,7 +87,9 @@ export default function AppLayout() {
 
       <main className="overflow-y-auto bg-background pb-20 md:pb-0 print:overflow-visible print:pb-0">
         <div key={location.pathname} className="mx-auto max-w-5xl p-4 sm:p-6 animate-fade-in-up">
-          <Outlet />
+          <Suspense fallback={<RouteFallback />}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
 
