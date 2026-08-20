@@ -5,32 +5,35 @@ async function roomOccupancy(roomId) {
   return Number(row.occupied);
 }
 
+// Verrouille toutes les chambres du genre concerné (SELECT ... FOR UPDATE) avant
+// de calculer l'occupation : sans ça, deux enregistrements simultanés (plusieurs
+// agents Orga au bureau d'accueil en même temps) peuvent lire la même occupation
+// "3/4" avant que l'un des deux ne commite, et assigner tous les deux la même
+// place — la chambre se retrouve à 5/4. Le verrou force les transactions
+// concurrentes à s'exécuter l'une après l'autre pour ce genre, chacune relisant
+// une occupation à jour avant de choisir une chambre.
 async function autoAssignRoom(dut1Id, gender, changedBy) {
   return db.transaction(async (tx) => {
-    const room = await tx.get(
-      `SELECT r.id, r.capacity, COUNT(d.id) AS occupied
-       FROM rooms r
-       LEFT JOIN dut1_records d ON d.room_id = r.id
-       WHERE r.gender = $1
-       GROUP BY r.id
-       HAVING COUNT(d.id) < r.capacity
-       ORDER BY r.id ASC
-       LIMIT 1`,
+    const rooms = await tx.all(
+      `SELECT id, capacity FROM rooms WHERE gender = $1 ORDER BY id ASC FOR UPDATE`,
       [gender]
     );
 
-    if (!room) {
-      return null;
+    for (const room of rooms) {
+      const occupiedRow = await tx.get('SELECT COUNT(*) AS occupied FROM dut1_records WHERE room_id = $1', [room.id]);
+      if (Number(occupiedRow.occupied) >= room.capacity) continue;
+
+      await tx.run(`UPDATE dut1_records SET room_id = $1, room_assigned_at = NOW() WHERE id = $2`, [room.id, dut1Id]);
+      await tx.run(
+        `INSERT INTO room_assignment_history (dut1_id, old_room_id, new_room_id, changed_by, reason)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [dut1Id, null, room.id, changedBy, 'auto_assignment']
+      );
+
+      return room.id;
     }
 
-    await tx.run(`UPDATE dut1_records SET room_id = $1, room_assigned_at = NOW() WHERE id = $2`, [room.id, dut1Id]);
-    await tx.run(
-      `INSERT INTO room_assignment_history (dut1_id, old_room_id, new_room_id, changed_by, reason)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [dut1Id, null, room.id, changedBy, 'auto_assignment']
-    );
-
-    return room.id;
+    return null;
   });
 }
 
@@ -43,7 +46,11 @@ async function manualAssignRoom(dut1Id, newRoomId, changedBy) {
       throw err;
     }
 
-    const room = await tx.get('SELECT * FROM rooms WHERE id = $1', [newRoomId]);
+    // FOR UPDATE : verrouille la chambre cible pendant le contrôle de capacité,
+    // pour la même raison que dans autoAssignRoom ci-dessus (éviter que deux
+    // réassignations manuelles concurrentes vers la même chambre ne la
+    // dépassent toutes les deux sa capacité).
+    const room = await tx.get('SELECT * FROM rooms WHERE id = $1 FOR UPDATE', [newRoomId]);
     if (!room) {
       const err = new Error('Chambre introuvable.');
       err.status = 404;

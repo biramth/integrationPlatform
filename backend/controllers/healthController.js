@@ -100,14 +100,21 @@ async function declareRestriction(req, res) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
 
-  const result = await db.run(
-    `INSERT INTO health_restrictions (dut1_id, activity_id, start_date, end_date, reason, declared_by)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-    [id, activityId || null, startDate, endDate || null, reason, req.user.id]
-  );
+  try {
+    const result = await db.run(
+      `INSERT INTO health_restrictions (dut1_id, activity_id, start_date, end_date, reason, declared_by)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [id, activityId || null, startDate, endDate || null, reason, req.user.id]
+    );
 
-  const record = await db.get('SELECT * FROM health_restrictions WHERE id = $1', [result.rows[0].id]);
-  res.status(201).json({ restriction: record });
+    const record = await db.get('SELECT * FROM health_restrictions WHERE id = $1', [result.rows[0].id]);
+    res.status(201).json({ restriction: record });
+  } catch (err) {
+    if (err.code === '23503') {
+      return res.status(400).json({ error: 'Activité invalide.' });
+    }
+    throw err;
+  }
 }
 
 async function listRestrictionsForDut1(req, res) {

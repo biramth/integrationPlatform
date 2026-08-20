@@ -95,12 +95,20 @@ async function deleteRoom(req, res) {
     return res.status(409).json({ error: 'Impossible de supprimer une chambre occupée.' });
   }
 
-  const result = await db.run('DELETE FROM rooms WHERE id = $1', [id]);
-  if (result.changes === 0) {
-    return res.status(404).json({ error: 'Chambre introuvable.' });
+  try {
+    const result = await db.run('DELETE FROM rooms WHERE id = $1', [id]);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Chambre introuvable.' });
+    }
+    res.status(204).send();
+  } catch (err) {
+    if (err.code === '23503') {
+      return res.status(409).json({
+        error: "Impossible de supprimer cette chambre : elle apparaît dans l'historique d'affectation d'un dossier DUT1.",
+      });
+    }
+    throw err;
   }
-
-  res.status(204).send();
 }
 
 async function reassignDut1Room(req, res) {

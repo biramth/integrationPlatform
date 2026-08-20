@@ -1,7 +1,7 @@
 import axiosClient from './axiosClient';
 
-export function createDut1(payload) {
-  return axiosClient.post('/dut1', payload).then((res) => res.data);
+export function createDut1(payload, { confirmDuplicate = false } = {}) {
+  return axiosClient.post('/dut1', { ...payload, confirmDuplicate }).then((res) => res.data);
 }
 
 export function listDut1(params = {}) {

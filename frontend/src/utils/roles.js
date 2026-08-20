@@ -53,7 +53,7 @@ export function homePathForRole(role, subRole) {
     case ROLES.COMMUNICATION:
       return '/communication/annuaire';
     case ROLES.CULTURELLE:
-      return '/culturelle/planning';
+      return '/planning';
     case ROLES.ACTIVITES:
       return '/admin/activites';
     default:

@@ -77,7 +77,37 @@ async function createRecord(req, res) {
     motherPhone,
     address,
     admittedStudentId,
+    confirmDuplicate,
   } = req.body;
+
+  // Deux agents Orga peuvent enregistrer la même personne en parallèle sans le
+  // savoir (bureau d'accueil à plusieurs postes). On n'empêche jamais la
+  // création — des homonymes existent réellement (cf. décision explicite plus
+  // tôt : ne jamais bloquer sur le seul nom) — mais nom + prénom + date de
+  // naissance identiques est un signal assez fort pour mériter une confirmation
+  // explicite avant de dupliquer le dossier.
+  if (!confirmDuplicate) {
+    const existing = await db.get(
+      `SELECT id, first_name, last_name, department, room_id,
+         (SELECT label FROM rooms WHERE id = dut1_records.room_id) AS room_label
+       FROM dut1_records
+       WHERE LOWER(last_name) = LOWER($1) AND LOWER(first_name) = LOWER($2) AND birth_date = $3
+       LIMIT 1`,
+      [lastName, firstName, birthDate]
+    );
+    if (existing) {
+      return res.status(409).json({
+        error: 'Un dossier avec ce nom, prénom et cette date de naissance existe déjà.',
+        duplicate: {
+          id: existing.id,
+          firstName: existing.first_name,
+          lastName: existing.last_name,
+          department: existing.department,
+          roomLabel: existing.room_label,
+        },
+      });
+    }
+  }
 
   try {
     const result = await db.run(

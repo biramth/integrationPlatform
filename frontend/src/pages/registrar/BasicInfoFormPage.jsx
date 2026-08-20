@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, TriangleAlert } from 'lucide-react';
 import Dut1BasicForm from '../../components/dut1/Dut1BasicForm';
 import AdmittedStudentLookup from '../../components/dut1/AdmittedStudentLookup';
 import Dut1Card from '../../components/dut1/Dut1Card';
@@ -11,6 +11,7 @@ import { EmptyState, ErrorState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { createDut1, listDut1 } from '../../api/dut1Api';
 import { DUT1_BASIC_DEFAULTS } from '../../utils/dut1BasicFields';
+import { DEPARTMENT_LABELS } from '../../utils/departments';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../hooks/useAuth';
 import { useFetch } from '../../hooks/useFetch';
@@ -25,6 +26,7 @@ export default function BasicInfoFormPage() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
 
   const { data, loading, error, reload } = useFetch(
     () => listDut1({ createdBy: user.id, search }),
@@ -34,12 +36,14 @@ export default function BasicInfoFormPage() {
   function handleChange(key, value) {
     setValues((v) => ({ ...v, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
+    setDuplicateWarning(null);
   }
 
   function openModal() {
     setValues(DUT1_BASIC_DEFAULTS);
     setAdmittedStudentId(null);
     setErrors({});
+    setDuplicateWarning(null);
     setModalOpen(true);
   }
 
@@ -75,16 +79,24 @@ export default function BasicInfoFormPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!validate()) return;
+    await submitRecord({ confirmDuplicate: false });
+  }
 
+  async function submitRecord({ confirmDuplicate }) {
     setSubmitting(true);
     try {
-      const data = await createDut1({ ...values, admittedStudentId });
+      const data = await createDut1({ ...values, admittedStudentId }, { confirmDuplicate });
       const roomText = data.roomAssigned ? `— chambre ${data.room.label}` : `— ${data.warning}`;
       showToast(`${data.record.first_name} ${data.record.last_name} enregistré(e) ${roomText}`, 'success');
       setModalOpen(false);
+      setDuplicateWarning(null);
       reload();
     } catch (err) {
-      showToast(err.response?.data?.error || 'Erreur lors de la création du dossier.', 'error');
+      if (err.response?.status === 409 && err.response.data?.duplicate) {
+        setDuplicateWarning(err.response.data.duplicate);
+      } else {
+        showToast(err.response?.data?.error || 'Erreur lors de la création du dossier.', 'error');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -132,13 +144,44 @@ export default function BasicInfoFormPage() {
           <div className="mt-4">
             <Dut1BasicForm values={values} errors={errors} onChange={handleChange} />
           </div>
+
+          {duplicateWarning && (
+            <div className="mt-4 flex items-start gap-3 rounded-lg border border-warning bg-warning-soft px-3 py-2.5">
+              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+              <div className="text-sm text-warning-soft-foreground">
+                <p className="font-medium">
+                  Un dossier existe déjà pour {duplicateWarning.firstName} {duplicateWarning.lastName}
+                  {' '}(
+                  {DEPARTMENT_LABELS[duplicateWarning.department] || duplicateWarning.department}
+                  {duplicateWarning.roomLabel ? `, chambre ${duplicateWarning.roomLabel}` : ''}
+                  ).
+                </p>
+                <p className="mt-1">
+                  Si c'est un homonyme (une autre personne avec le même nom et la même date de naissance), tu peux
+                  continuer. Si c'est la même personne, annule pour éviter un doublon.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="mt-6 flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
               Annuler
             </Button>
-            <Button type="submit" loading={submitting}>
-              Enregistrer le dossier
-            </Button>
+            {duplicateWarning ? (
+              <Button
+                type="button"
+                variant="danger"
+                loading={submitting}
+                onClick={() => submitRecord({ confirmDuplicate: true })}
+              >
+                Enregistrer quand même
+              </Button>
+            ) : (
+              <Button type="submit" loading={submitting}>
+                Enregistrer le dossier
+              </Button>
+            )}
           </div>
         </form>
       </Modal>

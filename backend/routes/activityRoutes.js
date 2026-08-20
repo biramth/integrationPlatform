@@ -6,11 +6,10 @@ const router = express.Router();
 
 router.use(verifyToken);
 
-router.get(
-  '/',
-  requireRole('sante', 'admin', 'communication', 'culturelle', 'activites'),
-  activityController.listActivities
-);
+// Le planning est un simple calendrier d'activités, sans donnée sensible :
+// accessible en lecture à toutes les commissions, pas seulement à celles qui
+// l'utilisent explicitement dans leur propre page.
+router.get('/', activityController.listActivities);
 router.post('/', requireRole('admin', 'activites'), activityController.createActivity);
 router.put('/:id', requireRole('admin', 'activites'), activityController.updateActivity);
 router.delete('/:id', requireRole('admin', 'activites'), activityController.deleteActivity);

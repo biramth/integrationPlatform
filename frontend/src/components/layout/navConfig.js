@@ -27,13 +27,17 @@ const ORGA_ITEMS = {
   chambres: [{ to: '/orga/rooms', label: 'Chambres', icon: DoorOpen }],
 };
 
+// Le planning est un calendrier d'activités sans donnée sensible : visible par
+// toutes les commissions, en plus de leurs pages dédiées.
+const PLANNING_ITEM = { to: '/planning', label: 'Planning', icon: CalendarDays };
+
 export function getNavItems(user) {
   if (!user) return [];
   if (user.role === ROLES.ORGA) {
-    if (!user.subRole) {
-      return [...ORGA_ITEMS.enregistrement, ...ORGA_ITEMS.bagages, ...ORGA_ITEMS.chambres];
-    }
-    return ORGA_ITEMS[user.subRole] || [];
+    const scoped = user.subRole
+      ? ORGA_ITEMS[user.subRole] || []
+      : [...ORGA_ITEMS.enregistrement, ...ORGA_ITEMS.bagages, ...ORGA_ITEMS.chambres];
+    return [...scoped, PLANNING_ITEM];
   }
   return NAV_ITEMS[user.role] || [];
 }
@@ -58,12 +62,10 @@ export const NAV_ITEMS = {
     { to: '/sante/risques', label: 'Risques du jour', icon: AlertTriangle },
     { to: '/sante/suivi', label: 'Suivi santé', icon: Stethoscope },
     { to: '/sante/allergenes', label: 'Allergènes', icon: Leaf },
+    PLANNING_ITEM,
   ],
-  [ROLES.CUISINE]: [{ to: '/cuisine/menu', label: 'Menu du jour', icon: UtensilsCrossed }],
-  [ROLES.COMMUNICATION]: [
-    { to: '/communication/annuaire', label: 'Annuaire', icon: Contact },
-    { to: '/communication/planning', label: 'Planning', icon: CalendarDays },
-  ],
-  [ROLES.CULTURELLE]: [{ to: '/culturelle/planning', label: 'Planning', icon: CalendarDays }],
+  [ROLES.CUISINE]: [{ to: '/cuisine/menu', label: 'Menu du jour', icon: UtensilsCrossed }, PLANNING_ITEM],
+  [ROLES.COMMUNICATION]: [{ to: '/communication/annuaire', label: 'Annuaire', icon: Contact }, PLANNING_ITEM],
+  [ROLES.CULTURELLE]: [PLANNING_ITEM],
   [ROLES.ACTIVITES]: [{ to: '/admin/activites', label: 'Activités', icon: CalendarDays }],
 };

@@ -37,6 +37,9 @@ function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
+            {/* Planning : accessible à toutes les commissions, aucune restriction de rôle. */}
+            <Route path="/planning" element={<PlanningReadOnlyPage />} />
+
             <Route element={<RoleRoute roles={['orga', 'admin']} orgaScope="enregistrement" />}>
               <Route path="/orga/basic" element={<BasicInfoFormPage />} />
               <Route path="/orga/complementary" element={<CompleteInfoFormPage />} />
@@ -81,11 +84,6 @@ function App() {
 
             <Route element={<RoleRoute roles={['communication']} />}>
               <Route path="/communication/annuaire" element={<DirectoryPage />} />
-              <Route path="/communication/planning" element={<PlanningReadOnlyPage />} />
-            </Route>
-
-            <Route element={<RoleRoute roles={['culturelle']} />}>
-              <Route path="/culturelle/planning" element={<PlanningReadOnlyPage />} />
             </Route>
           </Route>
         </Route>
