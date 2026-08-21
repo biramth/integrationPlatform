@@ -68,4 +68,21 @@ function requireAgentManagement(req, res, next) {
   return res.status(403).json({ error: 'Accès refusé pour ce rôle.' });
 }
 
-module.exports = { verifyToken, requireRole, requireOrgaScope, requireSanteScope, requireAgentManagement };
+// À utiliser après requireRole(...) pour restreindre une action au chef de la
+// commission plutôt qu'à tous ses membres — ex: la commission Cuisine peut
+// tous voir le menu du jour, mais seul le chef le crée/modifie.
+function requireCommissionLead(req, res, next) {
+  if (req.user.role === 'it' || req.user.isCommissionLead) {
+    return next();
+  }
+  return res.status(403).json({ error: 'Réservé au chef de commission.' });
+}
+
+module.exports = {
+  verifyToken,
+  requireRole,
+  requireOrgaScope,
+  requireSanteScope,
+  requireAgentManagement,
+  requireCommissionLead,
+};

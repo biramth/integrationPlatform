@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
+import { useAuth } from '../../hooks/useAuth';
 import { staggerStyle } from '../../utils/stagger';
 
 function todayIso() {
@@ -27,6 +28,8 @@ function shiftDate(iso, days) {
 }
 
 export default function MenuPage() {
+  const { user } = useAuth();
+  const canEdit = user.role === 'it' || user.isCommissionLead;
   const { showToast } = useToast();
   const [date, setDate] = useState(todayIso());
   const [mealType, setMealType] = useState('dejeuner');
@@ -74,7 +77,11 @@ export default function MenuPage() {
     <div>
       <PageHeader
         title="Menu du jour"
-        description="Saisis les plats et leurs allergènes potentiels — la commission Santé s'en sert pour repérer les DUT1 à risque."
+        description={
+          canEdit
+            ? "Saisis les plats et leurs allergènes potentiels — la commission Santé s'en sert pour repérer les DUT1 à risque."
+            : "Le chef de la commission Cuisine saisit les plats et leurs allergènes potentiels."
+        }
       />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -131,41 +138,45 @@ export default function MenuPage() {
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDeleteDish(dish.id)}
-                  className="flex shrink-0 items-center gap-1 text-xs text-danger transition-colors hover:opacity-80 hover:underline"
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Supprimer
-                </button>
+                {canEdit && (
+                  <button
+                    onClick={() => handleDeleteDish(dish.id)}
+                    className="flex shrink-0 items-center gap-1 text-xs text-danger transition-colors hover:opacity-80 hover:underline"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                  </button>
+                )}
               </Card>
             </div>
           ))}
         </div>
       )}
 
-      <form onSubmit={handleAddDish} className="rounded-xl border border-border bg-card p-4">
-        <p className="mb-3 text-sm font-semibold text-foreground">Ajouter un plat — {MEAL_TYPE_LABELS[mealType]}</p>
-        <Input
-          label="Nom du plat"
-          required
-          value={dishName}
-          onChange={(e) => setDishName(e.target.value)}
-          className="mb-3"
-        />
-        {allergensFetch.data && (
-          <div className="mb-3">
-            <p className="mb-2 text-sm font-medium text-foreground">Allergènes potentiels</p>
-            <AllergenCheckboxes
-              allergens={allergensFetch.data.allergens}
-              selectedIds={dishAllergenIds}
-              onChange={setDishAllergenIds}
-            />
-          </div>
-        )}
-        <Button type="submit" loading={submitting} className="w-full sm:w-auto">
-          <Plus className="h-4 w-4" /> Ajouter le plat
-        </Button>
-      </form>
+      {canEdit && (
+        <form onSubmit={handleAddDish} className="rounded-xl border border-border bg-card p-4">
+          <p className="mb-3 text-sm font-semibold text-foreground">Ajouter un plat — {MEAL_TYPE_LABELS[mealType]}</p>
+          <Input
+            label="Nom du plat"
+            required
+            value={dishName}
+            onChange={(e) => setDishName(e.target.value)}
+            className="mb-3"
+          />
+          {allergensFetch.data && (
+            <div className="mb-3">
+              <p className="mb-2 text-sm font-medium text-foreground">Allergènes potentiels</p>
+              <AllergenCheckboxes
+                allergens={allergensFetch.data.allergens}
+                selectedIds={dishAllergenIds}
+                onChange={setDishAllergenIds}
+              />
+            </div>
+          )}
+          <Button type="submit" loading={submitting} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4" /> Ajouter le plat
+          </Button>
+        </form>
+      )}
     </div>
   );
 }
