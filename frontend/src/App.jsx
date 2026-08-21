@@ -25,9 +25,12 @@ const HealthTrackingPage = lazy(() => import('./pages/sante/HealthTrackingPage')
 const AllergensAdminPage = lazy(() => import('./pages/sante/AllergensAdminPage'));
 const SanteOverviewPage = lazy(() => import('./pages/sante/OverviewPage'));
 const CompleteInfoFormPage = lazy(() => import('./pages/sante/CompleteInfoFormPage'));
+const Phase2QuestionsPage = lazy(() => import('./pages/sante/Phase2QuestionsPage'));
 const DirectoryPage = lazy(() => import('./pages/communication/DirectoryPage'));
 const PlanningReadOnlyPage = lazy(() => import('./pages/shared/PlanningReadOnlyPage'));
 const OverviewPage = lazy(() => import('./pages/shared/OverviewPage'));
+const AuditPage = lazy(() => import('./pages/shared/AuditPage'));
+const AdminAuditPage = lazy(() => import('./pages/admin/AuditPage'));
 
 function App() {
   return (
@@ -40,6 +43,13 @@ function App() {
           <Route element={<AppLayout />}>
             {/* Planning : accessible à toutes les commissions, aucune restriction de rôle. */}
             <Route path="/planning" element={<PlanningReadOnlyPage />} />
+
+            {/* Journal d'audit : ouvert à tout chef de commission (scopé à sa
+                propre commission côté backend) et à IT via le bypass superuser
+                de RoleRoute — IT utilise normalement la vue complète /admin/audit. */}
+            <Route element={<RoleRoute roles={[]} allowLeads />}>
+              <Route path="/audit" element={<AuditPage />} />
+            </Route>
 
             <Route element={<RoleRoute roles={['orga']} subScope="enregistrement" />}>
               <Route path="/orga/basic" element={<BasicInfoFormPage />} />
@@ -71,6 +81,7 @@ function App() {
               <Route path="/admin/rooms" element={<AdminRoomsPage />} />
               <Route path="/admin/print/rooms" element={<PrintRoomManifestPage />} />
               <Route path="/admin/plateforme" element={<PlatformResetPage />} />
+              <Route path="/admin/audit" element={<AdminAuditPage />} />
             </Route>
 
             <Route element={<RoleRoute roles={['it']} allowLeads />}>
@@ -104,6 +115,7 @@ function App() {
                 (risques du jour, suivi santé) pour tout agent Santé. */}
             <Route element={<RoleRoute roles={['sante']} requireLead />}>
               <Route path="/sante/apercu" element={<SanteOverviewPage />} />
+              <Route path="/sante/questions-phase2" element={<Phase2QuestionsPage />} />
             </Route>
 
             <Route element={<RoleRoute roles={['communication']} />}>

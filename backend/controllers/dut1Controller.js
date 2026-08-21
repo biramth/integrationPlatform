@@ -1,6 +1,7 @@
 const db = require('../db/database');
 const { DEPARTMENTS, DEPARTMENT_LABELS } = require('../constants/departments');
 const { autoAssignRoom, getHistoryForDut1 } = require('../services/roomAssignmentService');
+const auditService = require('../services/auditService');
 
 const ALLERGENS_SUBQUERY = `(
   SELECT COALESCE(json_agg(json_build_object('id', a.id, 'label', a.label, 'severity', da.severity)), '[]'::json)
@@ -151,6 +152,15 @@ async function createRecord(req, res) {
     const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [dut1Id]);
     const room = assignedRoomId ? await db.get('SELECT * FROM rooms WHERE id = $1', [assignedRoomId]) : null;
 
+    await auditService.logAction(req, {
+      action: 'dut1.create',
+      resourceType: 'dut1_record',
+      resourceId: dut1Id,
+      resourceLabel: `${firstName} ${lastName}`,
+      commission: 'orga',
+      after: record,
+    });
+
     res.status(201).json({
       record: serializeRecord(record),
       roomAssigned: !!assignedRoomId,
@@ -262,6 +272,14 @@ async function exportRecordsCsv(req, res) {
   ]);
   const csv = [CSV_HEADER, ...csvRows].map((row) => row.map(csvEscape).join(',')).join('\r\n');
 
+  await auditService.logAction(req, {
+    action: 'dut1.export_csv',
+    resourceType: 'dut1_record',
+    resourceLabel: `${records.length} dossiers exportés`,
+    commission: 'orga',
+    after: { count: records.length, filters: req.query },
+  });
+
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="dut1_export.csv"');
   res.send('﻿' + csv);
@@ -284,6 +302,14 @@ async function exportContactsCsv(req, res) {
     r.last_name, r.first_name, DEPARTMENT_LABELS[r.department] || r.department, r.phone_number,
   ]);
   const csv = [CONTACTS_CSV_HEADER, ...csvRows].map((row) => row.map(csvEscape).join(',')).join('\r\n');
+
+  await auditService.logAction(req, {
+    action: 'dut1.export_contacts_csv',
+    resourceType: 'dut1_record',
+    resourceLabel: `${records.length} contacts exportés`,
+    commission: 'orga',
+    after: { count: records.length, filters: req.query },
+  });
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="dut1_contacts.csv"');
@@ -392,14 +418,51 @@ async function updateRecord(req, res) {
   }
 
   const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
+
+  await auditService.logAction(req, {
+    action: 'dut1.update',
+    resourceType: 'dut1_record',
+    resourceId: id,
+    resourceLabel: `${record.first_name} ${record.last_name}`,
+    commission: 'orga',
+    before: existing,
+    after: record,
+  });
+
   res.json({ record: serializeRecord(record) });
 }
 
 async function deleteRecord(req, res) {
-  const result = await db.run('DELETE FROM dut1_records WHERE id = $1', [req.params.id]);
-  if (result.changes === 0) {
+  const { id } = req.params;
+  const existing = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
+  if (!existing) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
+
+  await db.run('DELETE FROM dut1_records WHERE id = $1', [id]);
+
+  const resourceLabel = `${existing.first_name} ${existing.last_name}`;
+  // Suppression en cascade sur luggage_items/dut1_allergens/health_restrictions/
+  // room_assignment_history : Orga (le dossier disparaît de son registre) et
+  // Santé (l'historique médical du dossier disparaît aussi) perdent chacun de
+  // la visibilité, d'où une ligne d'audit par commission concernée.
+  await auditService.logAction(req, {
+    action: 'dut1.delete',
+    resourceType: 'dut1_record',
+    resourceId: id,
+    resourceLabel,
+    commission: 'orga',
+    before: existing,
+  });
+  await auditService.logAction(req, {
+    action: 'dut1.delete',
+    resourceType: 'dut1_record',
+    resourceId: id,
+    resourceLabel,
+    commission: 'sante',
+    before: existing,
+  });
+
   res.status(204).send();
 }
 
@@ -429,7 +492,7 @@ async function listWithoutComplementary(req, res) {
 
 async function completeComplementary(req, res) {
   const { id } = req.params;
-  const existing = await db.get('SELECT id, complementary_completed_at FROM dut1_records WHERE id = $1', [id]);
+  const existing = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
   if (!existing) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
@@ -447,6 +510,19 @@ async function completeComplementary(req, res) {
   }
   if (onTreatment && !treatmentDetails?.trim()) {
     return res.status(400).json({ error: 'Le détail des traitements suivis est requis.' });
+  }
+
+  const requiredQuestions = await db.all('SELECT field_key, label FROM phase2_questions WHERE required = TRUE');
+  for (const q of requiredQuestions) {
+    const val = extraFields[q.field_key];
+    const empty =
+      val === undefined ||
+      val === null ||
+      (typeof val === 'string' && !val.trim()) ||
+      (Array.isArray(val) && val.length === 0);
+    if (empty) {
+      return res.status(400).json({ error: `La question "${q.label}" est requise.` });
+    }
   }
 
   await db.run(
@@ -470,6 +546,31 @@ async function completeComplementary(req, res) {
   }
 
   const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
+
+  await auditService.logAction(req, {
+    action: 'dut1.complete_complementary',
+    resourceType: 'dut1_record',
+    resourceId: id,
+    resourceLabel: `${record.first_name} ${record.last_name}`,
+    commission: 'sante',
+    before: existing,
+    after: record,
+  });
+  if (admissionListType) {
+    // Le statut d'admission est une donnée Orga (suivi de liste), même
+    // réglée depuis l'écran phase 2 de Santé — ligne séparée pour que la
+    // commission Orga la voie dans son propre périmètre.
+    await auditService.logAction(req, {
+      action: 'dut1.update_admission',
+      resourceType: 'dut1_record',
+      resourceId: id,
+      resourceLabel: `${record.first_name} ${record.last_name}`,
+      commission: 'orga',
+      before: { admission_list_type: existing.admission_list_type },
+      after: { admission_list_type: record.admission_list_type },
+    });
+  }
+
   res.json({ record: serializeRecord(record) });
 }
 
@@ -480,10 +581,15 @@ async function getRoomHistory(req, res) {
 
 async function setAllergies(req, res) {
   const { id } = req.params;
-  const existing = await db.get('SELECT id FROM dut1_records WHERE id = $1', [id]);
+  const existing = await db.get('SELECT id, first_name, last_name FROM dut1_records WHERE id = $1', [id]);
   if (!existing) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
+
+  const allergiesBefore = await db.all(
+    'SELECT allergen_id, severity FROM dut1_allergens WHERE dut1_id = $1',
+    [id]
+  );
 
   const VALID_SEVERITIES = ['legere', 'moderee', 'severe'];
   const allergies = Array.isArray(req.body.allergies) ? req.body.allergies : [];
@@ -502,6 +608,17 @@ async function setAllergies(req, res) {
   });
 
   const record = await db.get(`SELECT d.*, ${ALLERGENS_SUBQUERY} FROM dut1_records d WHERE d.id = $1`, [id]);
+
+  await auditService.logAction(req, {
+    action: 'dut1.set_allergies',
+    resourceType: 'dut1_record',
+    resourceId: id,
+    resourceLabel: `${existing.first_name} ${existing.last_name}`,
+    commission: 'sante',
+    before: allergiesBefore,
+    after: record.allergens_json,
+  });
+
   res.json({ record: serializeRecord(record) });
 }
 

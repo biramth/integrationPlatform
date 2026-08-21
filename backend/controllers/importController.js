@@ -1,6 +1,7 @@
 const db = require('../db/database');
 const { DEPARTMENTS } = require('../constants/departments');
 const { parseAdmittedStudentsBuffer, parseRoomsBuffer } = require('../services/xlsxImportService');
+const auditService = require('../services/auditService');
 
 async function previewAdmittedStudents(req, res) {
   if (!req.file) {
@@ -48,6 +49,14 @@ async function confirmAdmittedStudents(req, res) {
     }
   });
 
+  await auditService.logAction(req, {
+    action: 'admitted_students.import',
+    resourceType: 'admitted_students',
+    resourceLabel: `${createdCount} candidats importés`,
+    commission: 'it',
+    after: { createdCount, totalRows: rows.length },
+  });
+
   res.status(201).json({ createdCount });
 }
 
@@ -73,6 +82,14 @@ async function confirmRooms(req, res) {
       if (result.changes > 0) createdCount++;
       else skippedCount++;
     }
+  });
+
+  await auditService.logAction(req, {
+    action: 'rooms.import',
+    resourceType: 'room',
+    resourceLabel: `${createdCount} chambres importées`,
+    commission: 'orga',
+    after: { createdCount, skippedCount },
   });
 
   res.status(201).json({ createdCount, skippedCount });

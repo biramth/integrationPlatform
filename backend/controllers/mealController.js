@@ -1,4 +1,5 @@
 const db = require('../db/database');
+const auditService = require('../services/auditService');
 
 const MEAL_TYPES = ['petit-dejeuner', 'dejeuner', 'diner'];
 
@@ -47,7 +48,7 @@ async function createMealService(req, res) {
     return res.status(400).json({ error: `mealType doit être l'un de : ${MEAL_TYPES.join(', ')}.` });
   }
 
-  await db.run(
+  const result = await db.run(
     'INSERT INTO meal_services (service_date, meal_type, created_by) VALUES ($1, $2, $3) ON CONFLICT (service_date, meal_type) DO NOTHING',
     [serviceDate, mealType, req.user.id]
   );
@@ -56,6 +57,19 @@ async function createMealService(req, res) {
     'SELECT * FROM meal_services WHERE service_date = $1 AND meal_type = $2',
     [serviceDate, mealType]
   );
+
+  // ON CONFLICT DO NOTHING peut être un no-op (le service existait déjà) :
+  // pas de ligne d'audit dans ce cas, ce n'est pas une création.
+  if (result.changes > 0) {
+    await auditService.logAction(req, {
+      action: 'meal_service.create',
+      resourceType: 'meal_service',
+      resourceId: service.id,
+      resourceLabel: `${service.service_date} — ${service.meal_type}`,
+      commission: 'cuisine',
+      after: service,
+    });
+  }
 
   res.status(201).json({ mealService: serializeMealService(service, []) });
 }
@@ -93,16 +107,38 @@ async function createDish(req, res) {
     [dishId]
   );
 
+  await auditService.logAction(req, {
+    action: 'dish.create',
+    resourceType: 'dish',
+    resourceId: dishId,
+    resourceLabel: dishRow.dish_name,
+    commission: 'cuisine',
+    after: { name: dishRow.dish_name, mealServiceId: dishRow.meal_service_id, allergens: dishRow.dish_allergens_json },
+  });
+
   res.status(201).json({
     dish: { id: dishRow.dish_id, name: dishRow.dish_name, allergens: dishRow.dish_allergens_json || [] },
   });
 }
 
 async function deleteDish(req, res) {
-  const result = await db.run('DELETE FROM dishes WHERE id = $1', [req.params.id]);
-  if (result.changes === 0) {
+  const { id } = req.params;
+  const existing = await db.get('SELECT * FROM dishes WHERE id = $1', [id]);
+  if (!existing) {
     return res.status(404).json({ error: 'Plat introuvable.' });
   }
+
+  await db.run('DELETE FROM dishes WHERE id = $1', [id]);
+
+  await auditService.logAction(req, {
+    action: 'dish.delete',
+    resourceType: 'dish',
+    resourceId: id,
+    resourceLabel: existing.name,
+    commission: 'cuisine',
+    before: existing,
+  });
+
   res.status(204).send();
 }
 

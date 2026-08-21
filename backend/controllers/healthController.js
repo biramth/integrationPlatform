@@ -1,4 +1,5 @@
 const db = require('../db/database');
+const auditService = require('../services/auditService');
 
 const SEVERITY_WEIGHT = { severe: 3, moderee: 2, legere: 1 };
 
@@ -114,7 +115,7 @@ async function declareRestriction(req, res) {
     return res.status(400).json({ error: 'startDate et reason sont requis.' });
   }
 
-  const dut1 = await db.get('SELECT id FROM dut1_records WHERE id = $1', [id]);
+  const dut1 = await db.get('SELECT id, first_name, last_name FROM dut1_records WHERE id = $1', [id]);
   if (!dut1) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
@@ -127,6 +128,16 @@ async function declareRestriction(req, res) {
     );
 
     const record = await db.get('SELECT * FROM health_restrictions WHERE id = $1', [result.rows[0].id]);
+
+    await auditService.logAction(req, {
+      action: 'health_restriction.create',
+      resourceType: 'health_restriction',
+      resourceId: record.id,
+      resourceLabel: `${dut1.first_name} ${dut1.last_name}`,
+      commission: 'sante',
+      after: record,
+    });
+
     res.status(201).json({ restriction: record });
   } catch (err) {
     if (err.code === '23503') {
@@ -174,21 +185,47 @@ async function listOnTreatment(req, res) {
 
 async function resolveRestriction(req, res) {
   const { id } = req.params;
-  const result = await db.run(
-    `UPDATE health_restrictions SET resolved_at = NOW(), resolved_by = $1 WHERE id = $2 AND resolved_at IS NULL`,
-    [req.user.id, id]
-  );
-  if (result.changes === 0) {
+  const existing = await db.get('SELECT * FROM health_restrictions WHERE id = $1', [id]);
+  if (!existing || existing.resolved_at) {
     return res.status(404).json({ error: 'Restriction introuvable ou déjà résolue.' });
   }
-  res.json({ restriction: await db.get('SELECT * FROM health_restrictions WHERE id = $1', [id]) });
+
+  await db.run(
+    `UPDATE health_restrictions SET resolved_at = NOW(), resolved_by = $1 WHERE id = $2`,
+    [req.user.id, id]
+  );
+
+  const restriction = await db.get('SELECT * FROM health_restrictions WHERE id = $1', [id]);
+
+  await auditService.logAction(req, {
+    action: 'health_restriction.resolve',
+    resourceType: 'health_restriction',
+    resourceId: id,
+    commission: 'sante',
+    before: existing,
+    after: restriction,
+  });
+
+  res.json({ restriction });
 }
 
 async function deleteRestriction(req, res) {
-  const result = await db.run('DELETE FROM health_restrictions WHERE id = $1', [req.params.id]);
-  if (result.changes === 0) {
+  const { id } = req.params;
+  const existing = await db.get('SELECT * FROM health_restrictions WHERE id = $1', [id]);
+  if (!existing) {
     return res.status(404).json({ error: 'Restriction introuvable.' });
   }
+
+  await db.run('DELETE FROM health_restrictions WHERE id = $1', [id]);
+
+  await auditService.logAction(req, {
+    action: 'health_restriction.delete',
+    resourceType: 'health_restriction',
+    resourceId: id,
+    commission: 'sante',
+    before: existing,
+  });
+
   res.status(204).send();
 }
 

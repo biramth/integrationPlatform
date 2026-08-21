@@ -16,10 +16,17 @@ const activityRoutes = require('./routes/activityRoutes');
 const importRoutes = require('./routes/importRoutes');
 const admittedStudentsRoutes = require('./routes/admittedStudentsRoutes');
 const platformRoutes = require('./routes/platformRoutes');
+const auditRoutes = require('./routes/auditRoutes');
+const phase2QuestionsRoutes = require('./routes/phase2QuestionsRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
+const { requestId } = require('./middleware/requestId');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// En tout premier : chaque requête a un id, dispo dans les logs serveur et
+// dans le journal d'audit (colonne request_id) pour corréler les deux.
+app.use(requestId);
 
 // Render place l'app derrière son proxy : sans ceci, req.ip vaut l'IP du proxy
 // et le rate limiter de /api/auth/login mettrait tous les utilisateurs dans le
@@ -84,6 +91,8 @@ app.use('/api/activities', activityRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/admitted-students', admittedStudentsRoutes);
 app.use('/api/platform', platformRoutes);
+app.use('/api/audit', auditRoutes);
+app.use('/api/phase2-questions', phase2QuestionsRoutes);
 
 app.use('/api', notFoundHandler);
 

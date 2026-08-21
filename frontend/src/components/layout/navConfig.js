@@ -14,6 +14,8 @@ import {
   Contact,
   ShieldAlert,
   LineChart,
+  ListChecks,
+  ScrollText,
 } from 'lucide-react';
 import { ROLES } from '../../utils/roles';
 
@@ -60,11 +62,23 @@ const OVERVIEW_ITEM_BY_ROLE = {
   [ROLES.COMMUNICATION]: { to: '/communication/apercu', label: "Vue d'ensemble", icon: LineChart },
 };
 
+// Le chef de la commission Santé configure lui-même les questions posées en
+// phase 2 (complément de dossier) — pas d'utilité pour les autres commissions.
+const SANTE_QUESTIONS_ITEM = { to: '/sante/questions-phase2', label: 'Questions phase 2', icon: ListChecks };
+
+// Journal d'audit de sa propre commission (scopé côté backend) : proposé à
+// tout chef, y compris Cuisine/Culturelle/Présidentielle — contrairement à
+// AGENTS_ITEM, il n'y a aucune raison de l'exclure pour ces commissions, un
+// chef peut vouloir voir qui a touché à son menu/planning/activités.
+const AUDIT_ITEM = { to: '/audit', label: "Journal d'audit", icon: ScrollText };
+
 export function getNavItems(user) {
   if (!user) return [];
   const leadItems = [
     ...(user.isCommissionLead && !NO_AGENTS_ROLES.includes(user.role) ? [AGENTS_ITEM] : []),
     ...(user.isCommissionLead && OVERVIEW_ITEM_BY_ROLE[user.role] ? [OVERVIEW_ITEM_BY_ROLE[user.role]] : []),
+    ...(user.isCommissionLead && user.role === ROLES.SANTE ? [SANTE_QUESTIONS_ITEM] : []),
+    ...(user.isCommissionLead ? [AUDIT_ITEM] : []),
   ];
   if (user.role === ROLES.ORGA) {
     const scoped = user.subRole
@@ -87,6 +101,7 @@ export const NAV_ITEMS = {
     { to: '/admin/agents', label: 'Agents', icon: Users },
     { to: '/admin/activites', label: 'Activités', icon: CalendarDays },
     { to: '/admin/plateforme', label: 'Plateforme', icon: ShieldAlert },
+    { to: '/admin/audit', label: "Journal d'audit", icon: ScrollText },
   ],
   [ROLES.CUISINE]: [{ to: '/cuisine/menu', label: 'Menu du jour', icon: UtensilsCrossed }, PLANNING_ITEM],
   [ROLES.COMMUNICATION]: [{ to: '/communication/annuaire', label: 'Annuaire', icon: Contact }, PLANNING_ITEM],

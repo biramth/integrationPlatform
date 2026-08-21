@@ -4,6 +4,7 @@ import { listDut1, completeComplementary } from '../../api/dut1Api';
 import { setDut1Allergies } from '../../api/dut1AllergyApi';
 import { matchAdmittedStudent } from '../../api/admittedStudentsApi';
 import { listAllergens } from '../../api/allergenApi';
+import { listPhase2Questions } from '../../api/phase2QuestionsApi';
 import Dut1Card from '../../components/dut1/Dut1Card';
 import Dut1ComplementaryForm from '../../components/dut1/Dut1ComplementaryForm';
 import AllergySelect from '../../components/dut1/AllergySelect';
@@ -22,13 +23,36 @@ import { useToast } from '../../hooks/useToast';
 import { useFetch } from '../../hooks/useFetch';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../../utils/departments';
-import { DUT1_COMPLEMENTARY_FIELDS } from '../../utils/dut1ComplementaryFields';
 import { staggerStyle } from '../../utils/stagger';
 
 const PAGE_SIZE = 25;
 
 const SEVERITY_LABELS = { legere: 'Légère', moderee: 'Modérée', severe: 'Sévère' };
 const SEVERITY_BADGE_VARIANT = { legere: 'neutral', moderee: 'warning', severe: 'danger' };
+
+function formatQuestionAnswer(question, value) {
+  if (question.type === 'oui_non') {
+    if (value === true) return 'Oui';
+    if (value === false) return 'Non';
+    return null;
+  }
+  if (question.type === 'choix_multiple') {
+    return Array.isArray(value) && value.length > 0 ? value.join(', ') : null;
+  }
+  if (typeof value === 'string') {
+    return value.trim() ? value : null;
+  }
+  return value || null;
+}
+
+function isQuestionAnswerEmpty(value) {
+  return (
+    value === undefined ||
+    value === null ||
+    (typeof value === 'string' && !value.trim()) ||
+    (Array.isArray(value) && value.length === 0)
+  );
+}
 
 export default function CompleteInfoFormPage() {
   const { showToast } = useToast();
@@ -51,6 +75,8 @@ export default function CompleteInfoFormPage() {
   const { data, loading, error, reload } = useFetch(fetcher, [debouncedSearch, filters.department, filters.gender, page]);
   const allergensFetch = useFetch(listAllergens, []);
   const allergenLabelById = Object.fromEntries((allergensFetch.data?.allergens || []).map((a) => [a.id, a.label]));
+  const questionsFetch = useFetch(listPhase2Questions, []);
+  const questions = questionsFetch.data?.questions || [];
 
   const allergenIds = Object.keys(allergies).map(Number);
 
@@ -114,6 +140,12 @@ export default function CompleteInfoFormPage() {
     if (onTreatment && !treatmentDetails.trim()) {
       showToast('Le détail des traitements suivis doit être renseigné.', 'error');
       return;
+    }
+    for (const q of questions) {
+      if (q.required && isQuestionAnswerEmpty(values[q.field_key])) {
+        showToast(`La question "${q.label}" doit être renseignée avant de continuer.`, 'error');
+        return;
+      }
     }
     setRecapOpen(true);
   }
@@ -191,7 +223,7 @@ export default function CompleteInfoFormPage() {
               disabled={isLocked}
             />
           </div>
-          <Dut1ComplementaryForm values={values} onChange={handleChange} disabled={isLocked} />
+          <Dut1ComplementaryForm questions={questions} values={values} onChange={handleChange} disabled={isLocked} />
           {!isLocked && (
             <div className="mt-6 flex justify-end">
               <Button type="submit" className="w-full sm:w-auto">
@@ -236,14 +268,17 @@ export default function CompleteInfoFormPage() {
               )}
             </div>
 
-            {DUT1_COMPLEMENTARY_FIELDS.map((field) => (
-              <div key={field.key}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{field.label}</p>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
-                  {values[field.key]?.trim() ? values[field.key] : <span className="text-muted-foreground">—</span>}
-                </p>
-              </div>
-            ))}
+            {questions.map((q) => {
+              const answer = formatQuestionAnswer(q, values[q.field_key]);
+              return (
+                <div key={q.field_key}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{q.label}</p>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+                    {answer ?? <span className="text-muted-foreground">—</span>}
+                  </p>
+                </div>
+              );
+            })}
 
             <p className="rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
               Une fois confirmé, ce dossier ne sera plus modifiable depuis cette page.

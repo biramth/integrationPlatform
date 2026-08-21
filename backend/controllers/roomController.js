@@ -1,5 +1,6 @@
 const db = require('../db/database');
 const { manualAssignRoom, getHistoryForRoom } = require('../services/roomAssignmentService');
+const auditService = require('../services/auditService');
 
 async function listRooms(req, res) {
   const rooms = await db.all(
@@ -33,6 +34,16 @@ async function createRoom(req, res) {
     );
 
     const room = await db.get('SELECT * FROM rooms WHERE id = $1', [result.rows[0].id]);
+
+    await auditService.logAction(req, {
+      action: 'room.create',
+      resourceType: 'room',
+      resourceId: room.id,
+      resourceLabel: room.label,
+      commission: 'orga',
+      after: room,
+    });
+
     res.status(201).json({ room });
   } catch (err) {
     if (err.code === '23505') {
@@ -68,7 +79,19 @@ async function updateRoom(req, res) {
     ]
   );
 
-  res.json({ room: await db.get('SELECT * FROM rooms WHERE id = $1', [id]) });
+  const updatedRoom = await db.get('SELECT * FROM rooms WHERE id = $1', [id]);
+
+  await auditService.logAction(req, {
+    action: 'room.update',
+    resourceType: 'room',
+    resourceId: id,
+    resourceLabel: updatedRoom.label,
+    commission: 'orga',
+    before: room,
+    after: updatedRoom,
+  });
+
+  res.json({ room: updatedRoom });
 }
 
 async function updateMattressCount(req, res) {
@@ -85,6 +108,17 @@ async function updateMattressCount(req, res) {
   }
 
   await db.run(`UPDATE rooms SET mattress_count = $1, updated_at = NOW() WHERE id = $2`, [value, id]);
+
+  await auditService.logAction(req, {
+    action: 'room.update_mattress_count',
+    resourceType: 'room',
+    resourceId: id,
+    resourceLabel: room.label,
+    commission: 'orga',
+    before: { mattress_count: room.mattress_count },
+    after: { mattress_count: value },
+  });
+
   res.json({ room: await db.get('SELECT * FROM rooms WHERE id = $1', [id]) });
 }
 
@@ -95,11 +129,23 @@ async function deleteRoom(req, res) {
     return res.status(409).json({ error: 'Impossible de supprimer une chambre occupée.' });
   }
 
+  const room = await db.get('SELECT * FROM rooms WHERE id = $1', [id]);
+  if (!room) {
+    return res.status(404).json({ error: 'Chambre introuvable.' });
+  }
+
   try {
-    const result = await db.run('DELETE FROM rooms WHERE id = $1', [id]);
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Chambre introuvable.' });
-    }
+    await db.run('DELETE FROM rooms WHERE id = $1', [id]);
+
+    await auditService.logAction(req, {
+      action: 'room.delete',
+      resourceType: 'room',
+      resourceId: id,
+      resourceLabel: room.label,
+      commission: 'orga',
+      before: room,
+    });
+
     res.status(204).send();
   } catch (err) {
     if (err.code === '23503') {
@@ -119,9 +165,22 @@ async function reassignDut1Room(req, res) {
     return res.status(400).json({ error: 'roomId requis.' });
   }
 
+  const before = await db.get('SELECT room_id, first_name, last_name FROM dut1_records WHERE id = $1', [id]);
+
   try {
     await manualAssignRoom(Number(id), Number(roomId), req.user.id);
     const record = await db.get('SELECT id, room_id FROM dut1_records WHERE id = $1', [id]);
+
+    await auditService.logAction(req, {
+      action: 'dut1.room_reassign',
+      resourceType: 'dut1_record',
+      resourceId: id,
+      resourceLabel: before ? `${before.first_name} ${before.last_name}` : null,
+      commission: 'orga',
+      before: { room_id: before?.room_id ?? null },
+      after: { room_id: record.room_id },
+    });
+
     res.json({ dut1Id: record.id, roomId: record.room_id });
   } catch (err) {
     if (err.status) {

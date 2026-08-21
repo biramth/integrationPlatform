@@ -279,3 +279,78 @@ CREATE INDEX IF NOT EXISTS idx_admitted_students_names ON admitted_students(last
 -- Heure de début d'une activité (HH:MM) : plusieurs activités le même jour se
 -- distinguent par leur heure, pas seulement par leur nom.
 ALTER TABLE activities ADD COLUMN IF NOT EXISTS start_time TEXT;
+
+-- Questions configurables de la phase 2 (complément de dossier), définies par
+-- le chef de la commission Santé. field_key ne change jamais après création
+-- (même si le libellé est renommé) : c'est la clé sous laquelle la réponse
+-- est stockée dans dut1_records.extra_fields_json, un JSON libre qui ne
+-- référence pas cette table par contrainte — supprimer une question n'efface
+-- donc pas les réponses déjà enregistrées, elle cesse juste d'être posée.
+CREATE TABLE IF NOT EXISTS phase2_questions (
+  id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  field_key   TEXT NOT NULL UNIQUE,
+  label       TEXT NOT NULL,
+  type        TEXT NOT NULL CHECK (type IN ('texte_court','texte_long','choix_unique','choix_multiple','oui_non')),
+  options     JSONB,
+  required    BOOLEAN NOT NULL DEFAULT FALSE,
+  position    INTEGER NOT NULL DEFAULT 0,
+  created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_phase2_questions_position ON phase2_questions(position);
+
+-- Reprend les deux questions historiquement codées en dur, pour que les
+-- dossiers déjà remplis restent lisibles après le passage au système
+-- configurable. Le chef de la commission Santé peut ensuite les renommer,
+-- les modifier ou les supprimer comme n'importe quelle autre question.
+INSERT INTO phase2_questions (field_key, label, type, required, position)
+VALUES
+  ('personnalite', 'Traits de personnalité', 'texte_long', FALSE, 0),
+  ('remarques', 'Remarques diverses', 'texte_long', FALSE, 1)
+ON CONFLICT (field_key) DO NOTHING;
+
+-- Journal d'audit générique : qui a fait quoi, sur quelle ressource, quand.
+-- commission = domaine métier PROPRIÉTAIRE de la ressource touchée (pas le rôle
+-- de l'acteur — un compte "it" peut agir sur une ressource "sante"). 'global'
+-- couvre les actions qui ne relèvent d'aucune commission unique (reset
+-- plateforme), visibles seulement par IT, jamais par un chef de commission
+-- scopé à sa propre commission.
+-- actor_snapshot fige nom/rôle/sous-rôle/chef au moment de l'action : le rôle
+-- en base (users.role) peut changer après coup, et l'utilisateur peut même
+-- être supprimé (cf. hardDeleteAgent) sans que la ligne d'audit perde son sens.
+-- BIGINT (pas INTEGER) : contrairement aux tables métier, celle-ci ne fait
+-- que grossir (append-only, jamais purgée).
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+  actor_id        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  actor_snapshot  JSONB NOT NULL,
+
+  action          TEXT NOT NULL,
+  resource_type   TEXT NOT NULL,
+  resource_id     TEXT,
+  resource_label  TEXT,
+
+  commission      TEXT NOT NULL
+    CHECK (commission IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle','global')),
+
+  before_data     JSONB,
+  after_data      JSONB,
+
+  success         BOOLEAN NOT NULL DEFAULT TRUE,
+  error_message   TEXT,
+
+  request_id      TEXT,
+  ip_address      TEXT,
+  user_agent      TEXT,
+
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_commission_created ON audit_logs(commission, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);

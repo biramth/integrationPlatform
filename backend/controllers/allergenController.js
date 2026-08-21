@@ -1,4 +1,5 @@
 const db = require('../db/database');
+const auditService = require('../services/auditService');
 
 async function listAllergens(req, res) {
   const allergens = await db.all(
@@ -20,6 +21,16 @@ async function createAllergen(req, res) {
   try {
     const result = await db.run('INSERT INTO allergens (label) VALUES ($1) RETURNING id', [label]);
     const allergen = await db.get('SELECT * FROM allergens WHERE id = $1', [result.rows[0].id]);
+
+    await auditService.logAction(req, {
+      action: 'allergen.create',
+      resourceType: 'allergen',
+      resourceId: allergen.id,
+      resourceLabel: allergen.label,
+      commission: 'sante',
+      after: allergen,
+    });
+
     res.status(201).json({ allergen });
   } catch (err) {
     if (err.code === '23505') {
@@ -36,12 +47,25 @@ async function updateAllergen(req, res) {
     return res.status(400).json({ error: 'label requis.' });
   }
 
-  const result = await db.run('UPDATE allergens SET label = $1 WHERE id = $2', [label, id]);
-  if (result.changes === 0) {
+  const existing = await db.get('SELECT * FROM allergens WHERE id = $1', [id]);
+  if (!existing) {
     return res.status(404).json({ error: 'Allergène introuvable.' });
   }
 
-  res.json({ allergen: await db.get('SELECT * FROM allergens WHERE id = $1', [id]) });
+  await db.run('UPDATE allergens SET label = $1 WHERE id = $2', [label, id]);
+  const allergen = await db.get('SELECT * FROM allergens WHERE id = $1', [id]);
+
+  await auditService.logAction(req, {
+    action: 'allergen.update',
+    resourceType: 'allergen',
+    resourceId: id,
+    resourceLabel: allergen.label,
+    commission: 'sante',
+    before: existing,
+    after: allergen,
+  });
+
+  res.json({ allergen });
 }
 
 async function deleteAllergen(req, res) {
@@ -53,10 +77,21 @@ async function deleteAllergen(req, res) {
     return res.status(409).json({ error: 'Cet allergène est utilisé et ne peut pas être supprimé.' });
   }
 
-  const result = await db.run('DELETE FROM allergens WHERE id = $1', [id]);
-  if (result.changes === 0) {
+  const existing = await db.get('SELECT * FROM allergens WHERE id = $1', [id]);
+  if (!existing) {
     return res.status(404).json({ error: 'Allergène introuvable.' });
   }
+
+  await db.run('DELETE FROM allergens WHERE id = $1', [id]);
+
+  await auditService.logAction(req, {
+    action: 'allergen.delete',
+    resourceType: 'allergen',
+    resourceId: id,
+    resourceLabel: existing.label,
+    commission: 'sante',
+    before: existing,
+  });
 
   res.status(204).send();
 }

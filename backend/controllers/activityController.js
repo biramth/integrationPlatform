@@ -1,4 +1,5 @@
 const db = require('../db/database');
+const auditService = require('../services/auditService');
 
 async function listActivities(req, res) {
   const activities = await db.all(
@@ -19,6 +20,16 @@ async function createActivity(req, res) {
   );
 
   const activity = await db.get('SELECT * FROM activities WHERE id = $1', [result.rows[0].id]);
+
+  await auditService.logAction(req, {
+    action: 'activity.create',
+    resourceType: 'activity',
+    resourceId: activity.id,
+    resourceLabel: activity.name,
+    commission: 'presidentielle',
+    after: activity,
+  });
+
   res.status(201).json({ activity });
 }
 
@@ -43,14 +54,39 @@ async function updateActivity(req, res) {
     ]
   );
 
-  res.json({ activity: await db.get('SELECT * FROM activities WHERE id = $1', [id]) });
+  const updatedActivity = await db.get('SELECT * FROM activities WHERE id = $1', [id]);
+
+  await auditService.logAction(req, {
+    action: 'activity.update',
+    resourceType: 'activity',
+    resourceId: id,
+    resourceLabel: updatedActivity.name,
+    commission: 'presidentielle',
+    before: activity,
+    after: updatedActivity,
+  });
+
+  res.json({ activity: updatedActivity });
 }
 
 async function deleteActivity(req, res) {
-  const result = await db.run('DELETE FROM activities WHERE id = $1', [req.params.id]);
-  if (result.changes === 0) {
+  const { id } = req.params;
+  const existing = await db.get('SELECT * FROM activities WHERE id = $1', [id]);
+  if (!existing) {
     return res.status(404).json({ error: 'Activité introuvable.' });
   }
+
+  await db.run('DELETE FROM activities WHERE id = $1', [id]);
+
+  await auditService.logAction(req, {
+    action: 'activity.delete',
+    resourceType: 'activity',
+    resourceId: id,
+    resourceLabel: existing.name,
+    commission: 'presidentielle',
+    before: existing,
+  });
+
   res.status(204).send();
 }
 

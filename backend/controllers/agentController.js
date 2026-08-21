@@ -1,5 +1,6 @@
 const db = require('../db/database');
 const { hashPassword } = require('../services/passwordService');
+const auditService = require('../services/auditService');
 
 const ROLES = ['orga', 'sante', 'cuisine', 'it', 'communication', 'culturelle', 'presidentielle'];
 // Sous-rôles valides par commission — NULL = accès à tout le périmètre de la
@@ -72,9 +73,27 @@ async function createAgent(req, res) {
     );
 
     const agent = await db.get('SELECT * FROM users WHERE id = $1', [result.rows[0].id]);
+
+    await auditService.logAction(req, {
+      action: 'agent.create',
+      resourceType: 'user',
+      resourceId: agent.id,
+      resourceLabel: agent.full_name,
+      commission: agent.role,
+      after: serialize(agent),
+    });
+
     res.status(201).json({ agent: serialize(agent) });
   } catch (err) {
     if (err.code === '23505') {
+      await auditService.logAction(req, {
+        action: 'agent.create',
+        resourceType: 'user',
+        resourceLabel: fullName,
+        commission: role,
+        success: false,
+        errorMessage: "Ce nom d'utilisateur existe déjà.",
+      });
       return res.status(409).json({ error: "Ce nom d'utilisateur existe déjà." });
     }
     throw err;
@@ -132,7 +151,19 @@ async function updateAgent(req, res) {
     ]
   );
 
-  res.json({ agent: serialize(await db.get('SELECT * FROM users WHERE id = $1', [id])) });
+  const updatedAgent = await db.get('SELECT * FROM users WHERE id = $1', [id]);
+
+  await auditService.logAction(req, {
+    action: 'agent.update',
+    resourceType: 'user',
+    resourceId: id,
+    resourceLabel: updatedAgent.full_name,
+    commission: nextRole,
+    before: serialize(agent),
+    after: serialize(updatedAgent),
+  });
+
+  res.json({ agent: serialize(updatedAgent) });
 }
 
 async function resetPassword(req, res) {
@@ -143,7 +174,7 @@ async function resetPassword(req, res) {
     return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères.' });
   }
 
-  const agent = await db.get('SELECT role FROM users WHERE id = $1', [id]);
+  const agent = await db.get('SELECT role, full_name, username FROM users WHERE id = $1', [id]);
   if (!agent) {
     return res.status(404).json({ error: 'Agent introuvable.' });
   }
@@ -152,12 +183,22 @@ async function resetPassword(req, res) {
   }
 
   await db.run(`UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [hashPassword(password), id]);
+
+  // before/after volontairement vides : jamais le secret lui-même dans le journal.
+  await auditService.logAction(req, {
+    action: 'agent.reset_password',
+    resourceType: 'user',
+    resourceId: id,
+    resourceLabel: agent.full_name,
+    commission: agent.role,
+  });
+
   res.status(204).send();
 }
 
 async function deactivateAgent(req, res) {
   const { id } = req.params;
-  const agent = await db.get('SELECT role FROM users WHERE id = $1', [id]);
+  const agent = await db.get('SELECT role, full_name, username, is_active FROM users WHERE id = $1', [id]);
   if (!agent) {
     return res.status(404).json({ error: 'Agent introuvable.' });
   }
@@ -166,6 +207,17 @@ async function deactivateAgent(req, res) {
   }
 
   await db.run(`UPDATE users SET is_active = FALSE, updated_at = NOW() WHERE id = $1`, [id]);
+
+  await auditService.logAction(req, {
+    action: 'agent.deactivate',
+    resourceType: 'user',
+    resourceId: id,
+    resourceLabel: agent.full_name,
+    commission: agent.role,
+    before: { is_active: agent.is_active },
+    after: { is_active: false },
+  });
+
   res.status(204).send();
 }
 
@@ -179,14 +231,35 @@ async function hardDeleteAgent(req, res) {
     return res.status(400).json({ error: 'Suppression du propre compte impossible.' });
   }
 
+  const agent = await db.get('SELECT role, full_name, username FROM users WHERE id = $1', [id]);
+  if (!agent) {
+    return res.status(404).json({ error: 'Agent introuvable.' });
+  }
+
   try {
-    const result = await db.run('DELETE FROM users WHERE id = $1', [id]);
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Agent introuvable.' });
-    }
+    await db.run('DELETE FROM users WHERE id = $1', [id]);
+
+    await auditService.logAction(req, {
+      action: 'agent.hard_delete',
+      resourceType: 'user',
+      resourceId: id,
+      resourceLabel: agent.full_name,
+      commission: agent.role,
+      before: agent,
+    });
+
     res.status(204).send();
   } catch (err) {
     if (err.code === '23503') {
+      await auditService.logAction(req, {
+        action: 'agent.hard_delete',
+        resourceType: 'user',
+        resourceId: id,
+        resourceLabel: agent.full_name,
+        commission: agent.role,
+        success: false,
+        errorMessage: 'Bloqué par des références existantes (FK).',
+      });
       return res.status(409).json({
         error:
           'Impossible de supprimer ce compte : il est lié à des dossiers ou actions déjà enregistrés (dossiers DUT1, bagages, activités…). La désactivation reste possible.',

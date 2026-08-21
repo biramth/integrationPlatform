@@ -1,9 +1,10 @@
 const db = require('../db/database');
 const storage = require('../services/storageService');
+const auditService = require('../services/auditService');
 
 async function createLuggageItem(req, res) {
   const { id } = req.params;
-  const record = await db.get('SELECT id FROM dut1_records WHERE id = $1', [id]);
+  const record = await db.get('SELECT id, first_name, last_name FROM dut1_records WHERE id = $1', [id]);
 
   if (!record) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
@@ -23,6 +24,16 @@ async function createLuggageItem(req, res) {
   );
 
   const item = await db.get('SELECT * FROM luggage_items WHERE id = $1', [result.rows[0].id]);
+
+  await auditService.logAction(req, {
+    action: 'luggage_item.create',
+    resourceType: 'luggage_item',
+    resourceId: item.id,
+    resourceLabel: `${record.first_name} ${record.last_name}`,
+    commission: 'orga',
+    after: item,
+  });
+
   res.status(201).json({ item });
 }
 
@@ -42,6 +53,15 @@ async function deleteLuggageItem(req, res) {
 
   await storage.deleteLuggagePhoto(item.file_path);
   await db.run('DELETE FROM luggage_items WHERE id = $1', [req.params.itemId]);
+
+  await auditService.logAction(req, {
+    action: 'luggage_item.delete',
+    resourceType: 'luggage_item',
+    resourceId: req.params.itemId,
+    commission: 'orga',
+    before: item,
+  });
+
   res.status(204).send();
 }
 
@@ -54,16 +74,28 @@ async function setLuggageCount(req, res) {
     return res.status(400).json({ error: 'luggageCount doit être un entier positif ou nul.' });
   }
 
-  const result = await db.run(
+  const before = await db.get('SELECT id, first_name, last_name, luggage_count FROM dut1_records WHERE id = $1', [id]);
+  if (!before) {
+    return res.status(404).json({ error: 'Dossier introuvable.' });
+  }
+
+  await db.run(
     `UPDATE dut1_records SET luggage_count = $1, updated_at = NOW() WHERE id = $2`,
     [count, id]
   );
 
-  if (result.changes === 0) {
-    return res.status(404).json({ error: 'Dossier introuvable.' });
-  }
-
   const record = await db.get('SELECT id, luggage_count FROM dut1_records WHERE id = $1', [id]);
+
+  await auditService.logAction(req, {
+    action: 'dut1.set_luggage_count',
+    resourceType: 'dut1_record',
+    resourceId: id,
+    resourceLabel: `${before.first_name} ${before.last_name}`,
+    commission: 'orga',
+    before: { luggage_count: before.luggage_count },
+    after: { luggage_count: record.luggage_count },
+  });
+
   res.json({ record });
 }
 
