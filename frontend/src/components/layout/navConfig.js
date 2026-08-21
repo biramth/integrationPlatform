@@ -39,9 +39,24 @@ const AGENTS_ITEM = { to: '/admin/agents', label: 'Agents', icon: Users };
 // La commission Présidentielle ne compte que deux personnes : la gestion de
 // comptes membres n'a pas d'utilité pour elle, même si son chef a le drapeau
 // is_commission_lead.
+const NO_AGENTS_ROLES = [ROLES.IT, ROLES.PRESIDENTIELLE];
+
+// Chaque chef de commission a une vue d'ensemble sur sa sphère — sauf Cuisine
+// et Culturelle, dont le périmètre (menu du jour, planning en lecture) n'a
+// rien à agréger. IT et Présidentielle ont déjà la leur en page d'accueil,
+// pas besoin d'un lien de nav supplémentaire pour ceux-là.
+const OVERVIEW_ITEM_BY_ROLE = {
+  [ROLES.ORGA]: { to: '/orga/apercu', label: "Vue d'ensemble", icon: LineChart },
+  [ROLES.SANTE]: { to: '/sante/apercu', label: "Vue d'ensemble", icon: LineChart },
+  [ROLES.COMMUNICATION]: { to: '/communication/apercu', label: "Vue d'ensemble", icon: LineChart },
+};
+
 export function getNavItems(user) {
   if (!user) return [];
-  const leadItems = user.isCommissionLead && ![ROLES.IT, ROLES.PRESIDENTIELLE].includes(user.role) ? [AGENTS_ITEM] : [];
+  const leadItems = [
+    ...(user.isCommissionLead && !NO_AGENTS_ROLES.includes(user.role) ? [AGENTS_ITEM] : []),
+    ...(user.isCommissionLead && OVERVIEW_ITEM_BY_ROLE[user.role] ? [OVERVIEW_ITEM_BY_ROLE[user.role]] : []),
+  ];
   if (user.role === ROLES.ORGA) {
     const scoped = user.subRole
       ? ORGA_ITEMS[user.subRole] || []

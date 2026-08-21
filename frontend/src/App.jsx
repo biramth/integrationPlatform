@@ -24,9 +24,10 @@ const MenuPage = lazy(() => import('./pages/cuisine/MenuPage'));
 const RisksPage = lazy(() => import('./pages/sante/RisksPage'));
 const HealthTrackingPage = lazy(() => import('./pages/sante/HealthTrackingPage'));
 const AllergensAdminPage = lazy(() => import('./pages/sante/AllergensAdminPage'));
+const SanteOverviewPage = lazy(() => import('./pages/sante/OverviewPage'));
 const DirectoryPage = lazy(() => import('./pages/communication/DirectoryPage'));
 const PlanningReadOnlyPage = lazy(() => import('./pages/shared/PlanningReadOnlyPage'));
-const PresidentielleOverviewPage = lazy(() => import('./pages/presidentielle/OverviewPage'));
+const OverviewPage = lazy(() => import('./pages/shared/OverviewPage'));
 
 function App() {
   return (
@@ -56,6 +57,12 @@ function App() {
               <Route path="/orga/rooms" element={<AdminRoomsPage />} />
             </Route>
 
+            {/* Vue d'ensemble : pas de restriction de sous-domaine, c'est la vue
+                globale du chef de commission sur les trois sphères d'Orga. */}
+            <Route element={<RoleRoute roles={['orga']} />}>
+              <Route path="/orga/apercu" element={<OverviewPage />} />
+            </Route>
+
             {/* Pas de rôle "admin" séparé : ces pages sont accessibles via le
                 bypass superuser de la commission IT dans RoleRoute. */}
             <Route element={<RoleRoute roles={['it']} />}>
@@ -71,7 +78,7 @@ function App() {
             </Route>
 
             <Route element={<RoleRoute roles={['presidentielle']} />}>
-              <Route path="/presidentielle" element={<PresidentielleOverviewPage />} />
+              <Route path="/presidentielle" element={<OverviewPage />} />
               <Route path="/presidentielle/annuaire" element={<DirectoryPage />} />
               <Route path="/admin/activites" element={<ActivitiesPage />} />
             </Route>
@@ -84,10 +91,12 @@ function App() {
               <Route path="/sante/risques" element={<RisksPage />} />
               <Route path="/sante/suivi" element={<HealthTrackingPage />} />
               <Route path="/sante/allergenes" element={<AllergensAdminPage />} />
+              <Route path="/sante/apercu" element={<SanteOverviewPage />} />
             </Route>
 
             <Route element={<RoleRoute roles={['communication']} />}>
               <Route path="/communication/annuaire" element={<DirectoryPage />} />
+              <Route path="/communication/apercu" element={<OverviewPage />} />
             </Route>
           </Route>
         </Route>
