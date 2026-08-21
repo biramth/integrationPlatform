@@ -1,13 +1,17 @@
 const express = require('express');
 const healthController = require('../controllers/healthController');
-const { verifyToken, requireRole } = require('../middleware/auth');
+const { verifyToken, requireRole, requireSanteScope } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.use(verifyToken, requireRole('sante'));
+// Risques du jour, suivi et traitements en cours relèvent du sous-domaine
+// "suivi" de Santé, pas de "phase2" (qui ne fait que déclarer ces infos une
+// fois à l'enregistrement).
+router.use(verifyToken, requireRole('sante'), requireSanteScope('suivi'));
 
 router.get('/risks', healthController.getRisks);
 router.get('/restrictions/active', healthController.listActiveRestrictions);
+router.get('/on-treatment', healthController.listOnTreatment);
 router.post('/dut1/:id/restrictions', healthController.declareRestriction);
 router.get('/dut1/:id/restrictions', healthController.listRestrictionsForDut1);
 router.put('/restrictions/:id/resolve', healthController.resolveRestriction);

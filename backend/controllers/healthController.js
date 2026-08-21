@@ -40,6 +40,17 @@ async function getRisks(req, res) {
     [date]
   );
 
+  // Traitement médical en cours (déclaré en phase 2) : pas de bornes de dates
+  // dans le questionnaire, donc un traitement déclaré est considéré actif tant
+  // qu'il n'est pas mis à jour — signalé sur "risques du jour" comme les
+  // allergies et restrictions.
+  const treatmentRows = await db.all(
+    `SELECT d.id, d.first_name, d.last_name, d.department, d.gender, r.label AS room_label, d.treatment_details
+     FROM dut1_records d
+     LEFT JOIN rooms r ON r.id = d.room_id
+     WHERE d.on_treatment = TRUE`
+  );
+
   const byDut1 = new Map();
   function ensure(row) {
     if (!byDut1.has(row.id)) {
@@ -52,6 +63,7 @@ async function getRisks(req, res) {
         roomLabel: row.room_label,
         allergyMatches: [],
         restrictions: [],
+        treatmentDetails: null,
       });
     }
     return byDut1.get(row.id);
@@ -72,13 +84,20 @@ async function getRisks(req, res) {
       endDate: row.end_date,
     });
   }
+  for (const row of treatmentRows) {
+    ensure(row).treatmentDetails = row.treatment_details;
+  }
 
   const result = Array.from(byDut1.values()).map((entry) => {
     const maxAllergySeverity = entry.allergyMatches.reduce(
       (max, m) => Math.max(max, SEVERITY_WEIGHT[m.severity] || 0),
       0
     );
-    const sortWeight = Math.max(maxAllergySeverity, entry.restrictions.length > 0 ? 3 : 0);
+    const sortWeight = Math.max(
+      maxAllergySeverity,
+      entry.restrictions.length > 0 ? 3 : 0,
+      entry.treatmentDetails ? 2 : 0
+    );
     return { ...entry, sortWeight };
   });
 
@@ -142,6 +161,17 @@ async function listActiveRestrictions(req, res) {
   res.json({ restrictions: records });
 }
 
+async function listOnTreatment(req, res) {
+  const records = await db.all(
+    `SELECT d.id, d.first_name, d.last_name, d.department, d.gender, d.treatment_details, r.label AS room_label
+     FROM dut1_records d
+     LEFT JOIN rooms r ON r.id = d.room_id
+     WHERE d.on_treatment = TRUE
+     ORDER BY d.last_name ASC, d.first_name ASC`
+  );
+  res.json({ dut1: records });
+}
+
 async function resolveRestriction(req, res) {
   const { id } = req.params;
   const result = await db.run(
@@ -167,6 +197,7 @@ module.exports = {
   declareRestriction,
   listRestrictionsForDut1,
   listActiveRestrictions,
+  listOnTreatment,
   resolveRestriction,
   deleteRestriction,
 };

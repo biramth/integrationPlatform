@@ -63,7 +63,7 @@ export default function RisksPage() {
       <PageHeader
         eyebrow="Vue d'ensemble"
         title="Risques du jour"
-        description="DUT1 dont une allergie déclarée croise le menu du jour, ou qui sont déclarés inaptes à participer aux activités de cette date."
+        description="DUT1 dont une allergie déclarée croise le menu du jour, qui sont déclarés inaptes à participer aux activités de cette date, ou qui suivent un traitement médical."
       />
 
       {!trendFetch.loading && !trendFetch.error && !prevalenceFetch.loading && !prevalenceFetch.error && (
@@ -104,6 +104,9 @@ export default function RisksPage() {
                     Inapte — {r.reason} ({r.activityName || 'Toutes activités'})
                   </Badge>
                 ))}
+                {dut1.treatmentDetails && (
+                  <Badge variant="warning">Traitement — {dut1.treatmentDetails}</Badge>
+                )}
               </div>
 
               <button

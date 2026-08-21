@@ -45,6 +45,7 @@ export default function HealthTrackingPage() {
   const { data, loading, error, reload } = useFetch(fetcher, [debouncedSearch, filters.department, filters.gender, page]);
 
   const activeFetch = useFetch(healthApi.getActiveRestrictions, []);
+  const onTreatmentFetch = useFetch(healthApi.getOnTreatment, []);
   const activitiesFetch = useFetch(listActivities, []);
   const historyFetch = useFetch(
     () => (selected ? healthApi.getRestrictionsForDut1(selected.id) : Promise.resolve({ restrictions: [] })),
@@ -54,6 +55,10 @@ export default function HealthTrackingPage() {
   const activeDut1Ids = useMemo(
     () => new Set((activeFetch.data?.restrictions || []).map((r) => r.dut1_id)),
     [activeFetch.data]
+  );
+  const onTreatmentDut1Ids = useMemo(
+    () => new Set((onTreatmentFetch.data?.dut1 || []).map((d) => d.id)),
+    [onTreatmentFetch.data]
   );
 
   function updateFilters(patch) {
@@ -159,6 +164,28 @@ export default function HealthTrackingPage() {
         )}
       </Card>
 
+      <Card className="mb-6">
+        <p className="mb-2 text-sm font-semibold text-foreground">DUT1 sous traitement</p>
+        {onTreatmentFetch.loading && <LoadingState />}
+        {onTreatmentFetch.error && <ErrorState label={onTreatmentFetch.error} onRetry={onTreatmentFetch.reload} />}
+        {onTreatmentFetch.data && onTreatmentFetch.data.dut1.length === 0 && (
+          <EmptyState label="Aucun DUT1 sous traitement déclaré." />
+        )}
+        {onTreatmentFetch.data && onTreatmentFetch.data.dut1.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {onTreatmentFetch.data.dut1.map((d) => (
+              <div key={d.id} className="rounded-lg border border-border p-3">
+                <p className="text-sm font-medium text-foreground">
+                  {d.first_name} {d.last_name}{' '}
+                  <span className="text-muted-foreground">({DEPARTMENT_LABELS[d.department] || d.department})</span>
+                </p>
+                <p className="text-xs text-muted-foreground">{d.treatment_details}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
       {!selected && (
         <div>
           <PageHeader
@@ -203,7 +230,12 @@ export default function HealthTrackingPage() {
                       record={record}
                       onClick={() => selectRecord(record)}
                       actions={
-                        activeDut1Ids.has(record.id) ? <Badge variant="danger">Restriction active</Badge> : undefined
+                        activeDut1Ids.has(record.id) || onTreatmentDut1Ids.has(record.id) ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {activeDut1Ids.has(record.id) && <Badge variant="danger">Restriction active</Badge>}
+                            {onTreatmentDut1Ids.has(record.id) && <Badge variant="warning">Sous traitement</Badge>}
+                          </div>
+                        ) : undefined
                       }
                     />
                   </div>

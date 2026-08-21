@@ -8,6 +8,10 @@ export function getActiveRestrictions() {
   return axiosClient.get('/health/restrictions/active').then((res) => res.data);
 }
 
+export function getOnTreatment() {
+  return axiosClient.get('/health/on-treatment').then((res) => res.data);
+}
+
 export function declareRestriction(dut1Id, { startDate, endDate, reason, activityId }) {
   return axiosClient
     .post(`/health/dut1/${dut1Id}/restrictions`, { startDate, endDate, reason, activityId })

@@ -1,7 +1,7 @@
-import { HeartPulse } from 'lucide-react';
+import { HeartPulse, Pill } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as statsApi from '../../api/statsApi';
-import { getActiveRestrictions } from '../../api/healthApi';
+import { getActiveRestrictions, getOnTreatment } from '../../api/healthApi';
 import StatCard from '../../components/stats/StatCard';
 import IllnessTrendChart from '../../components/stats/IllnessTrendChart';
 import AllergyPrevalenceChart from '../../components/stats/AllergyPrevalenceChart';
@@ -19,9 +19,10 @@ export default function SanteOverviewPage() {
   const illnessTrend = useFetch(statsApi.getIllnessTrend, []);
   const allergyPrevalence = useFetch(statsApi.getAllergyPrevalence, []);
   const activeRestrictions = useFetch(getActiveRestrictions, []);
+  const onTreatment = useFetch(getOnTreatment, []);
 
-  const loading = illnessTrend.loading || allergyPrevalence.loading || activeRestrictions.loading;
-  const error = illnessTrend.error || allergyPrevalence.error || activeRestrictions.error;
+  const loading = illnessTrend.loading || allergyPrevalence.loading || activeRestrictions.loading || onTreatment.loading;
+  const error = illnessTrend.error || allergyPrevalence.error || activeRestrictions.error || onTreatment.error;
 
   if (error) return <ErrorState label={error} onRetry={() => window.location.reload()} />;
 
@@ -31,22 +32,36 @@ export default function SanteOverviewPage() {
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {loading ? (
-          <StatCardSkeleton />
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
         ) : (
-          <div className="animate-fade-in-up" style={staggerStyle(0)}>
-            <StatCard
-              label="Restrictions actives"
-              value={activeRestrictions.data.restrictions.length}
-              sublabel={activeRestrictions.data.restrictions.length > 0 ? 'à suivre' : 'aucune'}
-              icon={HeartPulse}
-              tone="rose"
-            />
-          </div>
+          <>
+            <div className="animate-fade-in-up" style={staggerStyle(0)}>
+              <StatCard
+                label="Restrictions actives"
+                value={activeRestrictions.data.restrictions.length}
+                sublabel={activeRestrictions.data.restrictions.length > 0 ? 'à suivre' : 'aucune'}
+                icon={HeartPulse}
+                tone="rose"
+              />
+            </div>
+            <div className="animate-fade-in-up" style={staggerStyle(1)}>
+              <StatCard
+                label="Sous traitement"
+                value={onTreatment.data.dut1.length}
+                sublabel={onTreatment.data.dut1.length > 0 ? 'à suivre' : 'aucun'}
+                icon={Pill}
+                tone="amber"
+              />
+            </div>
+          </>
         )}
       </div>
 
       {!loading && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 animate-fade-in-up" style={staggerStyle(1)}>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 animate-fade-in-up" style={staggerStyle(2)}>
           <IllnessTrendChart rows={illnessTrend.data.rows} />
           <AllergyPrevalenceChart rows={allergyPrevalence.data.rows} />
         </div>
