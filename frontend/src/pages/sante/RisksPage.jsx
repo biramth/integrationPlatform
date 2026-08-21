@@ -2,14 +2,11 @@ import { useState } from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import { getRisks, declareRestriction } from '../../api/healthApi';
-import { getIllnessTrend, getAllergyPrevalence } from '../../api/statsApi';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import Card from '../../components/common/Card';
 import PageHeader from '../../components/common/PageHeader';
-import IllnessTrendChart from '../../components/stats/IllnessTrendChart';
-import AllergyPrevalenceChart from '../../components/stats/AllergyPrevalenceChart';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
@@ -27,8 +24,6 @@ export default function RisksPage() {
   const { showToast } = useToast();
   const [date, setDate] = useState(todayIso());
   const { data, loading, error, reload } = useFetch(() => getRisks(date), [date]);
-  const trendFetch = useFetch(() => getIllnessTrend(14), []);
-  const prevalenceFetch = useFetch(getAllergyPrevalence, []);
 
   const [openId, setOpenId] = useState(null);
   const [reason, setReason] = useState('');
@@ -61,17 +56,9 @@ export default function RisksPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Vue d'ensemble"
         title="Risques du jour"
         description="DUT1 dont une allergie déclarée croise le menu du jour, qui sont déclarés inaptes à participer aux activités de cette date, ou qui suivent un traitement médical."
       />
-
-      {!trendFetch.loading && !trendFetch.error && !prevalenceFetch.loading && !prevalenceFetch.error && (
-        <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <IllnessTrendChart rows={trendFetch.data.rows} />
-          <AllergyPrevalenceChart rows={prevalenceFetch.data.rows} />
-        </div>
-      )}
 
       <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mb-4 max-w-xs" />
 

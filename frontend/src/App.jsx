@@ -56,9 +56,10 @@ function App() {
               <Route path="/orga/rooms" element={<AdminRoomsPage />} />
             </Route>
 
-            {/* Vue d'ensemble : pas de restriction de sous-domaine, c'est la vue
-                globale du chef de commission sur les trois sphères d'Orga. */}
-            <Route element={<RoleRoute roles={['orga']} />}>
+            {/* Vue d'ensemble : réservée au chef de commission, pas à tout agent
+                Orga — sans ça les mêmes chiffres se retrouvent affichés à tout
+                le monde en plus des pages opérationnelles. */}
+            <Route element={<RoleRoute roles={['orga']} requireLead />}>
               <Route path="/orga/apercu" element={<OverviewPage />} />
             </Route>
 
@@ -98,14 +99,18 @@ function App() {
               <Route path="/sante/complementary" element={<CompleteInfoFormPage />} />
             </Route>
 
-            {/* Vue d'ensemble : pas de restriction de sous-domaine, vue globale du
-                chef de commission sur suivi + phase2. */}
-            <Route element={<RoleRoute roles={['sante']} />}>
+            {/* Vue d'ensemble : réservée au chef de commission — les graphiques et
+                compteurs qui y vivent ne doivent pas être dupliqués ailleurs
+                (risques du jour, suivi santé) pour tout agent Santé. */}
+            <Route element={<RoleRoute roles={['sante']} requireLead />}>
               <Route path="/sante/apercu" element={<SanteOverviewPage />} />
             </Route>
 
             <Route element={<RoleRoute roles={['communication']} />}>
               <Route path="/communication/annuaire" element={<DirectoryPage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={['communication']} requireLead />}>
               <Route path="/communication/apercu" element={<OverviewPage />} />
             </Route>
           </Route>

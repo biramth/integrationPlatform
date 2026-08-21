@@ -164,28 +164,6 @@ export default function HealthTrackingPage() {
         )}
       </Card>
 
-      <Card className="mb-6">
-        <p className="mb-2 text-sm font-semibold text-foreground">DUT1 sous traitement</p>
-        {onTreatmentFetch.loading && <LoadingState />}
-        {onTreatmentFetch.error && <ErrorState label={onTreatmentFetch.error} onRetry={onTreatmentFetch.reload} />}
-        {onTreatmentFetch.data && onTreatmentFetch.data.dut1.length === 0 && (
-          <EmptyState label="Aucun DUT1 sous traitement déclaré." />
-        )}
-        {onTreatmentFetch.data && onTreatmentFetch.data.dut1.length > 0 && (
-          <div className="flex flex-col gap-2">
-            {onTreatmentFetch.data.dut1.map((d) => (
-              <div key={d.id} className="rounded-lg border border-border p-3">
-                <p className="text-sm font-medium text-foreground">
-                  {d.first_name} {d.last_name}{' '}
-                  <span className="text-muted-foreground">({DEPARTMENT_LABELS[d.department] || d.department})</span>
-                </p>
-                <p className="text-xs text-muted-foreground">{d.treatment_details}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
       {!selected && (
         <div>
           <PageHeader
