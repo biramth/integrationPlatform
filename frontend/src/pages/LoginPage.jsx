@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { GraduationCap, FilePlus2, Luggage, Stethoscope, UtensilsCrossed } from 'lucide-react';
+import {
+  GraduationCap,
+  DoorOpen,
+  Stethoscope,
+  UtensilsCrossed,
+  ShieldAlert,
+  Contact,
+  Palette,
+  CalendarDays,
+} from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { homePathForRole } from '../utils/roles';
 import Button from '../components/common/Button';
@@ -8,10 +17,13 @@ import Input from '../components/common/Input';
 import { staggerStyle } from '../utils/stagger';
 
 const COMMISSIONS = [
-  { icon: FilePlus2, label: 'Enregistrement' },
-  { icon: Luggage, label: 'Commission Orga' },
-  { icon: Stethoscope, label: 'Commission Santé' },
-  { icon: UtensilsCrossed, label: 'Commission Cuisine' },
+  { icon: DoorOpen, label: 'Orga' },
+  { icon: Stethoscope, label: 'Santé' },
+  { icon: UtensilsCrossed, label: 'Cuisine' },
+  { icon: Contact, label: 'Communication' },
+  { icon: Palette, label: 'Culturelle' },
+  { icon: CalendarDays, label: 'Présidentielle' },
+  { icon: ShieldAlert, label: 'IT' },
 ];
 
 export default function LoginPage() {
@@ -60,11 +72,11 @@ export default function LoginPage() {
 
         <div className="relative">
           <h1 className="mb-3 text-3xl font-semibold leading-tight">
-            La coordination de l'intégration,<br /> en un seul endroit.
+            Sept commissions,<br /> une seule plateforme.
           </h1>
           <p className="max-w-sm text-sm text-blue-100">
-            Enregistrement des DUT1, logement, bagages et sécurité alimentaire —
-            chaque commission a sa page, tout le monde travaille sur les mêmes données.
+            Enregistrement des DUT1, logement, bagages, santé, cuisine, communication et planning —
+            chaque commission a son espace, tout le monde travaille sur les mêmes données.
           </p>
         </div>
 
