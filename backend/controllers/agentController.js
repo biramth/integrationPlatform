@@ -2,7 +2,17 @@ const db = require('../db/database');
 const { hashPassword } = require('../services/passwordService');
 
 const ROLES = ['orga', 'sante', 'cuisine', 'it', 'communication', 'culturelle', 'presidentielle'];
-const ORGA_SUB_ROLES = ['chambres', 'enregistrement', 'bagages'];
+// Sous-rôles valides par commission — NULL = accès à tout le périmètre de la
+// commission. Santé : "suivi" (risques, suivi santé, allergènes) et "phase2"
+// (complément de dossier, transféré depuis Orga car médical).
+const SUB_ROLES_BY_ROLE = {
+  orga: ['chambres', 'enregistrement', 'bagages'],
+  sante: ['suivi', 'phase2'],
+};
+
+function isValidSubRole(role, subRole) {
+  return (SUB_ROLES_BY_ROLE[role] || []).includes(subRole);
+}
 
 function serialize(user) {
   const { password_hash, ...rest } = user;
@@ -40,8 +50,8 @@ async function createAgent(req, res) {
   if (!canManage(req.user, role)) {
     return res.status(403).json({ error: "Tu ne peux créer un compte que pour ta propre commission." });
   }
-  if (subRole && (role !== 'orga' || !ORGA_SUB_ROLES.includes(subRole))) {
-    return res.status(400).json({ error: 'sub_role invalide (uniquement chambres, enregistrement ou bagages pour Orga).' });
+  if (subRole && !isValidSubRole(role, subRole)) {
+    return res.status(400).json({ error: 'sub_role invalide pour ce rôle.' });
   }
   // Seul it peut désigner un chef de commission ou accorder le droit de
   // réinitialiser la plateforme — un chef de commission ne peut pas
@@ -58,7 +68,7 @@ async function createAgent(req, res) {
     const result = await db.run(
       `INSERT INTO users (full_name, username, password_hash, role, sub_role, is_commission_lead, can_reset_platform)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [fullName, username, hashPassword(password), role, role === 'orga' ? subRole || null : null, !!isCommissionLead, !!canResetPlatform]
+      [fullName, username, hashPassword(password), role, SUB_ROLES_BY_ROLE[role] ? subRole || null : null, !!isCommissionLead, !!canResetPlatform]
     );
 
     const agent = await db.get('SELECT * FROM users WHERE id = $1', [result.rows[0].id]);
@@ -100,8 +110,8 @@ async function updateAgent(req, res) {
 
   const nextRole = role ?? agent.role;
   const nextSubRole = subRole !== undefined ? subRole : agent.sub_role;
-  if (nextSubRole && (nextRole !== 'orga' || !ORGA_SUB_ROLES.includes(nextSubRole))) {
-    return res.status(400).json({ error: 'sub_role invalide (uniquement chambres, enregistrement ou bagages pour Orga).' });
+  if (nextSubRole && !isValidSubRole(nextRole, nextSubRole)) {
+    return res.status(400).json({ error: 'sub_role invalide pour ce rôle.' });
   }
   const nextCanResetPlatform = canResetPlatform !== undefined ? !!canResetPlatform : agent.can_reset_platform;
   if (nextCanResetPlatform && nextRole !== 'it') {
@@ -115,7 +125,7 @@ async function updateAgent(req, res) {
       fullName ?? agent.full_name,
       nextRole,
       isActive !== undefined ? !!isActive : agent.is_active,
-      nextRole === 'orga' ? nextSubRole || null : null,
+      SUB_ROLES_BY_ROLE[nextRole] ? nextSubRole || null : null,
       isCommissionLead !== undefined ? !!isCommissionLead : agent.is_commission_lead,
       nextCanResetPlatform,
       id,

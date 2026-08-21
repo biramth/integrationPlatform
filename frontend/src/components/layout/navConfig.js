@@ -20,12 +20,21 @@ import { ROLES } from '../../utils/roles';
 // Orga voit les trois onglets par défaut ; un agent restreint à un sous-rôle
 // (sub_role) n'en voit qu'un — filtré dans AppLayout/Sidebar via getNavItems.
 const ORGA_ITEMS = {
-  enregistrement: [
-    { to: '/orga/basic', label: 'Enregistrer', icon: FilePlus2 },
-    { to: '/orga/complementary', label: 'Compléter', icon: ClipboardList },
-  ],
+  enregistrement: [{ to: '/orga/basic', label: 'Enregistrer', icon: FilePlus2 }],
   bagages: [{ to: '/orga/luggage', label: 'Bagages', icon: Luggage }],
   chambres: [{ to: '/orga/rooms', label: 'Chambres', icon: DoorOpen }],
+};
+
+// Même principe pour Santé : "suivi" (travail santé classique) et "phase2"
+// (complément de dossier, transféré depuis Orga car médical — traitement,
+// allergies, admission).
+const SANTE_ITEMS = {
+  suivi: [
+    { to: '/sante/risques', label: 'Risques du jour', icon: AlertTriangle },
+    { to: '/sante/suivi', label: 'Suivi santé', icon: Stethoscope },
+    { to: '/sante/allergenes', label: 'Allergènes', icon: Leaf },
+  ],
+  phase2: [{ to: '/sante/complementary', label: 'Compléter', icon: ClipboardList }],
 };
 
 // Le planning est un calendrier d'activités sans donnée sensible : visible par
@@ -63,6 +72,10 @@ export function getNavItems(user) {
       : [...ORGA_ITEMS.enregistrement, ...ORGA_ITEMS.bagages, ...ORGA_ITEMS.chambres];
     return [...scoped, PLANNING_ITEM, ...leadItems];
   }
+  if (user.role === ROLES.SANTE) {
+    const scoped = user.subRole ? SANTE_ITEMS[user.subRole] || [] : [...SANTE_ITEMS.suivi, ...SANTE_ITEMS.phase2];
+    return [...scoped, PLANNING_ITEM, ...leadItems];
+  }
   return [...(NAV_ITEMS[user.role] || []), ...leadItems];
 }
 
@@ -74,12 +87,6 @@ export const NAV_ITEMS = {
     { to: '/admin/agents', label: 'Agents', icon: Users },
     { to: '/admin/activites', label: 'Activités', icon: CalendarDays },
     { to: '/admin/plateforme', label: 'Plateforme', icon: ShieldAlert },
-  ],
-  [ROLES.SANTE]: [
-    { to: '/sante/risques', label: 'Risques du jour', icon: AlertTriangle },
-    { to: '/sante/suivi', label: 'Suivi santé', icon: Stethoscope },
-    { to: '/sante/allergenes', label: 'Allergènes', icon: Leaf },
-    PLANNING_ITEM,
   ],
   [ROLES.CUISINE]: [{ to: '/cuisine/menu', label: 'Menu du jour', icon: UtensilsCrossed }, PLANNING_ITEM],
   [ROLES.COMMUNICATION]: [{ to: '/communication/annuaire', label: 'Annuaire', icon: Contact }, PLANNING_ITEM],

@@ -11,7 +11,7 @@ import Avatar from '../../components/common/Avatar';
 import PageHeader from '../../components/common/PageHeader';
 import { ErrorState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
-import { ROLE_LABELS, ROLES, ROLE_COLORS, ORGA_SUB_ROLE_LABELS } from '../../utils/roles';
+import { ROLE_LABELS, ROLES, ROLE_COLORS, SUB_ROLE_LABELS_BY_ROLE } from '../../utils/roles';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
@@ -19,7 +19,13 @@ import { staggerStyle } from '../../utils/stagger';
 const EMPTY_FORM = { fullName: '', username: '', password: '', role: '', subRole: '', isCommissionLead: false, canResetPlatform: false };
 
 const ROLE_OPTIONS = Object.values(ROLES).map((value) => ({ value, label: ROLE_LABELS[value], dotColor: ROLE_COLORS[value] }));
-const SUB_ROLE_OPTIONS = Object.entries(ORGA_SUB_ROLE_LABELS).map(([value, label]) => ({ value, label }));
+
+// Options de sous-rôle pour un rôle donné (vide si ce rôle n'a pas de
+// sous-rôles, ex: cuisine, communication...).
+function subRoleOptions(role) {
+  const labels = SUB_ROLE_LABELS_BY_ROLE[role];
+  return labels ? Object.entries(labels).map(([value, label]) => ({ value, label })) : [];
+}
 
 export default function AdminAgentsPage() {
   const { user } = useAuth();
@@ -43,7 +49,7 @@ export default function AdminAgentsPage() {
     try {
       await agentApi.createAgent({
         ...form,
-        subRole: form.role === 'orga' && form.subRole ? form.subRole : null,
+        subRole: SUB_ROLE_LABELS_BY_ROLE[form.role] && form.subRole ? form.subRole : null,
         canResetPlatform: form.role === 'it' ? form.canResetPlatform : false,
       });
       setForm(isPrivileged ? EMPTY_FORM : { ...EMPTY_FORM, role: user.role });
@@ -101,7 +107,7 @@ export default function AdminAgentsPage() {
     try {
       await agentApi.updateAgent(agent.id, {
         ...editForm,
-        subRole: editForm.role === 'orga' && editForm.subRole ? editForm.subRole : null,
+        subRole: SUB_ROLE_LABELS_BY_ROLE[editForm.role] && editForm.subRole ? editForm.subRole : null,
         canResetPlatform: editForm.role === 'it' ? editForm.canResetPlatform : false,
       });
       showToast('Compte mis à jour.', 'success');
@@ -164,14 +170,14 @@ export default function AdminAgentsPage() {
           />
         </div>
 
-        {form.role === 'orga' && (
+        {SUB_ROLE_LABELS_BY_ROLE[form.role] && (
           <div className="mt-3">
             <Select
-              label="Sous-rôle (optionnel — vide = accès aux trois domaines)"
-              placeholder="Chambres + Enregistrement + Bagages"
+              label="Sous-rôle (optionnel — vide = accès à tout le périmètre)"
+              placeholder="Tous les sous-domaines"
               value={form.subRole}
               onChange={(e) => setForm((f) => ({ ...f, subRole: e.target.value }))}
-              options={SUB_ROLE_OPTIONS}
+              options={subRoleOptions(form.role)}
               className="sm:max-w-xs"
             />
           </div>
@@ -232,13 +238,13 @@ export default function AdminAgentsPage() {
                           options={roleOptions}
                           disabled={!isPrivileged}
                         />
-                        {editForm.role === 'orga' && (
+                        {SUB_ROLE_LABELS_BY_ROLE[editForm.role] && (
                           <Select
                             placeholder="Tous les sous-domaines"
                             value={editForm.subRole}
                             onChange={(e) => setEditForm((f) => ({ ...f, subRole: e.target.value }))}
                             className="sm:max-w-[220px]"
-                            options={SUB_ROLE_OPTIONS}
+                            options={subRoleOptions(editForm.role)}
                           />
                         )}
                       </div>
@@ -281,7 +287,7 @@ export default function AdminAgentsPage() {
                           <p className="font-medium text-foreground">{agent.full_name}</p>
                           <p className="text-sm text-muted-foreground">
                             {agent.username} · {ROLE_LABELS[agent.role]}
-                            {agent.sub_role ? ` (${ORGA_SUB_ROLE_LABELS[agent.sub_role]})` : ''}
+                            {agent.sub_role ? ` (${SUB_ROLE_LABELS_BY_ROLE[agent.role]?.[agent.sub_role] || agent.sub_role})` : ''}
                           </p>
                         </div>
                       </div>

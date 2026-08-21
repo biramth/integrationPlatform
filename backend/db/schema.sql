@@ -8,9 +8,11 @@ CREATE TABLE IF NOT EXISTS users (
   -- "presidentielle" = commission qui fixe le programme des activités
   -- d'intégration (son vrai nom, pas "activités").
   role          TEXT NOT NULL CHECK (role IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle')),
-  -- Sous-rôle : ne s'applique qu'à la commission Orga, pour restreindre un agent à
-  -- un seul sous-domaine (chambres / enregistrement / bagages). NULL = accès aux trois.
-  sub_role      TEXT CHECK (sub_role IN ('chambres','enregistrement','bagages')),
+  -- Sous-rôle : restreint un agent à un seul sous-domaine de sa commission.
+  -- Orga : chambres / enregistrement / bagages. Santé : suivi (risques, suivi,
+  -- allergènes) / phase2 (complément de dossier — traitement, allergies,
+  -- admission). NULL = accès à tous les sous-domaines de sa commission.
+  sub_role      TEXT CHECK (sub_role IN ('chambres','enregistrement','bagages','suivi','phase2')),
   -- Chef de commission : droits supplémentaires pour gérer les autres agents de sa
   -- propre commission (hors it, qui gère déjà tout le monde).
   is_commission_lead  BOOLEAN NOT NULL DEFAULT FALSE,
@@ -139,9 +141,12 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS sub_role TEXT,
   ADD COLUMN IF NOT EXISTS is_commission_lead BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- Ajout des sous-rôles Santé (suivi / phase2) : élargissement, jamais de
+-- resserrement ici, donc sûr à rejouer sans egard à l'ordre par rapport aux
+-- données existantes (contrairement au piège rencontré avec users_role_check).
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_sub_role_check;
 ALTER TABLE users ADD CONSTRAINT users_sub_role_check
-  CHECK (sub_role IN ('chambres','enregistrement','bagages'));
+  CHECK (sub_role IN ('chambres','enregistrement','bagages','suivi','phase2'));
 
 -- "admin" n'est pas une commission à part : la commission IT EST l'admin de la
 -- plateforme, donc les comptes admin deviennent des comptes it (chef +

@@ -6,17 +6,20 @@ import { homePathForRole } from '../utils/roles';
 // toutes les pages, comme côté backend (cf. requireRole dans middleware/auth.js).
 // allowLeads : ouvre la route à tout chef de commission (is_commission_lead),
 // quel que soit son rôle — utilisé pour /admin/agents, géré aussi par les chefs.
-// orgaScope : pour les pages Orga, redirige un agent restreint à un autre
-// sous-rôle (sub_role) vers sa page — le backend refuse déjà les appels API,
-// ceci évite juste d'afficher une page dont il ne peut rien faire.
-export default function RoleRoute({ roles, allowLeads = false, orgaScope }) {
+// subScope : pour les pages à sous-rôles (Orga, Santé), redirige un agent
+// restreint à un autre sous-rôle vers sa page — le backend refuse déjà les
+// appels API, ceci évite juste d'afficher une page dont il ne peut rien faire.
+// Les valeurs de sub_role sont propres à chaque commission (ex: "chambres"
+// n'existe que pour Orga), donc comparer juste user.subRole suffit sans avoir
+// à revérifier le rôle ici.
+export default function RoleRoute({ roles, allowLeads = false, subScope }) {
   const { user } = useAuth();
 
   const allowed = user.role === 'it' || roles.includes(user.role) || (allowLeads && user.isCommissionLead);
   if (!allowed) {
     return <Navigate to={homePathForRole(user.role, user.subRole)} replace />;
   }
-  if (orgaScope && user.role === 'orga' && user.subRole && user.subRole !== orgaScope) {
+  if (subScope && user.subRole && user.subRole !== subScope) {
     return <Navigate to={homePathForRole(user.role, user.subRole)} replace />;
   }
 

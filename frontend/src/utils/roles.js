@@ -46,9 +46,34 @@ export const ORGA_SUB_ROLE_LABELS = {
   [ORGA_SUB_ROLES.BAGAGES]: 'Bagages',
 };
 
+// Phase 2 (complément de dossier — traitement médical, allergies, admission)
+// relève de la commission Santé, pas d'Orga : ce sont des questions médicales.
+// "suivi" regroupe le travail santé classique (risques, suivi, allergènes).
+export const SANTE_SUB_ROLES = {
+  SUIVI: 'suivi',
+  PHASE2: 'phase2',
+};
+
+export const SANTE_SUB_ROLE_LABELS = {
+  [SANTE_SUB_ROLES.SUIVI]: 'Suivi santé',
+  [SANTE_SUB_ROLES.PHASE2]: 'Phase 2 (complément de dossier)',
+};
+
+// Sous-rôles valides par commission, pour les écrans génériques (sélecteur de
+// rôle à la création d'un compte, etc.) qui doivent s'adapter au rôle choisi.
+export const SUB_ROLE_LABELS_BY_ROLE = {
+  [ROLES.ORGA]: ORGA_SUB_ROLE_LABELS,
+  [ROLES.SANTE]: SANTE_SUB_ROLE_LABELS,
+};
+
 // Un agent Orga sans sub_role a accès aux trois sous-domaines.
 export function orgaHasScope(user, scope) {
   return user.role === ROLES.ORGA && (!user.subRole || user.subRole === scope);
+}
+
+// Un agent Santé sans sub_role a accès aux deux sous-domaines.
+export function santeHasScope(user, scope) {
+  return user.role === ROLES.SANTE && (!user.subRole || user.subRole === scope);
 }
 
 export function homePathForRole(role, subRole) {
@@ -60,6 +85,7 @@ export function homePathForRole(role, subRole) {
     case ROLES.IT:
       return '/admin';
     case ROLES.SANTE:
+      if (subRole === SANTE_SUB_ROLES.PHASE2) return '/sante/complementary';
       return '/sante/risques';
     case ROLES.CUISINE:
       return '/cuisine/menu';

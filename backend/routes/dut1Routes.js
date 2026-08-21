@@ -1,7 +1,7 @@
 const express = require('express');
 const dut1Controller = require('../controllers/dut1Controller');
 const roomController = require('../controllers/roomController');
-const { verifyToken, requireRole, requireOrgaScope } = require('../middleware/auth');
+const { verifyToken, requireRole, requireOrgaScope, requireSanteScope } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -9,10 +9,13 @@ router.use(verifyToken);
 
 router.post('/', requireRole('orga'), requireOrgaScope('enregistrement'), dut1Controller.createRecord);
 router.get('/without-luggage', requireRole('orga'), requireOrgaScope('bagages'), dut1Controller.listWithoutLuggage);
+// Phase 2 (complément de dossier) relève de la commission Santé — traitement
+// médical, allergies, admission — pas d'Orga (qui ne gère plus que
+// l'enregistrement de base, les chambres et les bagages).
 router.get(
   '/without-complementary',
-  requireRole('orga'),
-  requireOrgaScope('enregistrement'),
+  requireRole('sante'),
+  requireSanteScope('phase2'),
   dut1Controller.listWithoutComplementary
 );
 // Annuaire en lecture : Orga/Santé/Cuisine voient tout, Communication et
@@ -28,11 +31,11 @@ router.put('/:id', requireRole('it'), dut1Controller.updateRecord);
 router.delete('/:id', requireRole('it'), dut1Controller.deleteRecord);
 router.put(
   '/:id/complementary',
-  requireRole('orga'),
-  requireOrgaScope('enregistrement'),
+  requireRole('sante'),
+  requireSanteScope('phase2'),
   dut1Controller.completeComplementary
 );
-router.put('/:id/allergies', requireRole('orga', 'sante'), requireOrgaScope('enregistrement'), dut1Controller.setAllergies);
+router.put('/:id/allergies', requireRole('sante'), requireSanteScope('phase2'), dut1Controller.setAllergies);
 router.put('/:id/room', requireRole('orga'), requireOrgaScope('chambres'), roomController.reassignDut1Room);
 
 module.exports = router;

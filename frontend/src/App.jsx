@@ -11,7 +11,6 @@ import RouteFallback from './routes/RouteFallback';
 // du bundle initial les dépendances lourdes (recharts sur le tableau de bord,
 // la capture photo sur la logistique…).
 const BasicInfoFormPage = lazy(() => import('./pages/registrar/BasicInfoFormPage'));
-const CompleteInfoFormPage = lazy(() => import('./pages/registrar/CompleteInfoFormPage'));
 const LogisticsListPage = lazy(() => import('./pages/logistics/LogisticsListPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminRecordsPage = lazy(() => import('./pages/admin/AdminRecordsPage'));
@@ -25,6 +24,7 @@ const RisksPage = lazy(() => import('./pages/sante/RisksPage'));
 const HealthTrackingPage = lazy(() => import('./pages/sante/HealthTrackingPage'));
 const AllergensAdminPage = lazy(() => import('./pages/sante/AllergensAdminPage'));
 const SanteOverviewPage = lazy(() => import('./pages/sante/OverviewPage'));
+const CompleteInfoFormPage = lazy(() => import('./pages/sante/CompleteInfoFormPage'));
 const DirectoryPage = lazy(() => import('./pages/communication/DirectoryPage'));
 const PlanningReadOnlyPage = lazy(() => import('./pages/shared/PlanningReadOnlyPage'));
 const OverviewPage = lazy(() => import('./pages/shared/OverviewPage'));
@@ -41,19 +41,18 @@ function App() {
             {/* Planning : accessible à toutes les commissions, aucune restriction de rôle. */}
             <Route path="/planning" element={<PlanningReadOnlyPage />} />
 
-            <Route element={<RoleRoute roles={['orga']} orgaScope="enregistrement" />}>
+            <Route element={<RoleRoute roles={['orga']} subScope="enregistrement" />}>
               <Route path="/orga/basic" element={<BasicInfoFormPage />} />
-              <Route path="/orga/complementary" element={<CompleteInfoFormPage />} />
             </Route>
 
-            <Route element={<RoleRoute roles={['orga']} orgaScope="bagages" />}>
+            <Route element={<RoleRoute roles={['orga']} subScope="bagages" />}>
               <Route path="/orga/luggage" element={<LogisticsListPage />} />
             </Route>
 
             {/* Chambres : gérées par la commission Orga (sous-domaine chambres) au
                 quotidien, et par IT via le bypass superuser de RoleRoute — même
                 page pour les deux, montée sur les deux chemins. */}
-            <Route element={<RoleRoute roles={['orga']} orgaScope="chambres" />}>
+            <Route element={<RoleRoute roles={['orga']} subScope="chambres" />}>
               <Route path="/orga/rooms" element={<AdminRoomsPage />} />
             </Route>
 
@@ -87,10 +86,21 @@ function App() {
               <Route path="/cuisine/menu" element={<MenuPage />} />
             </Route>
 
-            <Route element={<RoleRoute roles={['sante']} />}>
+            <Route element={<RoleRoute roles={['sante']} subScope="suivi" />}>
               <Route path="/sante/risques" element={<RisksPage />} />
               <Route path="/sante/suivi" element={<HealthTrackingPage />} />
               <Route path="/sante/allergenes" element={<AllergensAdminPage />} />
+            </Route>
+
+            {/* Phase 2 (complément de dossier) : transféré depuis Orga, ce sont des
+                questions médicales (traitement, allergies, admission). */}
+            <Route element={<RoleRoute roles={['sante']} subScope="phase2" />}>
+              <Route path="/sante/complementary" element={<CompleteInfoFormPage />} />
+            </Route>
+
+            {/* Vue d'ensemble : pas de restriction de sous-domaine, vue globale du
+                chef de commission sur suivi + phase2. */}
+            <Route element={<RoleRoute roles={['sante']} />}>
               <Route path="/sante/apercu" element={<SanteOverviewPage />} />
             </Route>
 

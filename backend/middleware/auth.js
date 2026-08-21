@@ -44,6 +44,19 @@ function requireOrgaScope(scope) {
   };
 }
 
+// Même principe que requireOrgaScope, pour la commission Santé : "suivi"
+// (risques, suivi santé, allergènes) et "phase2" (complément de dossier —
+// traitement, allergies, admission), déplacé depuis Orga car ce sont des
+// questions médicales. sub_role NULL = accès aux deux.
+function requireSanteScope(scope) {
+  return (req, res, next) => {
+    if (req.user.role === 'sante' && req.user.subRole && req.user.subRole !== scope) {
+      return res.status(403).json({ error: 'Accès refusé pour ce sous-rôle de la commission Santé.' });
+    }
+    next();
+  };
+}
+
 // Gestion des comptes agents : it gère tout le monde ; un chef de commission
 // (is_commission_lead) peut gérer les comptes de sa propre commission (la
 // portée exacte — même commission, pas de promotion de privilèges — est
@@ -55,4 +68,4 @@ function requireAgentManagement(req, res, next) {
   return res.status(403).json({ error: 'Accès refusé pour ce rôle.' });
 }
 
-module.exports = { verifyToken, requireRole, requireOrgaScope, requireAgentManagement };
+module.exports = { verifyToken, requireRole, requireOrgaScope, requireSanteScope, requireAgentManagement };
