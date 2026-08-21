@@ -26,6 +26,7 @@ const HealthTrackingPage = lazy(() => import('./pages/sante/HealthTrackingPage')
 const AllergensAdminPage = lazy(() => import('./pages/sante/AllergensAdminPage'));
 const DirectoryPage = lazy(() => import('./pages/communication/DirectoryPage'));
 const PlanningReadOnlyPage = lazy(() => import('./pages/shared/PlanningReadOnlyPage'));
+const PresidentielleOverviewPage = lazy(() => import('./pages/presidentielle/OverviewPage'));
 
 function App() {
   return (
@@ -70,6 +71,8 @@ function App() {
             </Route>
 
             <Route element={<RoleRoute roles={['presidentielle']} />}>
+              <Route path="/presidentielle" element={<PresidentielleOverviewPage />} />
+              <Route path="/presidentielle/annuaire" element={<DirectoryPage />} />
               <Route path="/admin/activites" element={<ActivitiesPage />} />
             </Route>
 

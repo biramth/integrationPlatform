@@ -13,6 +13,7 @@ import {
   CalendarDays,
   Contact,
   ShieldAlert,
+  LineChart,
 } from 'lucide-react';
 import { ROLES } from '../../utils/roles';
 
@@ -35,9 +36,12 @@ const PLANNING_ITEM = { to: '/planning', label: 'Planning', icon: CalendarDays }
 // atteignable que par IT, la page restait invisible pour les chefs.
 const AGENTS_ITEM = { to: '/admin/agents', label: 'Agents', icon: Users };
 
+// La commission Présidentielle ne compte que deux personnes : la gestion de
+// comptes membres n'a pas d'utilité pour elle, même si son chef a le drapeau
+// is_commission_lead.
 export function getNavItems(user) {
   if (!user) return [];
-  const leadItems = user.isCommissionLead && user.role !== ROLES.IT ? [AGENTS_ITEM] : [];
+  const leadItems = user.isCommissionLead && ![ROLES.IT, ROLES.PRESIDENTIELLE].includes(user.role) ? [AGENTS_ITEM] : [];
   if (user.role === ROLES.ORGA) {
     const scoped = user.subRole
       ? ORGA_ITEMS[user.subRole] || []
@@ -65,5 +69,9 @@ export const NAV_ITEMS = {
   [ROLES.CUISINE]: [{ to: '/cuisine/menu', label: 'Menu du jour', icon: UtensilsCrossed }, PLANNING_ITEM],
   [ROLES.COMMUNICATION]: [{ to: '/communication/annuaire', label: 'Annuaire', icon: Contact }, PLANNING_ITEM],
   [ROLES.CULTURELLE]: [PLANNING_ITEM],
-  [ROLES.PRESIDENTIELLE]: [{ to: '/admin/activites', label: 'Activités', icon: CalendarDays }],
+  [ROLES.PRESIDENTIELLE]: [
+    { to: '/presidentielle', label: "Vue d'ensemble", shortLabel: 'Accueil', icon: LineChart },
+    { to: '/presidentielle/annuaire', label: 'Annuaire', icon: Contact },
+    { to: '/admin/activites', label: 'Activités', icon: CalendarDays },
+  ],
 };

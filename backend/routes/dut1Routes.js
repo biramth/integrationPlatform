@@ -15,13 +15,14 @@ router.get(
   requireOrgaScope('enregistrement'),
   dut1Controller.listWithoutComplementary
 );
-// Annuaire en lecture : Orga/Santé/Cuisine voient tout, Communication voit tout
-// sauf le médical (allergènes, traitement, champs de la phase 2) — filtré dans
-// le contrôleur selon req.user.role, pas ici, pour garder une seule requête.
-router.get('/', requireRole('orga', 'sante', 'cuisine', 'communication'), dut1Controller.listRecords);
+// Annuaire en lecture : Orga/Santé/Cuisine voient tout, Communication et
+// Présidentielle voient tout sauf le médical (allergènes, traitement, champs
+// de la phase 2) — filtré dans le contrôleur selon req.user.role, pas ici,
+// pour garder une seule requête.
+router.get('/', requireRole('orga', 'sante', 'cuisine', 'communication', 'presidentielle'), dut1Controller.listRecords);
 router.get('/export', requireRole('it'), dut1Controller.exportRecordsCsv);
 router.get('/export-contacts', requireRole('it'), dut1Controller.exportContactsCsv);
-router.get('/:id', requireRole('orga', 'sante', 'cuisine', 'communication'), dut1Controller.getRecord);
+router.get('/:id', requireRole('orga', 'sante', 'cuisine', 'communication', 'presidentielle'), dut1Controller.getRecord);
 router.get('/:id/room-history', requireRole('orga'), requireOrgaScope('chambres'), dut1Controller.getRoomHistory);
 router.put('/:id', requireRole('it'), dut1Controller.updateRecord);
 router.delete('/:id', requireRole('it'), dut1Controller.deleteRecord);

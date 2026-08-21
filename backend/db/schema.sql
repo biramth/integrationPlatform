@@ -233,6 +233,9 @@ CREATE TABLE IF NOT EXISTS activities (
   name           TEXT NOT NULL,
   activity_date  TEXT NOT NULL,
   end_date       TEXT,
+  -- Heure de début (HH:MM), optionnelle : plusieurs activités le même jour se
+  -- distinguent par leur heure, pas seulement par leur nom.
+  start_time     TEXT,
   description    TEXT,
   created_by     INTEGER NOT NULL REFERENCES users(id),
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -267,3 +270,7 @@ CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(activity_date);
 CREATE INDEX IF NOT EXISTS idx_meal_services_date ON meal_services(service_date);
 CREATE INDEX IF NOT EXISTS idx_admitted_students_department ON admitted_students(department);
 CREATE INDEX IF NOT EXISTS idx_admitted_students_names ON admitted_students(last_name, first_name);
+
+-- Heure de début d'une activité (HH:MM) : plusieurs activités le même jour se
+-- distinguent par leur heure, pas seulement par leur nom.
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS start_time TEXT;

@@ -6,7 +6,7 @@ import PageHeader from '../../components/common/PageHeader';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { staggerStyle } from '../../utils/stagger';
-import { formatDateLong, formatDateShort, isToday, groupActivitiesByDate } from '../../utils/activityDates';
+import { formatDateLong, formatDateShort, formatTime, isToday, groupActivitiesByDate } from '../../utils/activityDates';
 
 // Vue planning en lecture seule, partagée par toutes les commissions : mêmes
 // activités que /admin/activites, regroupées en agenda par jour plutôt qu'en
@@ -42,7 +42,14 @@ export default function PlanningReadOnlyPage() {
                   <li key={activity.id} className="relative">
                     <span className="absolute -left-[1.85rem] top-1.5 h-3 w-3 rounded-full border-2 border-card bg-role-accent" />
                     <div className="rounded-xl border border-border bg-card p-3.5 shadow-soft">
-                      <p className="font-medium text-foreground">{activity.name}</p>
+                      <div className="flex items-baseline gap-2">
+                        {activity.start_time && (
+                          <span className="shrink-0 text-xs font-semibold tabular-nums text-role-accent">
+                            {formatTime(activity.start_time)}
+                          </span>
+                        )}
+                        <p className="font-medium text-foreground">{activity.name}</p>
+                      </div>
                       {activity.end_date && activity.end_date !== activity.activity_date && (
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           Jusqu'au {formatDateShort(activity.end_date)}

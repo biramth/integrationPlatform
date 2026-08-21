@@ -68,7 +68,7 @@ export function homePathForRole(role, subRole) {
     case ROLES.CULTURELLE:
       return '/planning';
     case ROLES.PRESIDENTIELLE:
-      return '/admin/activites';
+      return '/presidentielle';
     default:
       return '/login';
   }

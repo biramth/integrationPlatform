@@ -6,12 +6,21 @@ const router = express.Router();
 
 router.use(verifyToken);
 
-router.get('/overview', requireRole('it'), statsController.overview);
-router.get('/by-department', requireRole('it'), statsController.byDepartment);
-router.get('/by-gender', requireRole('it'), statsController.byGender);
-router.get('/rooms-occupancy', requireRole('orga'), requireOrgaScope('chambres'), statsController.roomsOccupancy);
+// La commission Présidentielle a une vue d'ensemble globale (comptes, chambres,
+// répartitions) mais pas sur les statistiques médicales (illness-trend,
+// allergy-prevalence restent réservées à Santé, cf. principe "le médical
+// reste médical").
+router.get('/overview', requireRole('presidentielle'), statsController.overview);
+router.get('/by-department', requireRole('presidentielle'), statsController.byDepartment);
+router.get('/by-gender', requireRole('presidentielle'), statsController.byGender);
+router.get(
+  '/rooms-occupancy',
+  requireRole('orga', 'presidentielle'),
+  requireOrgaScope('chambres'),
+  statsController.roomsOccupancy
+);
 router.get('/illness-trend', requireRole('sante'), statsController.illnessTrend);
 router.get('/allergy-prevalence', requireRole('sante'), statsController.allergyPrevalence);
-router.get('/by-admission-list', requireRole('it'), statsController.byAdmissionList);
+router.get('/by-admission-list', requireRole('presidentielle'), statsController.byAdmissionList);
 
 module.exports = router;

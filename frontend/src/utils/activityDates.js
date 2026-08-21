@@ -23,6 +23,14 @@ export function formatDateShort(iso) {
   return `${date.getDate()} ${MONTHS[date.getMonth()]}`;
 }
 
+// "08:00" -> "8h" / "14:30" -> "14h30" (format horaire francophone courant).
+export function formatTime(hhmm) {
+  if (!hhmm) return null;
+  const [h, m] = hhmm.split(':');
+  const hour = Number(h);
+  return m && m !== '00' ? `${hour}h${m}` : `${hour}h`;
+}
+
 export function isToday(iso) {
   const date = parseLocalDate(iso);
   const now = new Date();

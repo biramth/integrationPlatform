@@ -16,10 +16,11 @@ import { staggerStyle } from '../../utils/stagger';
 
 const PAGE_SIZE = 25;
 
-// Annuaire non-médical pour la commission Communication : nom, département,
-// genre, téléphone, chambre. Le backend (dut1Controller.listRecords) retire
-// déjà tout ce qui est médical pour ce rôle — cette page ne fait qu'afficher
-// ce qu'elle reçoit, sans jamais demander plus (pas de bouton "voir le dossier").
+// Annuaire non-médical, partagé par Communication et Présidentielle : nom,
+// département, genre, téléphone, chambre. Le backend (dut1Controller.listRecords)
+// retire déjà tout ce qui est médical pour ces rôles — cette page ne fait
+// qu'afficher ce qu'elle reçoit, sans jamais demander plus (pas de bouton
+// "voir le dossier").
 export default function DirectoryPage() {
   const [filters, setFilters] = useState({ search: '', department: '' });
   const debouncedSearch = useDebouncedValue(filters.search, 350);

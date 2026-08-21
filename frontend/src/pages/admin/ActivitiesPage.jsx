@@ -11,9 +11,9 @@ import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
-import { formatDateLong, formatDateShort, isToday, groupActivitiesByDate } from '../../utils/activityDates';
+import { formatDateLong, formatDateShort, formatTime, isToday, groupActivitiesByDate } from '../../utils/activityDates';
 
-const EMPTY_FORM = { name: '', activityDate: '', endDate: '', description: '' };
+const EMPTY_FORM = { name: '', activityDate: '', startTime: '', endDate: '', description: '' };
 
 export default function ActivitiesPage() {
   const { showToast } = useToast();
@@ -56,6 +56,7 @@ export default function ActivitiesPage() {
     setEditForm({
       name: activity.name,
       activityDate: activity.activity_date,
+      startTime: activity.start_time || '',
       endDate: activity.end_date || '',
       description: activity.description || '',
     });
@@ -103,6 +104,12 @@ export default function ActivitiesPage() {
             onChange={(e) => setForm((f) => ({ ...f, activityDate: e.target.value }))}
           />
           <Input
+            label="Heure (optionnel)"
+            type="time"
+            value={form.startTime}
+            onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+          />
+          <Input
             label="Date de fin (optionnel)"
             type="date"
             value={form.endDate}
@@ -141,7 +148,14 @@ export default function ActivitiesPage() {
                   <li key={activity.id} className="relative">
                     <span className="absolute -left-[1.85rem] top-1.5 h-3 w-3 rounded-full border-2 border-card bg-role-accent" />
                     <div className="rounded-xl border border-border bg-card p-3.5 shadow-soft">
-                      <p className="font-medium text-foreground">{activity.name}</p>
+                      <div className="flex items-baseline gap-2">
+                        {activity.start_time && (
+                          <span className="shrink-0 text-xs font-semibold tabular-nums text-role-accent">
+                            {formatTime(activity.start_time)}
+                          </span>
+                        )}
+                        <p className="font-medium text-foreground">{activity.name}</p>
+                      </div>
                       {activity.end_date && activity.end_date !== activity.activity_date && (
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           Jusqu'au {formatDateShort(activity.end_date)}
@@ -187,6 +201,12 @@ export default function ActivitiesPage() {
               type="date"
               value={editForm.activityDate}
               onChange={(e) => setEditForm((f) => ({ ...f, activityDate: e.target.value }))}
+            />
+            <Input
+              label="Heure (optionnel)"
+              type="time"
+              value={editForm.startTime}
+              onChange={(e) => setEditForm((f) => ({ ...f, startTime: e.target.value }))}
             />
             <Input
               label="Date de fin (optionnel)"
