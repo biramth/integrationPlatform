@@ -7,9 +7,6 @@ import { listAllergens } from '../../api/allergenApi';
 import { listPhase2Questions } from '../../api/phase2QuestionsApi';
 import Dut1Card from '../../components/dut1/Dut1Card';
 import Dut1ComplementaryForm from '../../components/dut1/Dut1ComplementaryForm';
-import AllergySelect from '../../components/dut1/AllergySelect';
-import AdmissionListToggle from '../../components/dut1/AdmissionListToggle';
-import Dut1TreatmentQuestion from '../../components/dut1/Dut1TreatmentQuestion';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
@@ -142,6 +139,7 @@ export default function CompleteInfoFormPage() {
       return;
     }
     for (const q of questions) {
+      if (['admission', 'traitement_medical', 'allergies'].includes(q.type)) continue;
       if (q.required && isQuestionAnswerEmpty(values[q.field_key])) {
         showToast(`La question "${q.label}" doit être renseignée avant de continuer.`, 'error');
         return;
@@ -198,32 +196,23 @@ export default function CompleteInfoFormPage() {
 
         <form onSubmit={openRecap}>
           <div className="mb-6 rounded-xl border border-border bg-card p-4">
-            <p className="mb-3 text-sm font-semibold text-foreground">Admission au concours</p>
-            <AdmissionListToggle value={admissionListType} onChange={setAdmissionListType} disabled={isLocked} />
-          </div>
-
-          <div className="mb-6 rounded-xl border border-border bg-card p-4">
-            <p className="mb-3 text-sm font-semibold text-foreground">Traitement médical</p>
-            <Dut1TreatmentQuestion
-              value={onTreatment}
-              details={treatmentDetails}
-              onChangeValue={setOnTreatment}
-              onChangeDetails={setTreatmentDetails}
-              disabled={isLocked}
-            />
-          </div>
-
-          <div className="mb-6 rounded-xl border border-border bg-card p-4">
-            <p className="mb-3 text-sm font-semibold text-foreground">Allergies</p>
-            <AllergySelect
-              selectedIds={allergenIds}
-              onChange={setAllergenIds}
+            <Dut1ComplementaryForm
+              questions={questions}
+              values={values}
+              onChange={handleChange}
+              admissionListType={admissionListType}
+              onAdmissionChange={setAdmissionListType}
+              onTreatment={onTreatment}
+              treatmentDetails={treatmentDetails}
+              onTreatmentChange={setOnTreatment}
+              onTreatmentDetailsChange={setTreatmentDetails}
+              allergenIds={allergenIds}
               severities={allergies}
+              onAllergyChange={setAllergenIds}
               onSeverityChange={setSeverity}
               disabled={isLocked}
             />
           </div>
-          <Dut1ComplementaryForm questions={questions} values={values} onChange={handleChange} disabled={isLocked} />
           {!isLocked && (
             <div className="mt-6 flex justify-end">
               <Button type="submit" className="w-full sm:w-auto">
@@ -235,50 +224,45 @@ export default function CompleteInfoFormPage() {
 
         <Modal open={recapOpen} onClose={() => setRecapOpen(false)} title="Vérifier avant de confirmer">
           <div className="flex flex-col gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Admission au concours</p>
-              <p className="mt-1 text-sm text-foreground">
-                {admissionListType === 'principale' && 'Liste principale'}
-                {admissionListType === 'attente' && "Liste d'attente"}
-                {!admissionListType && <span className="text-muted-foreground">Non renseigné</span>}
-              </p>
-            </div>
+            {questions.map((q) => (
+              <div key={q.field_key}>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{q.label}</p>
 
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Traitement médical</p>
-              {onTreatment ? (
-                <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{treatmentDetails}</p>
-              ) : (
-                <p className="mt-1 text-sm text-muted-foreground">Aucun traitement déclaré.</p>
-              )}
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Allergies</p>
-              {allergenIds.length === 0 ? (
-                <p className="mt-1 text-sm text-muted-foreground">Aucune allergie déclarée.</p>
-              ) : (
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {allergenIds.map((id) => (
-                    <Badge key={id} variant={SEVERITY_BADGE_VARIANT[allergies[id]] || 'neutral'}>
-                      {allergenLabelById[id] || `#${id}`} — {SEVERITY_LABELS[allergies[id]] || allergies[id]}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {questions.map((q) => {
-              const answer = formatQuestionAnswer(q, values[q.field_key]);
-              return (
-                <div key={q.field_key}>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{q.label}</p>
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
-                    {answer ?? <span className="text-muted-foreground">—</span>}
+                {q.type === 'admission' && (
+                  <p className="mt-1 text-sm text-foreground">
+                    {admissionListType === 'principale' && 'Liste principale'}
+                    {admissionListType === 'attente' && "Liste d'attente"}
+                    {!admissionListType && <span className="text-muted-foreground">Non renseigné</span>}
                   </p>
-                </div>
-              );
-            })}
+                )}
+
+                {q.type === 'traitement_medical' &&
+                  (onTreatment ? (
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{treatmentDetails}</p>
+                  ) : (
+                    <p className="mt-1 text-sm text-muted-foreground">Aucun traitement déclaré.</p>
+                  ))}
+
+                {q.type === 'allergies' &&
+                  (allergenIds.length === 0 ? (
+                    <p className="mt-1 text-sm text-muted-foreground">Aucune allergie déclarée.</p>
+                  ) : (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {allergenIds.map((id) => (
+                        <Badge key={id} variant={SEVERITY_BADGE_VARIANT[allergies[id]] || 'neutral'}>
+                          {allergenLabelById[id] || `#${id}`} — {SEVERITY_LABELS[allergies[id]] || allergies[id]}
+                        </Badge>
+                      ))}
+                    </div>
+                  ))}
+
+                {!['admission', 'traitement_medical', 'allergies'].includes(q.type) && (
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+                    {formatQuestionAnswer(q, values[q.field_key]) ?? <span className="text-muted-foreground">—</span>}
+                  </p>
+                )}
+              </div>
+            ))}
 
             <p className="rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
               Une fois confirmé, ce dossier ne sera plus modifiable depuis cette page.

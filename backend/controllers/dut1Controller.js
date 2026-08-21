@@ -512,7 +512,13 @@ async function completeComplementary(req, res) {
     return res.status(400).json({ error: 'Le détail des traitements suivis est requis.' });
   }
 
-  const requiredQuestions = await db.all('SELECT field_key, label FROM phase2_questions WHERE required = TRUE');
+  // admission/traitement_medical/allergies ont leur propre validation
+  // ci-dessus (ou aucune) — leur réponse vit dans des colonnes dédiées, pas
+  // dans extraFields, donc ce contrôle générique ne les concerne pas.
+  const requiredQuestions = await db.all(
+    `SELECT field_key, label FROM phase2_questions
+     WHERE required = TRUE AND type NOT IN ('admission','traitement_medical','allergies')`
+  );
   for (const q of requiredQuestions) {
     const val = extraFields[q.field_key];
     const empty =

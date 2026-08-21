@@ -3,28 +3,25 @@ import Button from '../common/Button';
 export default function Dut1TreatmentQuestion({ value, details, onChangeValue, onChangeDetails, disabled = false }) {
   return (
     <div className="flex flex-col gap-3">
-      <div>
-        <p className="mb-1.5 text-sm font-medium text-foreground">Traitement médical en cours ?</p>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant={value === true ? 'primary' : 'secondary'}
-            className="px-3 py-1.5 text-xs"
-            disabled={disabled}
-            onClick={() => onChangeValue(true)}
-          >
-            Oui
-          </Button>
-          <Button
-            type="button"
-            variant={value === false ? 'primary' : 'secondary'}
-            className="px-3 py-1.5 text-xs"
-            disabled={disabled}
-            onClick={() => onChangeValue(false)}
-          >
-            Non
-          </Button>
-        </div>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant={value === true ? 'primary' : 'secondary'}
+          className="px-3 py-1.5 text-xs"
+          disabled={disabled}
+          onClick={() => onChangeValue(true)}
+        >
+          Oui
+        </Button>
+        <Button
+          type="button"
+          variant={value === false ? 'primary' : 'secondary'}
+          className="px-3 py-1.5 text-xs"
+          disabled={disabled}
+          onClick={() => onChangeValue(false)}
+        >
+          Non
+        </Button>
       </div>
       {value === true && (
         <label className="flex flex-col gap-1 text-sm">

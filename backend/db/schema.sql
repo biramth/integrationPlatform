@@ -311,6 +311,32 @@ VALUES
   ('remarques', 'Remarques diverses', 'texte_long', FALSE, 1)
 ON CONFLICT (field_key) DO NOTHING;
 
+-- Le chef Santé configure le questionnaire de phase 2 dans son ENTIER, pas
+-- juste des questions bonus à la fin : admission/traitement/allergies
+-- rejoignent la même liste réordonnable que les questions libres, au lieu
+-- d'être des sections à part câblées en dur dans la page. Elles restent des
+-- types à part (pas 'custom') car leur réponse est stockée dans des colonnes/
+-- tables dédiées (dut1_records.on_treatment, dut1_allergens...), jamais dans
+-- extra_fields_json — field_key n'est ici qu'un repère stable, pas une clé
+-- de stockage. 'traitement_medical' et 'allergies' sont verrouillées côté
+-- backend (type figé, suppression bloquée) car Risques du jour et le
+-- croisement menu/allergènes en dépendent. 'admission' ne sert qu'à
+-- pré-remplir la fiche depuis la liste des admis (aide à la saisie, pas une
+-- fonctionnalité à protéger) : le chef peut la supprimer s'il n'en a pas
+-- l'usage.
+ALTER TABLE phase2_questions DROP CONSTRAINT IF EXISTS phase2_questions_type_check;
+ALTER TABLE phase2_questions ADD CONSTRAINT phase2_questions_type_check
+  CHECK (type IN ('texte_court','texte_long','choix_unique','choix_multiple','oui_non','admission','traitement_medical','allergies'));
+
+-- Positions négatives : elles se placent avant personnalite/remarques (0/1)
+-- sans avoir à toucher aux positions déjà attribuées ailleurs.
+INSERT INTO phase2_questions (field_key, label, type, required, position)
+VALUES
+  ('admission_list_type', 'Admission au concours', 'admission', FALSE, -30),
+  ('on_treatment', 'Traitement médical en cours ?', 'traitement_medical', TRUE, -20),
+  ('allergies', 'Allergies', 'allergies', FALSE, -10)
+ON CONFLICT (field_key) DO NOTHING;
+
 -- Journal d'audit générique : qui a fait quoi, sur quelle ressource, quand.
 -- commission = domaine métier PROPRIÉTAIRE de la ressource touchée (pas le rôle
 -- de l'acteur — un compte "it" peut agir sur une ressource "sante"). 'global'

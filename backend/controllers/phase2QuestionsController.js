@@ -1,7 +1,21 @@
 const db = require('../db/database');
 
-const TYPES = ['texte_court', 'texte_long', 'choix_unique', 'choix_multiple', 'oui_non'];
+// Types "libres" : le chef en crée autant qu'il veut, réponse stockée dans
+// dut1_records.extra_fields_json sous field_key.
+const CUSTOM_TYPES = ['texte_court', 'texte_long', 'choix_unique', 'choix_multiple', 'oui_non'];
 const CHOICE_TYPES = ['choix_unique', 'choix_multiple'];
+
+// Types "intégrés" : admission/traitement/allergies, câblés sur leurs
+// colonnes/tables dédiées (dut1_records.admission_list_type/on_treatment/
+// treatment_details, dut1_allergens) — jamais sur extra_fields_json. Créés
+// une seule fois par le seed du schéma, jamais par createQuestion.
+const BUILTIN_TYPES = ['admission', 'traitement_medical', 'allergies'];
+// traitement_medical et allergies alimentent Risques du jour et le
+// croisement menu/allergènes : suppression bloquée. admission n'aide qu'à
+// pré-remplir la fiche depuis la liste des admis, donc reste supprimable.
+const LOCKED_DELETE_TYPES = ['traitement_medical', 'allergies'];
+
+const TYPES = [...CUSTOM_TYPES, ...BUILTIN_TYPES];
 
 function slugify(label) {
   const base = label
@@ -44,7 +58,7 @@ async function createQuestion(req, res) {
   if (!label?.trim()) {
     return res.status(400).json({ error: 'label requis.' });
   }
-  if (!TYPES.includes(type)) {
+  if (!CUSTOM_TYPES.includes(type)) {
     return res.status(400).json({ error: 'type invalide.' });
   }
   const options = cleanOptions(type, req.body.options);
@@ -71,12 +85,26 @@ async function updateQuestion(req, res) {
     return res.status(404).json({ error: 'Question introuvable.' });
   }
 
-  const { label, type, required } = req.body;
+  const { label, required } = req.body;
   if (!label?.trim()) {
     return res.status(400).json({ error: 'label requis.' });
   }
-  const nextType = type || existing.type;
-  if (!TYPES.includes(nextType)) {
+
+  // Le type d'une question intégrée (admission/traitement_medical/allergies)
+  // est figé : sa réponse vit dans une colonne/table dédiée, pas dans
+  // extra_fields_json, donc rien d'autre que ce type précis n'a de sens pour
+  // elle. Une question libre ne peut pas non plus en devenir une (elles ne
+  // se créent qu'au seed du schéma).
+  if (BUILTIN_TYPES.includes(existing.type)) {
+    if (req.body.type && req.body.type !== existing.type) {
+      return res.status(400).json({ error: 'Le type de cette question est fixe et ne peut pas être modifié.' });
+    }
+    await db.run(`UPDATE phase2_questions SET label = $1, updated_at = NOW() WHERE id = $2`, [label.trim(), id]);
+    return res.json({ question: await db.get('SELECT * FROM phase2_questions WHERE id = $1', [id]) });
+  }
+
+  const nextType = req.body.type || existing.type;
+  if (!CUSTOM_TYPES.includes(nextType)) {
     return res.status(400).json({ error: 'type invalide.' });
   }
   const options = cleanOptions(nextType, req.body.options !== undefined ? req.body.options : existing.options);
@@ -95,10 +123,17 @@ async function updateQuestion(req, res) {
 
 async function deleteQuestion(req, res) {
   const { id } = req.params;
-  const result = await db.run('DELETE FROM phase2_questions WHERE id = $1', [id]);
-  if (result.changes === 0) {
+  const existing = await db.get('SELECT type FROM phase2_questions WHERE id = $1', [id]);
+  if (!existing) {
     return res.status(404).json({ error: 'Question introuvable.' });
   }
+  if (LOCKED_DELETE_TYPES.includes(existing.type)) {
+    return res
+      .status(400)
+      .json({ error: 'Cette question est essentielle au fonctionnement de la plateforme et ne peut pas être supprimée.' });
+  }
+
+  await db.run('DELETE FROM phase2_questions WHERE id = $1', [id]);
   res.status(204).send();
 }
 
@@ -117,4 +152,14 @@ async function reorderQuestions(req, res) {
   res.json({ questions: await db.all('SELECT * FROM phase2_questions ORDER BY position ASC, id ASC') });
 }
 
-module.exports = { listQuestions, createQuestion, updateQuestion, deleteQuestion, reorderQuestions, TYPES, CHOICE_TYPES };
+module.exports = {
+  listQuestions,
+  createQuestion,
+  updateQuestion,
+  deleteQuestion,
+  reorderQuestions,
+  TYPES,
+  CUSTOM_TYPES,
+  BUILTIN_TYPES,
+  CHOICE_TYPES,
+};

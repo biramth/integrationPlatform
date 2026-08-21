@@ -1,17 +1,62 @@
 import Button from '../common/Button';
+import AdmissionListToggle from './AdmissionListToggle';
+import Dut1TreatmentQuestion from './Dut1TreatmentQuestion';
+import AllergySelect from './AllergySelect';
 
 const FIELD_CLASS =
   'rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground';
 
-export default function Dut1ComplementaryForm({ questions, values, onChange, disabled = false }) {
+// Rend le questionnaire de phase 2 dans son ENTIER, dans l'ordre configuré
+// par le chef Santé : les questions "intégrées" (admission/traitement_medical/
+// allergies, câblées sur des colonnes dédiées de dut1_records) et les
+// questions libres (texte, choix, oui/non, stockées dans extra_fields_json)
+// vivent dans la même liste réordonnable, au lieu d'être des sections à part.
+export default function Dut1ComplementaryForm({
+  questions,
+  values,
+  onChange,
+  admissionListType,
+  onAdmissionChange,
+  onTreatment,
+  treatmentDetails,
+  onTreatmentChange,
+  onTreatmentDetailsChange,
+  allergenIds,
+  severities,
+  onAllergyChange,
+  onSeverityChange,
+  disabled = false,
+}) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {questions.map((q) => (
-        <label key={q.field_key} className="flex flex-col gap-1.5 text-sm">
+        <div key={q.field_key} className="flex flex-col gap-1.5 text-sm">
           <span className="font-medium text-foreground">
             {q.label}
             {q.required && <span className="text-danger"> *</span>}
           </span>
+
+          {q.type === 'admission' && <AdmissionListToggle value={admissionListType} onChange={onAdmissionChange} disabled={disabled} />}
+
+          {q.type === 'traitement_medical' && (
+            <Dut1TreatmentQuestion
+              value={onTreatment}
+              details={treatmentDetails}
+              onChangeValue={onTreatmentChange}
+              onChangeDetails={onTreatmentDetailsChange}
+              disabled={disabled}
+            />
+          )}
+
+          {q.type === 'allergies' && (
+            <AllergySelect
+              selectedIds={allergenIds}
+              onChange={onAllergyChange}
+              severities={severities}
+              onSeverityChange={onSeverityChange}
+              disabled={disabled}
+            />
+          )}
 
           {q.type === 'texte_court' && (
             <input
@@ -93,7 +138,7 @@ export default function Dut1ComplementaryForm({ questions, values, onChange, dis
                 </div>
               );
             })()}
-        </label>
+        </div>
       ))}
     </div>
   );
