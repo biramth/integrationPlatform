@@ -48,7 +48,7 @@ async function createAgent(req, res) {
     return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères.' });
   }
   if (!canManage(req.user, role)) {
-    return res.status(403).json({ error: "Tu ne peux créer un compte que pour ta propre commission." });
+    return res.status(403).json({ error: "La création d'un compte n'est possible que pour sa propre commission." });
   }
   if (subRole && !isValidSubRole(role, subRole)) {
     return res.status(400).json({ error: 'sub_role invalide pour ce rôle.' });
@@ -88,7 +88,7 @@ async function updateAgent(req, res) {
     return res.status(404).json({ error: 'Agent introuvable.' });
   }
   if (!canManage(req.user, agent.role)) {
-    return res.status(403).json({ error: "Tu ne peux gérer que les comptes de ta propre commission." });
+    return res.status(403).json({ error: "La gestion des comptes n'est possible que pour sa propre commission." });
   }
 
   const { fullName, role, isActive } = req.body;
@@ -148,7 +148,7 @@ async function resetPassword(req, res) {
     return res.status(404).json({ error: 'Agent introuvable.' });
   }
   if (!canManage(req.user, agent.role)) {
-    return res.status(403).json({ error: "Tu ne peux gérer que les comptes de ta propre commission." });
+    return res.status(403).json({ error: "La gestion des comptes n'est possible que pour sa propre commission." });
   }
 
   await db.run(`UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [hashPassword(password), id]);
@@ -162,7 +162,7 @@ async function deactivateAgent(req, res) {
     return res.status(404).json({ error: 'Agent introuvable.' });
   }
   if (!canManage(req.user, agent.role)) {
-    return res.status(403).json({ error: "Tu ne peux gérer que les comptes de ta propre commission." });
+    return res.status(403).json({ error: "La gestion des comptes n'est possible que pour sa propre commission." });
   }
 
   await db.run(`UPDATE users SET is_active = FALSE, updated_at = NOW() WHERE id = $1`, [id]);
@@ -176,7 +176,7 @@ async function deactivateAgent(req, res) {
 async function hardDeleteAgent(req, res) {
   const { id } = req.params;
   if (Number(id) === req.user.id) {
-    return res.status(400).json({ error: 'Tu ne peux pas supprimer ton propre compte.' });
+    return res.status(400).json({ error: 'Suppression du propre compte impossible.' });
   }
 
   try {
@@ -189,7 +189,7 @@ async function hardDeleteAgent(req, res) {
     if (err.code === '23503') {
       return res.status(409).json({
         error:
-          'Impossible de supprimer ce compte : il est lié à des dossiers ou actions déjà enregistrés (dossiers DUT1, bagages, activités…). Désactive-le plutôt.',
+          'Impossible de supprimer ce compte : il est lié à des dossiers ou actions déjà enregistrés (dossiers DUT1, bagages, activités…). La désactivation reste possible.',
       });
     }
     throw err;

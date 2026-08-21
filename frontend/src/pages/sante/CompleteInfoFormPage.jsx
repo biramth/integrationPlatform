@@ -92,7 +92,7 @@ export default function CompleteInfoFormPage() {
             setAdmissionListType((current) => current ?? res.student.list_type);
           } else if (res.ambiguous) {
             showToast(
-              'Plusieurs admis portent ce nom — vérifie la liste principale/attente manuellement.',
+              'Plusieurs admis portent ce nom — vérification manuelle de la liste principale/attente nécessaire.',
               'info'
             );
           }
@@ -108,11 +108,11 @@ export default function CompleteInfoFormPage() {
   function openRecap(e) {
     e.preventDefault();
     if (typeof onTreatment !== 'boolean') {
-      showToast('Réponds à la question "suis-tu un traitement médical ?" avant de continuer.', 'error');
+      showToast('La question du traitement médical en cours doit être renseignée avant de continuer.', 'error');
       return;
     }
     if (onTreatment && !treatmentDetails.trim()) {
-      showToast('Précise quels traitements sont suivis.', 'error');
+      showToast('Le détail des traitements suivis doit être renseigné.', 'error');
       return;
     }
     setRecapOpen(true);
@@ -267,7 +267,7 @@ export default function CompleteInfoFormPage() {
     <div>
       <PageHeader
         title="Compléter un dossier DUT1"
-        description="Tous les dossiers sont listés ci-dessous — utilise la recherche pour affiner (nom, prénom, téléphone, matricule)."
+        description="Tous les dossiers sont listés ci-dessous — recherche par nom, prénom, téléphone ou matricule pour affiner."
       />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">

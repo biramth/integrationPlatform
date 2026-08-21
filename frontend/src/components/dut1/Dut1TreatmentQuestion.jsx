@@ -4,7 +4,7 @@ export default function Dut1TreatmentQuestion({ value, details, onChangeValue, o
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="mb-1.5 text-sm font-medium text-foreground">Suis-tu un traitement médical actuellement ?</p>
+        <p className="mb-1.5 text-sm font-medium text-foreground">Traitement médical en cours ?</p>
         <div className="flex gap-2">
           <Button
             type="button"

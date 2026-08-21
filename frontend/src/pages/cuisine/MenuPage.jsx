@@ -79,8 +79,8 @@ export default function MenuPage() {
         title="Menu du jour"
         description={
           canEdit
-            ? "Saisis les plats et leurs allergènes potentiels — la commission Santé s'en sert pour repérer les DUT1 à risque."
-            : "Le chef de la commission Cuisine saisit les plats et leurs allergènes potentiels."
+            ? 'Plats et allergènes potentiels du jour, par service.'
+            : 'Plats et allergènes potentiels du jour, par service — consultation seule.'
         }
       />
 

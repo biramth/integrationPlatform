@@ -142,7 +142,7 @@ export default function RoomsImportPanel({ onImported }) {
                 {candidates.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-4 text-center text-sm text-muted-foreground">
-                      Aucune ligne pour l'instant — utilise « Ajouter une ligne ».
+                      Aucune ligne pour l'instant.
                     </td>
                   </tr>
                 )}

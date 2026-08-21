@@ -220,7 +220,7 @@ export default function LandingPage() {
       <section className="mx-auto max-w-6xl px-4 py-16 text-center sm:px-6">
         <h2 className="text-h1 text-foreground">Prêt à commencer ?</h2>
         <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
-          Connecte-toi avec le compte de ta commission pour accéder à ton espace de travail.
+          Le compte de chaque commission donne accès à son espace de travail.
         </p>
         <div className="mt-6 flex justify-center">
           <Link to="/login">

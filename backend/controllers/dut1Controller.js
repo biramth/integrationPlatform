@@ -443,10 +443,10 @@ async function completeComplementary(req, res) {
     return res.status(400).json({ error: 'admissionListType doit être "principale" ou "attente".' });
   }
   if (typeof onTreatment !== 'boolean') {
-    return res.status(400).json({ error: 'La question "suis-tu un traitement médical ?" (oui/non) est requise.' });
+    return res.status(400).json({ error: 'La réponse à la question du traitement médical en cours (oui/non) est requise.' });
   }
   if (onTreatment && !treatmentDetails?.trim()) {
-    return res.status(400).json({ error: 'Précise quels traitements sont suivis.' });
+    return res.status(400).json({ error: 'Le détail des traitements suivis est requis.' });
   }
 
   await db.run(

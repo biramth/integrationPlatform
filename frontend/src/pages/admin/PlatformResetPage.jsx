@@ -26,7 +26,7 @@ export default function PlatformResetPage() {
         <Card className="flex items-center gap-3 border-warning bg-warning-soft">
           <TriangleAlert className="h-5 w-5 shrink-0 text-warning" />
           <p className="text-sm text-warning-soft-foreground">
-            Ton compte IT n'est pas habilité à déclencher la réinitialisation. Seuls certains comptes IT désignés
+            Ce compte IT n'est pas habilité à déclencher la réinitialisation. Seuls certains comptes IT désignés
             peuvent transmettre la plateforme à la génération suivante.
           </p>
         </Card>
@@ -54,9 +54,9 @@ export default function PlatformResetPage() {
         <Card className="border-success bg-success-soft">
           <p className="text-sm font-medium text-success-soft-foreground">
             La plateforme a été réinitialisée. Les dossiers DUT1, chambres, admis importés, repas, activités et tous
-            les comptes agents de cette édition ont été effacés — seul ton compte a été conservé. La liste des
-            allergènes de référence est conservée. Tu peux maintenant créer les comptes de la nouvelle génération
-            depuis « Agents ».
+            les comptes agents de cette édition ont été effacés — seul le compte ayant déclenché la réinitialisation
+            a été conservé. La liste des allergènes de référence est conservée. Les comptes de la nouvelle génération
+            peuvent maintenant être créés depuis « Agents ».
           </p>
         </Card>
       </div>
@@ -75,7 +75,7 @@ export default function PlatformResetPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Elle efface définitivement : les dossiers DUT1 (et bagages, allergies déclarées, restrictions santé,
               historique des chambres associés), la liste des admis importés, les chambres, les repas, les activités,
-              et <strong>tous les comptes agents sauf le tien</strong> — c'est un vrai reset complet pour la
+              et <strong>tous les comptes agents sauf celui utilisé pour la réinitialisation</strong> — c'est un vrai reset complet pour la
               transmission à la nouvelle génération IT. Seule la liste des allergènes de référence est conservée.
             </p>
           </div>
@@ -84,8 +84,8 @@ export default function PlatformResetPage() {
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} className="mt-0.5" />
           <span className="text-foreground">
-            Je comprends que cette action supprime définitivement les données de cette édition, ainsi que tous les
-            comptes agents sauf le mien, et ne peut pas être annulée.
+            Suppression définitive et non réversible des données de cette édition, ainsi que de tous les comptes
+            agents sauf celui utilisé pour la réinitialisation.
           </span>
         </label>
 

@@ -22,7 +22,7 @@ function RecentLuggageTab() {
 
   if (loading) return <CardListSkeleton />;
   if (error) return <ErrorState label={error} onRetry={reload} />;
-  if (data.items.length === 0) return <EmptyState label="Tu n'as pas encore traité de bagage." />;
+  if (data.items.length === 0) return <EmptyState label="Aucun bagage traité pour le moment." />;
 
   return (
     <div className="flex flex-col gap-3">
@@ -121,7 +121,7 @@ export default function LogisticsListPage() {
     <div>
       <PageHeader
         title="Bagages"
-        description="Déclare le nombre de bagages de chaque DUT1, photographie chacun d'eux et signale les objets sensibles."
+        description="Nombre de bagages de chaque DUT1, avec photo et signalement des objets sensibles."
       />
 
       <Tabs value={tab} onValueChange={setTab} className="mb-4">

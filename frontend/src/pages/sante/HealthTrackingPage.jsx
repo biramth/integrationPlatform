@@ -129,7 +129,7 @@ export default function HealthTrackingPage() {
 
   return (
     <div>
-      <PageHeader title="Suivi santé" description="Déclare et gère les restrictions d'aptitude des DUT1 aux activités." />
+      <PageHeader title="Suivi santé" description="Déclaration et suivi des restrictions d'aptitude des DUT1 aux activités." />
 
       <Card className="mb-6">
         <p className="mb-2 text-sm font-semibold text-foreground">Restrictions actives</p>
@@ -168,7 +168,7 @@ export default function HealthTrackingPage() {
         <div>
           <PageHeader
             title="Dossiers DUT1"
-            description="Tous les dossiers sont listés ci-dessous — utilise la recherche pour affiner, puis sélectionne un DUT1 pour déclarer une restriction ou voir son historique."
+            description="Tous les dossiers sont listés ci-dessous — recherche par nom, prénom, téléphone ou matricule pour affiner, puis sélection d'un DUT1 pour déclarer une restriction ou consulter son historique."
           />
 
           <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">

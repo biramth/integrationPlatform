@@ -135,7 +135,7 @@ export default function AdminAgentsPage() {
     <div>
       <PageHeader
         title="Comptes agents"
-        description={isPrivileged ? undefined : `Tu gères les comptes de la ${ROLE_LABELS[user.role]}.`}
+        description={isPrivileged ? undefined : `Gestion des comptes de la ${ROLE_LABELS[user.role]}.`}
       />
 
       <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-border bg-card p-4">

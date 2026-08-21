@@ -84,7 +84,7 @@ export default function ActivitiesPage() {
     <div>
       <PageHeader
         title="Activités"
-        description="Programme de la semaine d'intégration — sert de référence à la commission Santé pour cibler les restrictions d'aptitude."
+        description="Programme de la semaine d'intégration, activité par activité."
       />
 
       <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-border bg-card p-4 shadow-soft">

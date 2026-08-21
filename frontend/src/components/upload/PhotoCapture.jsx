@@ -49,7 +49,7 @@ export default function PhotoCapture({ onCapture, submitting }) {
 
           {isSensitive && (
             <textarea
-              placeholder="Précise quoi (ex: ordinateur portable, espèces, passeport…)"
+              placeholder="Objet signalé (ex: ordinateur portable, espèces, passeport…)"
               value={sensitiveNote}
               onChange={(e) => setSensitiveNote(e.target.value)}
               className="min-h-[70px] rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"

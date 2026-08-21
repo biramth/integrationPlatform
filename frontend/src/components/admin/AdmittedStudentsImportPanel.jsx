@@ -64,7 +64,7 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
 
   async function handleConfirm() {
     if (!department) {
-      showToast('Choisis le département avant de confirmer.', 'error');
+      showToast('Département requis avant confirmation.', 'error');
       return;
     }
     const rows = candidates.map((c) => ({ ...c, department }));
@@ -93,7 +93,7 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
       <Card>
         <p className="mb-3 text-sm font-semibold text-foreground">1. Choisir le fichier Excel (.xlsx) de la liste des admis</p>
         <p className="mb-1 text-xs text-muted-foreground">
-          Un fichier par département — convertis d'abord ton PDF officiel en .xlsx.
+          Un fichier par département — conversion du PDF officiel en .xlsx au préalable.
         </p>
         <a
           href="https://www.ilovepdf.com/fr/pdf_en_excel"
@@ -222,7 +222,7 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
                 {candidates.length === 0 && (
                   <tr>
                     <td colSpan={6} className="py-4 text-center text-sm text-muted-foreground">
-                      Aucune ligne pour l'instant — utilise « Ajouter une ligne ».
+                      Aucune ligne pour l'instant.
                     </td>
                   </tr>
                 )}

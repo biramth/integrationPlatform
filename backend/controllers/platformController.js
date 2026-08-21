@@ -16,7 +16,7 @@ const CONFIRMATION_PHRASE = 'RESET PLATEFORME';
 // declared_by…) au moment du DELETE FROM users — sinon les FK bloqueraient.
 async function resetPlatform(req, res) {
   if (!req.user.canResetPlatform) {
-    return res.status(403).json({ error: "Ton compte n'est pas habilité à réinitialiser la plateforme." });
+    return res.status(403).json({ error: "Ce compte n'est pas habilité à réinitialiser la plateforme." });
   }
 
   if (req.body.confirmationPhrase !== CONFIRMATION_PHRASE) {

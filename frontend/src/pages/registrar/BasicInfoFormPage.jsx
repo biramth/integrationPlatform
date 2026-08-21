@@ -157,8 +157,8 @@ export default function BasicInfoFormPage() {
                   ).
                 </p>
                 <p className="mt-1">
-                  Si c'est un homonyme (une autre personne avec le même nom et la même date de naissance), tu peux
-                  continuer. Si c'est la même personne, annule pour éviter un doublon.
+                  S'il s'agit d'un homonyme (autre personne, même nom et même date de naissance), la création peut
+                  continuer. S'il s'agit de la même personne, annuler pour éviter un doublon.
                 </p>
               </div>
             </div>
