@@ -12,6 +12,7 @@ import RouteFallback from './routes/RouteFallback';
 // la capture photo sur la logistique…).
 const BasicInfoFormPage = lazy(() => import('./pages/registrar/BasicInfoFormPage'));
 const LogisticsListPage = lazy(() => import('./pages/logistics/LogisticsListPage'));
+const RoomDeliveryPage = lazy(() => import('./pages/logistics/RoomDeliveryPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminRecordsPage = lazy(() => import('./pages/admin/AdminRecordsPage'));
 const AdminRoomsPage = lazy(() => import('./pages/admin/AdminRoomsPage'));
@@ -59,11 +60,24 @@ function App() {
               <Route path="/orga/luggage" element={<LogisticsListPage />} />
             </Route>
 
-            {/* Chambres : gérées par la commission Orga (sous-domaine chambres) au
-                quotidien, et par IT via le bypass superuser de RoleRoute — même
-                page pour les deux, montée sur les deux chemins. */}
+            {/* Sous-rôle Orga "chambres" : livrer, dans la chambre déjà
+                assignée à chaque DUT1, les bagages que l'agent "bagages" a
+                photographiés, puis confirmer le dépôt — pas de configuration
+                des chambres elles-mêmes (cf. route /orga/rooms plus bas). */}
             <Route element={<RoleRoute roles={['orga']} subScope="chambres" />}>
+              <Route path="/orga/deliveries" element={<RoomDeliveryPage />} />
+            </Route>
+
+            {/* Configurer les chambres (créer/modifier/supprimer, matelas,
+                import, fiches imprimables) est un travail de mise en place
+                réservé au chef Orga — pas au sous-rôle "chambres" (dont le
+                travail quotidien est de livrer les bagages, cf. route
+                /orga/deliveries ci-dessus), et pas à IT (excludeIt), ni via un
+                lien de nav ni via son bypass superuser habituel (le backend
+                refuse déjà l'appel API). */}
+            <Route element={<RoleRoute roles={['orga']} requireLead excludeIt />}>
               <Route path="/orga/rooms" element={<AdminRoomsPage />} />
+              <Route path="/admin/print/rooms" element={<PrintRoomManifestPage />} />
             </Route>
 
             {/* Vue d'ensemble : réservée au chef de commission, pas à tout agent
@@ -78,8 +92,6 @@ function App() {
             <Route element={<RoleRoute roles={['it']} />}>
               <Route path="/admin" element={<AdminDashboardPage />} />
               <Route path="/admin/records" element={<AdminRecordsPage />} />
-              <Route path="/admin/rooms" element={<AdminRoomsPage />} />
-              <Route path="/admin/print/rooms" element={<PrintRoomManifestPage />} />
               <Route path="/admin/plateforme" element={<PlatformResetPage />} />
               <Route path="/admin/audit" element={<AdminAuditPage />} />
             </Route>
@@ -91,6 +103,15 @@ function App() {
             <Route element={<RoleRoute roles={['presidentielle']} />}>
               <Route path="/presidentielle" element={<OverviewPage />} />
               <Route path="/presidentielle/annuaire" element={<DirectoryPage />} />
+            </Route>
+
+            {/* Fixer le programme des activités est le ressort exclusif de la
+                commission Présidentielle — IT n'y a plus accès (excludeIt), ni
+                via un lien de nav ni via son bypass superuser habituel ; le
+                backend refuse déjà les créations/modifications/suppressions.
+                IT garde une vue lecture seule du calendrier via /planning,
+                comme toutes les commissions. */}
+            <Route element={<RoleRoute roles={['presidentielle']} excludeIt />}>
               <Route path="/admin/activites" element={<ActivitiesPage />} />
             </Route>
 

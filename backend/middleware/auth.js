@@ -31,6 +31,21 @@ function requireRole(...roles) {
   };
 }
 
+// Comme requireRole, mais SANS le bypass superutilisateur d'IT : à réserver
+// aux actions qui ne relèvent explicitement pas d'IT même en admin d'urgence
+// (gérer les chambres, créer/modifier/supprimer une activité — le ressort
+// d'Orga et de Présidentielle, pas d'IT). Le bypass générique de requireRole
+// reste la norme partout ailleurs sur la plateforme ; celui-ci est
+// l'exception délibérée, pas un nouveau modèle par défaut.
+function requireRoleStrict(...roles) {
+  return (req, res, next) => {
+    if (req.user && roles.includes(req.user.role)) {
+      return next();
+    }
+    return res.status(403).json({ error: 'Accès refusé pour ce rôle.' });
+  };
+}
+
 // Restreint un agent Orga à son sous-domaine (chambres / enregistrement / bagages)
 // quand on lui en a assigné un. sub_role NULL = accès aux trois. Ne s'applique
 // qu'au rôle "orga" : les autres rôles autorisés par requireRole (it via le
@@ -78,11 +93,27 @@ function requireCommissionLead(req, res, next) {
   return res.status(403).json({ error: 'Réservé au chef de commission.' });
 }
 
+// Comme requireCommissionLead, mais SANS le bypass superutilisateur d'IT — à
+// utiliser après requireRoleStrict(...) pour réserver une action au chef d'une
+// commission qui n'admet pas l'admin d'urgence IT. Cas d'usage : configurer
+// les chambres (créer/modifier/supprimer, matelas, import) est un travail de
+// mise en place réservé au chef Orga — le sous-rôle "chambres" ne le fait
+// plus, son travail quotidien est de livrer les bagages déjà photographiés
+// dans la chambre assignée à chaque DUT1, pas de configurer les chambres.
+function requireCommissionLeadStrict(req, res, next) {
+  if (req.user && req.user.isCommissionLead) {
+    return next();
+  }
+  return res.status(403).json({ error: 'Réservé au chef de commission.' });
+}
+
 module.exports = {
   verifyToken,
   requireRole,
+  requireRoleStrict,
   requireOrgaScope,
   requireSanteScope,
   requireAgentManagement,
   requireCommissionLead,
+  requireCommissionLeadStrict,
 };

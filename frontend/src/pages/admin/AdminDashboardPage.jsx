@@ -1,48 +1,50 @@
-import { Users, DoorOpen, Luggage, HeartPulse, Home } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Users, UserCheck, Crown, ScrollText, ArrowRight } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
-import * as statsApi from '../../api/statsApi';
+import * as agentApi from '../../api/agentApi';
+import * as auditApi from '../../api/auditApi';
+import AuditLogFeed from '../../components/audit/AuditLogFeed';
 import StatCard from '../../components/stats/StatCard';
-import DepartmentBarChart from '../../components/stats/DepartmentBarChart';
-import GenderPieChart from '../../components/stats/GenderPieChart';
-import IllnessTrendChart from '../../components/stats/IllnessTrendChart';
-import AllergyPrevalenceChart from '../../components/stats/AllergyPrevalenceChart';
-import AdmissionListChart from '../../components/stats/AdmissionListChart';
 import Card from '../../components/common/Card';
 import PageHeader from '../../components/common/PageHeader';
-import { Progress } from '@/components/ui/progress';
 import { ErrorState } from '../../components/common/StateViews';
-import { StatCardSkeleton } from '../../components/common/Skeleton';
+import { StatCardSkeleton, CardListSkeleton } from '../../components/common/Skeleton';
+import { ROLES, ROLE_LABELS, ROLE_COLORS } from '../../utils/roles';
 import { staggerStyle } from '../../utils/stagger';
 
-export default function AdminDashboardPage() {
-  const overview = useFetch(statsApi.getOverview, []);
-  const byDepartment = useFetch(statsApi.getByDepartment, []);
-  const byGender = useFetch(statsApi.getByGender, []);
-  const occupancy = useFetch(statsApi.getRoomsOccupancy, []);
-  const illnessTrend = useFetch(statsApi.getIllnessTrend, []);
-  const allergyPrevalence = useFetch(statsApi.getAllergyPrevalence, []);
-  const admissionList = useFetch(statsApi.getByAdmissionList, []);
+const RECENT_LOGS_COUNT = 5;
 
-  const loading =
-    overview.loading ||
-    byDepartment.loading ||
-    byGender.loading ||
-    occupancy.loading ||
-    illnessTrend.loading ||
-    allergyPrevalence.loading ||
-    admissionList.loading;
-  const error =
-    overview.error ||
-    byDepartment.error ||
-    byGender.error ||
-    occupancy.error ||
-    illnessTrend.error ||
-    allergyPrevalence.error ||
-    admissionList.error;
+// Tableau de bord de la commission IT : ce qui relève vraiment de son travail
+// au quotidien (comptes agents, journal d'audit), pas les statistiques DUT1
+// (effectif, chambres, bagages...) qui vivent maintenant sur la Vue
+// d'ensemble de la commission Présidentielle (pages/shared/OverviewPage.jsx).
+export default function AdminDashboardPage() {
+  const agentsFetch = useFetch(agentApi.listAgents, []);
+  const logsFetch = useFetch(() => auditApi.listAuditLogs({ pageSize: RECENT_LOGS_COUNT }), []);
+
+  const loading = agentsFetch.loading || logsFetch.loading;
+  const error = agentsFetch.error || logsFetch.error;
 
   if (error) return <ErrorState label={error} onRetry={() => window.location.reload()} />;
 
-  const o = overview.data;
+  const agents = agentsFetch.data?.agents || [];
+  const activeAgents = agents.filter((a) => a.is_active);
+  const leadCommissions = new Set(agents.filter((a) => a.is_commission_lead).map((a) => a.role));
+  const allRoles = Object.values(ROLES);
+
+  const countsByRole = Object.fromEntries(
+    allRoles.map((role) => {
+      const roleAgents = agents.filter((a) => a.role === role);
+      return [
+        role,
+        {
+          total: roleAgents.length,
+          active: roleAgents.filter((a) => a.is_active).length,
+          lead: roleAgents.find((a) => a.is_commission_lead) || null,
+        },
+      ];
+    })
+  );
 
   return (
     <div>
@@ -59,48 +61,28 @@ export default function AdminDashboardPage() {
         ) : (
           <>
             <div className="animate-fade-in-up" style={staggerStyle(0)}>
-              <StatCard label="Total DUT1" value={o.total} icon={Users} tone="blue" />
+              <StatCard label="Comptes agents" value={agents.length} icon={Users} tone="blue" />
             </div>
             <div className="animate-fade-in-up" style={staggerStyle(1)}>
               <StatCard
-                label="Avec chambre"
-                value={o.withRoom}
-                sublabel={
-                  <span className={o.withoutRoom > 0 ? 'font-medium text-warning-soft-foreground' : undefined}>
-                    {o.withoutRoom} en attente
-                  </span>
-                }
-                icon={DoorOpen}
+                label="Comptes actifs"
+                value={activeAgents.length}
+                sublabel={`${agents.length - activeAgents.length} désactivé(s)`}
+                icon={UserCheck}
                 tone="emerald"
               />
             </div>
             <div className="animate-fade-in-up" style={staggerStyle(2)}>
               <StatCard
-                label="Bagages photographiés"
-                value={o.withLuggage}
-                sublabel={
-                  <span className={o.withoutLuggage > 0 ? 'font-medium text-warning-soft-foreground' : undefined}>
-                    {o.withoutLuggage} restants
-                  </span>
-                }
-                icon={Luggage}
+                label="Chefs désignés"
+                value={`${leadCommissions.size} / ${allRoles.length}`}
+                sublabel="commissions avec un chef"
+                icon={Crown}
                 tone="amber"
               />
             </div>
             <div className="animate-fade-in-up" style={staggerStyle(3)}>
-              <StatCard
-                label="Restrictions santé actives"
-                value={o.activeRestrictions}
-                sublabel={
-                  o.activeRestrictions > 0 ? (
-                    <span className="font-medium text-warning-soft-foreground">à suivre</span>
-                  ) : (
-                    'aucune'
-                  )
-                }
-                icon={HeartPulse}
-                tone="rose"
-              />
+              <StatCard label="Actions journalisées" value={logsFetch.data?.total ?? 0} icon={ScrollText} tone="violet" />
             </div>
           </>
         )}
@@ -108,34 +90,39 @@ export default function AdminDashboardPage() {
 
       {!loading && (
         <>
-          <Card interactive className="mb-6 animate-fade-in-up" style={staggerStyle(4)}>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="mb-1 text-sm font-semibold text-foreground">Occupation des chambres</p>
-                <p className="text-3xl font-bold tabular-nums text-foreground">{occupancy.data.occupancyRate}%</p>
-                <p className="text-xs text-muted-foreground">
-                  {occupancy.data.totalOccupied} / {occupancy.data.totalCapacity} places occupées
-                </p>
-              </div>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-info/20 to-info/5 text-info shadow-soft transition-transform duration-150 group-hover:scale-110">
-                <Home className="h-4.5 w-4.5" size={18} strokeWidth={2} />
-              </span>
+          <Card className="mb-6 animate-fade-in-up" style={staggerStyle(4)}>
+            <p className="mb-3 text-sm font-semibold text-foreground">Comptes par commission</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {allRoles.map((role) => {
+                const c = countsByRole[role];
+                return (
+                  <div key={role} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: ROLE_COLORS[role] }} />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">{ROLE_LABELS[role]}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {c.lead ? c.lead.full_name : <span className="italic">Pas de chef désigné</span>}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                      {c.active}/{c.total}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
-            <Progress value={Math.min(occupancy.data.occupancyRate, 100)} className="mt-3 h-2" />
           </Card>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 animate-fade-in-up" style={staggerStyle(5)}>
-            <DepartmentBarChart rows={byDepartment.data.rows} />
-            <GenderPieChart rows={byGender.data.rows} />
+          <div className="mb-3 flex items-center justify-between animate-fade-in-up" style={staggerStyle(5)}>
+            <p className="text-sm font-semibold text-foreground">Dernières actions</p>
+            <Link to="/admin/audit" className="flex items-center gap-1 text-xs text-role-accent transition-colors hover:underline">
+              Voir le journal complet <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2 animate-fade-in-up" style={staggerStyle(6)}>
-            <IllnessTrendChart rows={illnessTrend.data.rows} />
-            <AllergyPrevalenceChart rows={allergyPrevalence.data.rows} />
-          </div>
-
-          <div className="mt-4 animate-fade-in-up" style={staggerStyle(7)}>
-            <AdmissionListChart rows={admissionList.data.rows} />
+          <div className="animate-fade-in-up" style={staggerStyle(6)}>
+            {logsFetch.loading ? <CardListSkeleton rows={3} /> : <AuditLogFeed logs={logsFetch.data?.logs || []} showCommission />}
           </div>
         </>
       )}

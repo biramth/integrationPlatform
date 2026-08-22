@@ -15,10 +15,15 @@ import { homePathForRole } from '../utils/roles';
 // requireLead : pour les pages "Vue d'ensemble", en plus d'être dans la bonne
 // commission il faut être chef — sans ça la page reste joignable par URL même
 // si le lien de nav est déjà masqué pour les non-chefs.
-export default function RoleRoute({ roles, allowLeads = false, subScope, requireLead = false }) {
+// excludeIt : coupe le bypass superutilisateur pour cette route précise —
+// réservé aux pages qui relèvent explicitement d'une autre commission que IT
+// (chambres, création d'activités), là où le backend refuse déjà l'appel API
+// correspondant (requireRoleStrict) : ceci évite juste qu'IT atterrisse sur
+// une page qui échouerait de toute façon à la moindre action.
+export default function RoleRoute({ roles, allowLeads = false, subScope, requireLead = false, excludeIt = false }) {
   const { user } = useAuth();
 
-  const allowed = user.role === 'it' || roles.includes(user.role) || (allowLeads && user.isCommissionLead);
+  const allowed = (user.role === 'it' && !excludeIt) || roles.includes(user.role) || (allowLeads && user.isCommissionLead);
   if (!allowed) {
     return <Navigate to={homePathForRole(user.role, user.subRole)} replace />;
   }
