@@ -214,6 +214,28 @@ body {
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  --chart-grid: oklch(1 0 0 / 10%);
+  --chart-tick: oklch(0.708 0 0);
+  --success: #22c55e;
+  --success-foreground: #052e16;
+  --success-soft: color-mix(in oklch, var(--success) 18%, black);
+  --success-soft-foreground: color-mix(in oklch, var(--success) 65%, white);
+  --warning: #f59e0b;
+  --warning-foreground: #451a03;
+  --warning-soft: color-mix(in oklch, var(--warning) 18%, black);
+  --warning-soft-foreground: color-mix(in oklch, var(--warning) 65%, white);
+  --danger: #ef4444;
+  --danger-foreground: #450a0a;
+  --danger-soft: color-mix(in oklch, var(--danger) 18%, black);
+  --danger-soft-foreground: color-mix(in oklch, var(--danger) 70%, white);
+  --info: #3b82f6;
+  --info-foreground: #172554;
+  --info-soft: color-mix(in oklch, var(--info) 18%, black);
+  --info-soft-foreground: color-mix(in oklch, var(--info) 70%, white);
+  /* Le fond teinté de chaque commission (icônes, item de nav actif) doit
+     rester sombre quel que soit --role-accent défini par [data-role="…"] à la
+     racine — recalculé génériquement plutôt que dupliqué par commission. */
+  --role-accent-soft: color-mix(in oklch, var(--role-accent) 20%, black);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);

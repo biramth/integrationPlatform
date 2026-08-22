@@ -6,17 +6,20 @@ import { SpeedInsights } from '@vercel/speed-insights/react'
 import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
-import { Toaster } from '@/components/ui/sonner'
+import { ThemeProvider } from './context/ThemeContext.jsx'
 import ConfirmDialogHost from './components/common/ConfirmDialogHost.jsx'
+import ThemedToaster from './components/common/ThemedToaster.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-      <Toaster position="top-right" richColors />
-      <ConfirmDialogHost />
+      <ThemeProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+        <ThemedToaster />
+        <ConfirmDialogHost />
+      </ThemeProvider>
       <Analytics />
       <SpeedInsights />
     </BrowserRouter>

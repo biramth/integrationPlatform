@@ -1,7 +1,8 @@
 import { Suspense } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { GraduationCap, Power } from 'lucide-react';
+import { GraduationCap, Power, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 import { useFetch } from '../../hooks/useFetch';
 import { getPlatformSettings } from '../../api/platformSettingsApi';
 import { ROLE_LABELS } from '../../utils/roles';
@@ -11,6 +12,7 @@ import RouteFallback from '../../routes/RouteFallback';
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const settingsFetch = useFetch(getPlatformSettings, []);
   const items = getNavItems(user, settingsFetch.data);
@@ -61,6 +63,14 @@ export default function AppLayout() {
             <p className="truncate text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</p>
           </div>
           <button
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Passer en mode jour' : 'Passer en mode nuit'}
+            title={theme === 'dark' ? 'Mode jour' : 'Mode nuit'}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+          <button
             onClick={logout}
             aria-label="Se déconnecter"
             title="Se déconnecter"
@@ -79,13 +89,22 @@ export default function AppLayout() {
             <p className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</p>
           </div>
         </div>
-        <button
-          onClick={logout}
-          aria-label="Se déconnecter"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-danger-soft hover:text-danger"
-        >
-          <Power className="h-4.5 w-4.5" size={18} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Passer en mode jour' : 'Passer en mode nuit'}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            {theme === 'dark' ? <Sun className="h-4.5 w-4.5" size={18} /> : <Moon className="h-4.5 w-4.5" size={18} />}
+          </button>
+          <button
+            onClick={logout}
+            aria-label="Se déconnecter"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-danger-soft hover:text-danger"
+          >
+            <Power className="h-4.5 w-4.5" size={18} />
+          </button>
+        </div>
       </header>
 
       <main className="overflow-y-auto bg-background pb-20 md:pb-0 print:overflow-visible print:pb-0">

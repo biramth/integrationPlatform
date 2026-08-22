@@ -10,8 +10,11 @@ import {
   Palette,
   CalendarDays,
   AlertTriangle,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../hooks/useTheme';
 import { homePathForRole } from '../utils/roles';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
@@ -30,6 +33,7 @@ const COMMISSIONS = [
 
 export default function LoginPage() {
   const { user, login } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -55,7 +59,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="relative flex min-h-screen bg-background">
+      <button
+        onClick={toggleTheme}
+        aria-label={theme === 'dark' ? 'Passer en mode jour' : 'Passer en mode nuit'}
+        title={theme === 'dark' ? 'Mode jour' : 'Mode nuit'}
+        className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        {theme === 'dark' ? <Sun className="h-4.5 w-4.5" size={18} /> : <Moon className="h-4.5 w-4.5" size={18} />}
+      </button>
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 p-10 text-white lg:flex">
         <div
           className="pointer-events-none absolute inset-0 opacity-20"
