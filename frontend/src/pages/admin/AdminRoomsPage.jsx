@@ -13,6 +13,7 @@ import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import Card from '../../components/common/Card';
 import Modal from '../../components/common/Modal';
+import { confirm } from '../../components/common/confirmService';
 import PageHeader from '../../components/common/PageHeader';
 import StatCard from '../../components/stats/StatCard';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
@@ -74,7 +75,7 @@ export default function AdminRoomsPage() {
   }
 
   async function handleDelete(room) {
-    if (!window.confirm(`Supprimer la chambre ${room.label} ?`)) return;
+    if (!(await confirm({ message: `Supprimer la chambre ${room.label} ?`, danger: true }))) return;
     try {
       await roomApi.deleteRoom(room.id);
       reload();

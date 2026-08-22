@@ -4,6 +4,7 @@ import { useFetch } from '../../hooks/useFetch';
 import * as allergenApi from '../../api/allergenApi';
 import Input from '../common/Input';
 import Button from '../common/Button';
+import { confirm } from '../common/confirmService';
 import { ErrorState, EmptyState } from '../common/StateViews';
 import Skeleton from '../common/Skeleton';
 import { useToast } from '../../hooks/useToast';
@@ -39,7 +40,7 @@ export default function AllergensManager() {
   }
 
   async function handleDelete(allergen) {
-    if (!window.confirm(`Supprimer l'allergène "${allergen.label}" ?`)) return;
+    if (!(await confirm({ message: `Supprimer l'allergène "${allergen.label}" ?`, danger: true }))) return;
     try {
       await allergenApi.deleteAllergen(allergen.id);
       reload();

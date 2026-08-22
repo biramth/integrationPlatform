@@ -8,6 +8,8 @@ import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import Card from '../../components/common/Card';
 import Avatar from '../../components/common/Avatar';
+import Modal from '../../components/common/Modal';
+import { confirm } from '../../components/common/confirmService';
 import PageHeader from '../../components/common/PageHeader';
 import { ErrorState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
@@ -37,6 +39,9 @@ export default function AdminAgentsPage() {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [resettingAgent, setResettingAgent] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetting, setResetting] = useState(false);
 
   // Un chef de commission ne peut créer/éditer des comptes que pour sa propre
   // commission — le backend le vérifie de toute façon, mais autant ne pas
@@ -76,7 +81,13 @@ export default function AdminAgentsPage() {
   }
 
   async function handleHardDelete(agent) {
-    if (!window.confirm(`Supprimer définitivement le compte de ${agent.full_name} ? Cette action est irréversible.`)) return;
+    if (
+      !(await confirm({
+        message: `Supprimer définitivement le compte de ${agent.full_name} ? Cette action est irréversible.`,
+        danger: true,
+      }))
+    )
+      return;
     try {
       await agentApi.hardDeleteAgent(agent.id);
       showToast('Compte supprimé définitivement.', 'success');
@@ -120,14 +131,23 @@ export default function AdminAgentsPage() {
     }
   }
 
-  async function resetPassword(agent) {
-    const password = window.prompt(`Nouveau mot de passe pour ${agent.username} (min. 6 caractères) :`);
-    if (!password) return;
+  function openResetPassword(agent) {
+    setResettingAgent(agent);
+    setNewPassword('');
+  }
+
+  async function confirmResetPassword(e) {
+    e.preventDefault();
+    if (newPassword.length < 6) return;
+    setResetting(true);
     try {
-      await agentApi.resetAgentPassword(agent.id, password);
+      await agentApi.resetAgentPassword(resettingAgent.id, newPassword);
       showToast('Mot de passe réinitialisé.', 'success');
+      setResettingAgent(null);
     } catch (err) {
       showToast(err.response?.data?.error || 'Échec de la réinitialisation.', 'error');
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -298,7 +318,7 @@ export default function AdminAgentsPage() {
                         <Button variant="secondary" onClick={() => startEdit(agent)} className="px-3 py-1.5 text-xs">
                           <Pencil className="h-3.5 w-3.5" /> Modifier
                         </Button>
-                        <Button variant="secondary" onClick={() => resetPassword(agent)} className="px-3 py-1.5 text-xs">
+                        <Button variant="secondary" onClick={() => openResetPassword(agent)} className="px-3 py-1.5 text-xs">
                           <KeyRound className="h-3.5 w-3.5" /> Réinit. mdp
                         </Button>
                         <Button
@@ -323,6 +343,36 @@ export default function AdminAgentsPage() {
           })}
         </div>
       )}
+
+      <Modal open={!!resettingAgent} onClose={() => setResettingAgent(null)} title="Réinitialiser le mot de passe">
+        {resettingAgent && (
+          <form onSubmit={confirmResetPassword} className="flex flex-col gap-4">
+            <p className="text-sm text-muted-foreground">
+              Nouveau mot de passe pour <span className="font-medium text-foreground">{resettingAgent.username}</span>.
+            </p>
+            <div>
+              <Input
+                label="Nouveau mot de passe"
+                type="password"
+                required
+                minLength={6}
+                autoFocus
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">Minimum 6 caractères.</p>
+            </div>
+            <div className="flex flex-col-reverse justify-end gap-2 sm:flex-row">
+              <Button type="button" variant="secondary" onClick={() => setResettingAgent(null)}>
+                Annuler
+              </Button>
+              <Button type="submit" loading={resetting} disabled={newPassword.length < 6}>
+                Réinitialiser
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

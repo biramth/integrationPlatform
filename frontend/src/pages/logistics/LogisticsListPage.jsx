@@ -9,6 +9,7 @@ import Input from '../../components/common/Input';
 import PhotoCapture from '../../components/upload/PhotoCapture';
 import LuggageItemThumb from '../../components/upload/LuggageItemThumb';
 import PageHeader from '../../components/common/PageHeader';
+import { confirm } from '../../components/common/confirmService';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyState, ErrorState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
@@ -107,7 +108,7 @@ export default function LogisticsListPage() {
   }
 
   async function handleDeleteItem(record, item) {
-    if (!window.confirm('Supprimer ce bagage ?')) return;
+    if (!(await confirm({ message: 'Supprimer ce bagage ?', danger: true }))) return;
     try {
       await luggageApi.deleteLuggageItem(item.id);
       await loadItems(record.id);

@@ -16,6 +16,7 @@ import { listRooms } from '../../api/roomApi';
 import RecordsTable from '../../components/table/RecordsTable';
 import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
+import { confirm } from '../../components/common/confirmService';
 import Dut1BasicForm from '../../components/dut1/Dut1BasicForm';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
@@ -113,7 +114,13 @@ export default function AdminRecordsPage() {
   }
 
   async function handleDelete() {
-    if (!window.confirm(`Supprimer définitivement le dossier de ${selected.first_name} ${selected.last_name} ?`)) return;
+    if (
+      !(await confirm({
+        message: `Supprimer définitivement le dossier de ${selected.first_name} ${selected.last_name} ?`,
+        danger: true,
+      }))
+    )
+      return;
     setDeleting(true);
     try {
       await deleteDut1(selected.id);
@@ -123,9 +130,11 @@ export default function AdminRecordsPage() {
       closeModal();
     } catch (err) {
       if (err.response?.status === 409 && err.response.data?.requiresConfirmation) {
-        const proceed = window.confirm(
-          `Attention : ${describeImpact(err.response.data.impact)} — ces données seront perdues définitivement. Confirmer la suppression ?`
-        );
+        const proceed = await confirm({
+          title: 'Attention',
+          message: `${describeImpact(err.response.data.impact)} — ces données seront perdues définitivement. Confirmer la suppression ?`,
+          danger: true,
+        });
         if (proceed) {
           try {
             await deleteDut1(selected.id, { confirm: true });
@@ -160,7 +169,7 @@ export default function AdminRecordsPage() {
   }
 
   async function handleBulkDelete() {
-    if (!window.confirm(`Supprimer définitivement ${selectedIds.size} dossier(s) ?`)) return;
+    if (!(await confirm({ message: `Supprimer définitivement ${selectedIds.size} dossier(s) ?`, danger: true }))) return;
     setBulkDeleting(true);
     const ids = [...selectedIds];
     try {
@@ -178,9 +187,11 @@ export default function AdminRecordsPage() {
 
       let confirmedFailures = 0;
       if (needsConfirm.length > 0) {
-        const proceed = window.confirm(
-          `${needsConfirm.length} dossier(s) contiennent des données d'autres commissions (phase 2, bagages, allergies, restrictions) qui seront perdues définitivement. Confirmer leur suppression aussi ?`
-        );
+        const proceed = await confirm({
+          title: 'Attention',
+          message: `${needsConfirm.length} dossier(s) contiennent des données d'autres commissions (phase 2, bagages, allergies, restrictions) qui seront perdues définitivement. Confirmer leur suppression aussi ?`,
+          danger: true,
+        });
         if (proceed) {
           const retry = await Promise.allSettled(needsConfirm.map((id) => deleteDut1(id, { confirm: true })));
           confirmedFailures = retry.filter((r) => r.status === 'rejected').length;

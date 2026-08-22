@@ -6,6 +6,7 @@ import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
+import { confirm } from '../../components/common/confirmService';
 import PageHeader from '../../components/common/PageHeader';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
@@ -41,7 +42,7 @@ export default function ActivitiesPage() {
   }
 
   async function handleDelete(activity) {
-    if (!window.confirm(`Supprimer l'activité "${activity.name}" ?`)) return;
+    if (!(await confirm({ message: `Supprimer l'activité "${activity.name}" ?`, danger: true }))) return;
     try {
       await activityApi.deleteActivity(activity.id);
       showToast('Activité supprimée.', 'success');

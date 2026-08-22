@@ -7,6 +7,7 @@ import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { Toaster } from '@/components/ui/sonner'
+import ConfirmDialogHost from './components/common/ConfirmDialogHost.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -15,6 +16,7 @@ createRoot(document.getElementById('root')).render(
         <App />
       </AuthProvider>
       <Toaster position="top-right" richColors />
+      <ConfirmDialogHost />
       <Analytics />
       <SpeedInsights />
     </BrowserRouter>

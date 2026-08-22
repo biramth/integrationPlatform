@@ -15,6 +15,7 @@ import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import Card from '../../components/common/Card';
 import PageHeader from '../../components/common/PageHeader';
+import { confirm } from '../../components/common/confirmService';
 import AllergensManager from '../../components/sante/AllergensManager';
 import { ErrorState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
@@ -207,7 +208,7 @@ export default function Phase2QuestionsPage() {
   }
 
   async function handleDelete(question) {
-    if (!window.confirm(`Supprimer la question "${question.label}" ?`)) return;
+    if (!(await confirm({ message: `Supprimer la question "${question.label}" ?`, danger: true }))) return;
     try {
       await phase2QuestionsApi.deletePhase2Question(question.id);
       showToast('Question supprimée.', 'success');

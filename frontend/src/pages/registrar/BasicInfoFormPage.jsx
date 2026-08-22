@@ -7,6 +7,7 @@ import Dut1Card from '../../components/dut1/Dut1Card';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Modal from '../../components/common/Modal';
+import { confirm } from '../../components/common/confirmService';
 import PageHeader from '../../components/common/PageHeader';
 import { EmptyState, ErrorState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
@@ -117,7 +118,13 @@ export default function BasicInfoFormPage() {
   }
 
   async function handleDelete(record) {
-    if (!window.confirm(`Supprimer le dossier de ${record.first_name} ${record.last_name} pour recommencer la saisie ?`)) return;
+    if (
+      !(await confirm({
+        message: `Supprimer le dossier de ${record.first_name} ${record.last_name} pour recommencer la saisie ?`,
+        danger: true,
+      }))
+    )
+      return;
     setDeletingId(record.id);
     try {
       await deleteDut1(record.id);

@@ -13,6 +13,7 @@ import Badge from '../../components/common/Badge';
 import Card from '../../components/common/Card';
 import Pagination from '../../components/common/Pagination';
 import PageHeader from '../../components/common/PageHeader';
+import { confirm } from '../../components/common/confirmService';
 import { LoadingState, EmptyState, ErrorState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
@@ -111,7 +112,7 @@ export default function HealthTrackingPage() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('Supprimer cette restriction ?')) return;
+    if (!(await confirm({ message: 'Supprimer cette restriction ?', danger: true }))) return;
     try {
       await healthApi.deleteRestriction(id);
       showToast('Restriction supprimée.', 'success');
