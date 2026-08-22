@@ -52,6 +52,11 @@ const SANTE_ITEMS = {
 // Le planning est un calendrier d'activités sans donnée sensible : visible par
 // toutes les commissions, en plus de leurs pages dédiées.
 const PLANNING_ITEM = { to: '/planning', label: 'Planning', icon: CalendarDays };
+// Version allégée de Risques du jour (QUI est à risque, jamais POURQUOI — le
+// détail médical est retiré côté backend, cf. NON_MEDICAL_RISK_ROLES dans
+// healthController.js) : Orga, Présidentielle et Dreudj, en plus de Santé qui
+// garde sa propre page complète sur /sante/risques.
+const RISKS_ITEM = { to: '/risques', label: 'Risques du jour', icon: AlertTriangle };
 // Un chef de commission gère les comptes de sa propre commission (backend déjà
 // en place, cf. requireAgentManagement) — sans ce lien, /admin/agents n'était
 // atteignable que par IT, la page restait invisible pour les chefs.
@@ -107,7 +112,7 @@ export function getNavItems(user, settings) {
       : user.subRole
       ? (user.subRole === 'enregistrement' && !registrationEnabled ? [] : ORGA_ITEMS[user.subRole] || [])
       : [...(registrationEnabled ? ORGA_ITEMS.enregistrement : []), ...ORGA_ITEMS.bagages, ...ORGA_ITEMS.chambres];
-    return [...scoped, PLANNING_ITEM, ...leadItems];
+    return [...scoped, RISKS_ITEM, PLANNING_ITEM, ...leadItems];
   }
   if (user.role === ROLES.SANTE) {
     // Contrairement aux autres commissions, le chef Santé garde ses onglets
@@ -145,5 +150,10 @@ export const NAV_ITEMS = {
     { to: '/presidentielle', label: "Vue d'ensemble", shortLabel: 'Accueil', icon: LineChart },
     { to: '/presidentielle/annuaire', label: 'Annuaire', icon: Contact },
     { to: '/admin/activites', label: 'Activités', icon: CalendarDays },
+    RISKS_ITEM,
   ],
+  // Nouvelle commission : pour l'instant, seule capacité prévue — voir qui est
+  // à risque aujourd'hui (sans détail médical). À étoffer plus tard si son
+  // périmètre s'élargit.
+  [ROLES.DREUDJ]: [RISKS_ITEM, PLANNING_ITEM],
 };

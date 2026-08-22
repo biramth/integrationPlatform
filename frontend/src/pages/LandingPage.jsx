@@ -15,6 +15,7 @@ import {
   Lock,
   Users2,
   Repeat,
+  AlertTriangle,
 } from 'lucide-react';
 import Button from '../components/common/Button';
 import { staggerStyle } from '../utils/stagger';
@@ -99,6 +100,12 @@ const COMMISSIONS = [
     label: 'Commission IT',
     description: "Administration de la plateforme : comptes, statistiques, transmission entre générations.",
   },
+  {
+    role: 'dreudj',
+    icon: AlertTriangle,
+    label: 'Commission Dreudj',
+    description: "Suit qui est à risque aujourd'hui, sans le détail médical.",
+  },
 ];
 
 const PRINCIPLES = [
@@ -145,7 +152,7 @@ export default function LandingPage() {
         />
         <div className="relative mx-auto max-w-6xl px-4 py-20 text-center sm:px-6 sm:py-28">
           <h1 className="mx-auto max-w-2xl text-3xl font-bold leading-tight sm:text-5xl">
-            Sept commissions, une seule plateforme.
+            Huit commissions, une seule plateforme.
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-base text-blue-100 sm:text-lg">
             Enregistrement des DUT1, logement, bagages, santé, cuisine, communication et planning — chaque

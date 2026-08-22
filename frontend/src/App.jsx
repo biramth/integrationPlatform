@@ -45,6 +45,16 @@ function App() {
             {/* Planning : accessible à toutes les commissions, aucune restriction de rôle. */}
             <Route path="/planning" element={<PlanningReadOnlyPage />} />
 
+            {/* Risques du jour, en plus de Santé (/sante/risques, détail complet) :
+                Orga, Présidentielle et Dreudj voient QUI est à risque aujourd'hui,
+                jamais POURQUOI — le détail médical est retiré côté backend pour ces
+                rôles (cf. NON_MEDICAL_RISK_ROLES dans healthController.js). Route
+                séparée de /sante/risques (pas de subScope ici : ces commissions
+                n'ont pas de sous-rôle "suivi"), même composant RisksPage.jsx. */}
+            <Route element={<RoleRoute roles={['orga', 'presidentielle', 'dreudj']} />}>
+              <Route path="/risques" element={<RisksPage />} />
+            </Route>
+
             {/* Journal d'audit : ouvert à tout chef de commission (scopé à sa
                 propre commission côté backend) et à IT via le bypass superuser
                 de RoleRoute — IT utilise normalement la vue complète /admin/audit. */}

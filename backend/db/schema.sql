@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   -- plateforme (super-utilisateur, cf. requireRole dans middleware/auth.js).
   -- "presidentielle" = commission qui fixe le programme des activités
   -- d'intégration (son vrai nom, pas "activités").
-  role          TEXT NOT NULL CHECK (role IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle')),
+  role          TEXT NOT NULL CHECK (role IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle','dreudj')),
   -- Sous-rôle : restreint un agent à un seul sous-domaine de sa commission.
   -- Orga : chambres / enregistrement / bagages. Santé : suivi (risques, suivi,
   -- allergènes) / phase2 (complément de dossier — traitement, allergies,
@@ -158,10 +158,12 @@ ALTER TABLE users ADD CONSTRAINT users_sub_role_check
 UPDATE users SET role = 'it', is_commission_lead = TRUE, can_reset_platform = TRUE WHERE role = 'admin';
 UPDATE users SET role = 'presidentielle' WHERE role = 'activites';
 
--- Resserrement final : seuls ces rôles sont valides aujourd'hui.
+-- Resserrement final : seuls ces rôles sont valides aujourd'hui. "dreudj" est
+-- une nouvelle valeur (jamais utilisée par une ligne existante), donc pas
+-- besoin d'élargissement préalable — l'ajouter directement ici suffit.
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check
-  CHECK (role IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle'));
+  CHECK (role IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle','dreudj'));
 
 ALTER TABLE admitted_students DROP CONSTRAINT IF EXISTS admitted_students_department_check;
 ALTER TABLE admitted_students ADD CONSTRAINT admitted_students_department_check
@@ -396,7 +398,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   resource_label  TEXT,
 
   commission      TEXT NOT NULL
-    CHECK (commission IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle','global')),
+    CHECK (commission IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle','dreudj','global')),
 
   before_data     JSONB,
   after_data      JSONB,
@@ -410,6 +412,14 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- CREATE TABLE IF NOT EXISTS ne retouche pas la contrainte sur une table déjà
+-- créée par un déploiement précédent : élargissement explicite pour "dreudj"
+-- (nouvelle commission), au nom auto-généré par Postgres pour une contrainte
+-- de colonne inline (<table>_<colonne>_check).
+ALTER TABLE audit_logs DROP CONSTRAINT IF EXISTS audit_logs_commission_check;
+ALTER TABLE audit_logs ADD CONSTRAINT audit_logs_commission_check
+  CHECK (commission IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle','dreudj','global'));
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_commission_created ON audit_logs(commission, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_id, created_at DESC);

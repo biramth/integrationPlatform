@@ -12,6 +12,7 @@ import { CardListSkeleton } from '../../components/common/Skeleton';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
 import { staggerStyle } from '../../utils/stagger';
 import { useToast } from '../../hooks/useToast';
+import { useAuth } from '../../hooks/useAuth';
 
 const SEVERITY_BADGE = { severe: 'danger', moderee: 'warning', legere: 'neutral' };
 const SEVERITY_LABEL = { severe: 'Sévère', moderee: 'Modérée', legere: 'Légère' };
@@ -22,6 +23,8 @@ function todayIso() {
 
 export default function RisksPage() {
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const isSante = user.role === 'sante';
   const [date, setDate] = useState(todayIso());
   const { data, loading, error, reload } = useFetch(() => getRisks(date), [date]);
 
@@ -57,7 +60,11 @@ export default function RisksPage() {
     <div>
       <PageHeader
         title="Risques du jour"
-        description="DUT1 dont une allergie déclarée croise le menu du jour, qui sont déclarés inaptes à participer aux activités de cette date, ou qui suivent un traitement médical."
+        description={
+          isSante
+            ? 'DUT1 dont une allergie déclarée croise le menu du jour, qui sont déclarés inaptes à participer aux activités de cette date, ou qui suivent un traitement médical.'
+            : 'DUT1 signalés à risque par la commission Santé pour cette date — le détail médical reste réservé à Santé.'
+        }
       />
 
       <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mb-4 max-w-xs" />
@@ -80,39 +87,47 @@ export default function RisksPage() {
               </div>
               <p className="text-sm text-muted-foreground">{DEPARTMENT_LABELS[dut1.department] || dut1.department}</p>
 
-              <div className="mt-2 flex flex-wrap gap-1">
-                {dut1.allergyMatches.map((m, mi) => (
-                  <Badge key={`a-${mi}`} variant={SEVERITY_BADGE[m.severity] || 'warning'}>
-                    Allergie {SEVERITY_LABEL[m.severity] || ''} — {m.allergen} ({m.dish})
-                  </Badge>
-                ))}
-                {dut1.restrictions.map((r, ri) => (
-                  <Badge key={`r-${ri}`} variant="danger">
-                    Inapte — {r.reason} ({r.activityName || 'Toutes activités'})
-                  </Badge>
-                ))}
-                {dut1.treatmentDetails && (
-                  <Badge variant="warning">Traitement — {dut1.treatmentDetails}</Badge>
-                )}
-              </div>
+              {isSante ? (
+                <>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {dut1.allergyMatches.map((m, mi) => (
+                      <Badge key={`a-${mi}`} variant={SEVERITY_BADGE[m.severity] || 'warning'}>
+                        Allergie {SEVERITY_LABEL[m.severity] || ''} — {m.allergen} ({m.dish})
+                      </Badge>
+                    ))}
+                    {dut1.restrictions.map((r, ri) => (
+                      <Badge key={`r-${ri}`} variant="danger">
+                        Inapte — {r.reason} ({r.activityName || 'Toutes activités'})
+                      </Badge>
+                    ))}
+                    {dut1.treatmentDetails && (
+                      <Badge variant="warning">Traitement — {dut1.treatmentDetails}</Badge>
+                    )}
+                  </div>
 
-              <button
-                onClick={() => toggleForm(dut1)}
-                className="mt-3 flex items-center gap-1 text-xs font-medium text-role-accent transition-colors hover:opacity-80 hover:underline"
-              >
-                <ShieldAlert className="h-3.5 w-3.5" /> Déclarer une restriction
-              </button>
+                  <button
+                    onClick={() => toggleForm(dut1)}
+                    className="mt-3 flex items-center gap-1 text-xs font-medium text-role-accent transition-colors hover:opacity-80 hover:underline"
+                  >
+                    <ShieldAlert className="h-3.5 w-3.5" /> Déclarer une restriction
+                  </button>
 
-              {openId === dut1.id && (
-                <form
-                  onSubmit={(e) => handleDeclare(e, dut1)}
-                  className="mt-3 flex flex-col gap-3 border-t border-danger/20 pt-3 sm:flex-row sm:items-end"
-                >
-                  <Input label="Motif" required value={reason} onChange={(e) => setReason(e.target.value)} className="flex-1" />
-                  <Button type="submit" loading={submitting}>
-                    Confirmer
-                  </Button>
-                </form>
+                  {openId === dut1.id && (
+                    <form
+                      onSubmit={(e) => handleDeclare(e, dut1)}
+                      className="mt-3 flex flex-col gap-3 border-t border-danger/20 pt-3 sm:flex-row sm:items-end"
+                    >
+                      <Input label="Motif" required value={reason} onChange={(e) => setReason(e.target.value)} className="flex-1" />
+                      <Button type="submit" loading={submitting}>
+                        Confirmer
+                      </Button>
+                    </form>
+                  )}
+                </>
+              ) : (
+                <div className="mt-2">
+                  <Badge variant="danger">À risque aujourd'hui</Badge>
+                </div>
               )}
             </Card>
           ))}

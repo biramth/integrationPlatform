@@ -3,6 +3,24 @@ const auditService = require('../services/auditService');
 
 const SEVERITY_WEIGHT = { severe: 3, moderee: 2, legere: 1 };
 
+// Orga, Présidentielle et Dreudj voient Risques du jour pour savoir QUI est à
+// risque aujourd'hui (utile pour l'organisation logistique/des activités),
+// jamais POURQUOI — le détail médical (quel allergène, quel traitement, quel
+// motif de restriction) reste réservé à Santé, cf. "le médical reste médical".
+const NON_MEDICAL_RISK_ROLES = ['orga', 'presidentielle', 'dreudj'];
+
+function stripRiskMedicalDetails(entry) {
+  return {
+    id: entry.id,
+    firstName: entry.firstName,
+    lastName: entry.lastName,
+    department: entry.department,
+    gender: entry.gender,
+    roomLabel: entry.roomLabel,
+    atRisk: true,
+  };
+}
+
 async function getRisks(req, res) {
   const { date } = req.query;
   if (!date) {
@@ -104,7 +122,9 @@ async function getRisks(req, res) {
 
   result.sort((a, b) => b.sortWeight - a.sortWeight || a.lastName.localeCompare(b.lastName));
 
-  res.json({ atRiskDut1: result });
+  const payload = NON_MEDICAL_RISK_ROLES.includes(req.user.role) ? result.map(stripRiskMedicalDetails) : result;
+
+  res.json({ atRiskDut1: payload });
 }
 
 async function declareRestriction(req, res) {

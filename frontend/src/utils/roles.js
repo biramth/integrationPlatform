@@ -8,6 +8,7 @@ export const ROLES = {
   COMMUNICATION: 'communication',
   CULTURELLE: 'culturelle',
   PRESIDENTIELLE: 'presidentielle',
+  DREUDJ: 'dreudj',
 };
 
 export const ROLE_LABELS = {
@@ -18,11 +19,12 @@ export const ROLE_LABELS = {
   [ROLES.COMMUNICATION]: 'Commission Communication',
   [ROLES.CULTURELLE]: 'Commission Culturelle',
   [ROLES.PRESIDENTIELLE]: 'Commission Présidentielle',
+  [ROLES.DREUDJ]: 'Commission Dreudj',
 };
 
 // Reprend les couleurs de --role-accent (index.css) pour donner à chaque
 // commission un repère visuel dans les listes de rôles (ex: sélecteur de
-// rôle à la création d'un compte) — sans ça, une liste de 7 libellés très
+// rôle à la création d'un compte) — sans ça, une liste de libellés très
 // proches ("Commission X") est difficile à scanner d'un coup d'œil.
 export const ROLE_COLORS = {
   [ROLES.ORGA]: '#2563eb',
@@ -32,6 +34,7 @@ export const ROLE_COLORS = {
   [ROLES.COMMUNICATION]: '#0891b2',
   [ROLES.CULTURELLE]: '#c026d3',
   [ROLES.PRESIDENTIELLE]: '#ea580c',
+  [ROLES.DREUDJ]: '#65a30d',
 };
 
 export const ORGA_SUB_ROLES = {
@@ -100,6 +103,8 @@ export function homePathForRole(role, subRole, isCommissionLead) {
       return '/planning';
     case ROLES.PRESIDENTIELLE:
       return '/presidentielle';
+    case ROLES.DREUDJ:
+      return '/risques';
     default:
       return '/login';
   }

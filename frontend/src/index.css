@@ -74,6 +74,7 @@
 [data-role="communication"]  { --role-accent: #0891b2; --role-accent-soft: #ecfeff; }
 [data-role="culturelle"]     { --role-accent: #c026d3; --role-accent-soft: #fdf4ff; }
 [data-role="presidentielle"] { --role-accent: #ea580c; --role-accent-soft: #fff7ed; }
+[data-role="dreudj"]         { --role-accent: #65a30d; --role-accent-soft: #f7fee7; }
 
 body {
   margin: 0;

@@ -2,7 +2,7 @@ const db = require('../db/database');
 const { hashPassword } = require('../services/passwordService');
 const auditService = require('../services/auditService');
 
-const ROLES = ['orga', 'sante', 'cuisine', 'it', 'communication', 'culturelle', 'presidentielle'];
+const ROLES = ['orga', 'sante', 'cuisine', 'it', 'communication', 'culturelle', 'presidentielle', 'dreudj'];
 // Sous-rôles valides par commission — NULL = accès à tout le périmètre de la
 // commission. Santé : "suivi" (risques, suivi santé, allergènes) et "phase2"
 // (complément de dossier, transféré depuis Orga car médical).

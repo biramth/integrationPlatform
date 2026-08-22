@@ -9,6 +9,7 @@ import {
   Contact,
   Palette,
   CalendarDays,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { homePathForRole } from '../utils/roles';
@@ -24,6 +25,7 @@ const COMMISSIONS = [
   { icon: Palette, label: 'Culturelle' },
   { icon: CalendarDays, label: 'Présidentielle' },
   { icon: ShieldAlert, label: 'IT' },
+  { icon: AlertTriangle, label: 'Dreudj' },
 ];
 
 export default function LoginPage() {
@@ -72,7 +74,7 @@ export default function LoginPage() {
 
         <div className="relative">
           <h1 className="mb-3 text-3xl font-semibold leading-tight">
-            Sept commissions,<br /> une seule plateforme.
+            Huit commissions,<br /> une seule plateforme.
           </h1>
           <p className="max-w-sm text-sm text-blue-100">
             Enregistrement des DUT1, logement, bagages, santé, cuisine, communication et planning —
