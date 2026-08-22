@@ -79,7 +79,7 @@ export function santeHasScope(user, scope) {
 export function homePathForRole(role, subRole) {
   switch (role) {
     case ROLES.ORGA:
-      if (subRole === ORGA_SUB_ROLES.CHAMBRES) return '/orga/rooms';
+      if (subRole === ORGA_SUB_ROLES.CHAMBRES) return '/orga/deliveries';
       if (subRole === ORGA_SUB_ROLES.BAGAGES) return '/orga/luggage';
       return '/orga/basic';
     case ROLES.IT:

@@ -262,6 +262,16 @@ CREATE TABLE IF NOT EXISTS health_restrictions (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Livraison des bagages en chambre : le sous-rôle Orga "chambres" ne
+-- configure pas les chambres (ressort du chef Orga, cf. requireCommissionLeadStrict
+-- dans middleware/auth.js) — son travail est d'aller déposer, dans la chambre
+-- déjà assignée à chaque DUT1, les bagages que l'agent "bagages" a
+-- photographiés, puis de confirmer ce dépôt. NULL tant que non confirmé,
+-- distinct de room_assigned_at (l'attribution de la chambre elle-même).
+ALTER TABLE dut1_records
+  ADD COLUMN IF NOT EXISTS luggage_delivered_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS luggage_delivered_by INTEGER REFERENCES users(id);
+
 CREATE INDEX IF NOT EXISTS idx_dut1_department ON dut1_records(department);
 CREATE INDEX IF NOT EXISTS idx_dut1_gender ON dut1_records(gender);
 CREATE INDEX IF NOT EXISTS idx_dut1_room ON dut1_records(room_id);

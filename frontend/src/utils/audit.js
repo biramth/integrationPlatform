@@ -11,6 +11,7 @@ export const ACTION_LABELS = {
   'dut1.set_allergies': 'Modification allergies',
   'dut1.room_reassign': 'Réaffectation de chambre',
   'dut1.set_luggage_count': 'Modification nombre de bagages déclarés',
+  'dut1.confirm_luggage_delivery': 'Confirmation dépôt de bagages en chambre',
   'agent.create': 'Création compte agent',
   'agent.update': 'Modification compte agent',
   'agent.reset_password': 'Réinitialisation mot de passe',

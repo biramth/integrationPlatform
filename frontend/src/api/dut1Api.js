@@ -16,8 +16,10 @@ export function updateDut1(id, payload) {
   return axiosClient.put(`/dut1/${id}`, payload).then((res) => res.data);
 }
 
-export function deleteDut1(id) {
-  return axiosClient.delete(`/dut1/${id}`).then((res) => res.data);
+export function deleteDut1(id, { confirm = false } = {}) {
+  return axiosClient
+    .delete(`/dut1/${id}`, { params: confirm ? { confirm: 'true' } : undefined })
+    .then((res) => res.data);
 }
 
 export function exportDut1Csv(params = {}) {
@@ -30,6 +32,18 @@ export function exportDut1ContactsCsv(params = {}) {
 
 export function listWithoutLuggage() {
   return axiosClient.get('/dut1/without-luggage').then((res) => res.data);
+}
+
+export function listPendingDelivery() {
+  return axiosClient.get('/dut1/pending-delivery').then((res) => res.data);
+}
+
+export function confirmLuggageDelivery(id) {
+  return axiosClient.put(`/dut1/${id}/luggage-delivery`).then((res) => res.data);
+}
+
+export function listMyDeliveries() {
+  return axiosClient.get('/dut1/deliveries/mine').then((res) => res.data);
 }
 
 export function listWithoutComplementary() {

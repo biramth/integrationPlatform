@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search, TriangleAlert } from 'lucide-react';
+import { Plus, Search, TriangleAlert, Trash2 } from 'lucide-react';
 import Dut1BasicForm from '../../components/dut1/Dut1BasicForm';
 import AdmittedStudentLookup from '../../components/dut1/AdmittedStudentLookup';
 import Dut1Card from '../../components/dut1/Dut1Card';
@@ -9,7 +9,7 @@ import Modal from '../../components/common/Modal';
 import PageHeader from '../../components/common/PageHeader';
 import { EmptyState, ErrorState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
-import { createDut1, listDut1 } from '../../api/dut1Api';
+import { createDut1, deleteDut1, listDut1 } from '../../api/dut1Api';
 import { DUT1_BASIC_DEFAULTS } from '../../utils/dut1BasicFields';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
 import { useToast } from '../../hooks/useToast';
@@ -27,6 +27,7 @@ export default function BasicInfoFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const { data, loading, error, reload } = useFetch(
     () => listDut1({ createdBy: user.id, search }),
@@ -102,6 +103,30 @@ export default function BasicInfoFormPage() {
     }
   }
 
+  // Reflet côté front de la règle imposée par le backend : dès qu'une autre
+  // commission a construit sur ce dossier (phase 2, bagages, allergies), il
+  // ne peut plus être annulé depuis cette page — seul IT peut encore le
+  // supprimer. Sert à griser le bouton ; le backend reste la source de
+  // vérité (il bloque aussi le cas — plus rare — d'une restriction de santé
+  // déclarée sans phase 2 complétée, non visible depuis cette liste).
+  function canSelfDelete(record) {
+    return !record.complementary_completed_at && !record.luggage_items_count && !(record.allergens?.length > 0);
+  }
+
+  async function handleDelete(record) {
+    if (!window.confirm(`Supprimer le dossier de ${record.first_name} ${record.last_name} pour recommencer la saisie ?`)) return;
+    setDeletingId(record.id);
+    try {
+      await deleteDut1(record.id);
+      showToast('Dossier supprimé — vous pouvez recommencer la saisie.', 'success');
+      reload();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Suppression impossible.', 'error');
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -132,7 +157,25 @@ export default function BasicInfoFormPage() {
         <div className="flex flex-col gap-3">
           {data.records.map((record, i) => (
             <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
-              <Dut1Card record={record} />
+              <Dut1Card
+                record={record}
+                actions={
+                  canSelfDelete(record) ? (
+                    <Button
+                      variant="danger"
+                      onClick={() => handleDelete(record)}
+                      loading={deletingId === record.id}
+                      className="px-3 py-1.5 text-xs"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Supprimer et recommencer
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Déjà pris en charge par une autre commission (phase 2, bagages ou allergies) — seule la commission IT peut encore le supprimer.
+                    </p>
+                  )
+                }
+              />
             </div>
           ))}
         </div>

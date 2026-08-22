@@ -16,7 +16,6 @@ import PageHeader from '../../components/common/PageHeader';
 import StatCard from '../../components/stats/StatCard';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
-import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
 import { getMattressStatus } from '../../utils/mattressStatus';
@@ -25,7 +24,6 @@ import { DEPARTMENT_LABELS } from '../../utils/departments';
 const EMPTY_FORM = { label: '', gender: '', capacity: '', building: '' };
 
 export default function AdminRoomsPage() {
-  const { user } = useAuth();
   const { showToast } = useToast();
   const { data, loading, error, reload } = useFetch(roomApi.listRooms, []);
   const occupancyFetch = useFetch(statsApi.getRoomsOccupancy, []);
@@ -170,13 +168,11 @@ export default function AdminRoomsPage() {
         title="Chambres"
         action={
           <div className="flex flex-wrap gap-2">
-            {user.role === 'it' && (
-              <Link to="/admin/print/rooms">
-                <Button variant="secondary">
-                  <Printer className="h-4 w-4" /> Imprimer fiches chambres
-                </Button>
-              </Link>
-            )}
+            <Link to="/admin/print/rooms">
+              <Button variant="secondary">
+                <Printer className="h-4 w-4" /> Imprimer fiches chambres
+              </Button>
+            </Link>
             <Button variant="secondary" onClick={() => setImportOpen((v) => !v)}>
               <Upload className="h-4 w-4" /> {importOpen ? "Fermer l'import" : 'Importer (Excel)'}
             </Button>

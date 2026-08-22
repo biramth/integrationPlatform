@@ -39,14 +39,16 @@ export default function LuggageItemThumb({ item, index, onDelete }) {
           <ShieldAlert className="h-3 w-3" />
         </span>
       )}
-      <button
-        type="button"
-        onClick={() => onDelete(item)}
-        aria-label="Supprimer ce bagage"
-        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-card/90 text-muted-foreground shadow transition-colors hover:bg-danger hover:text-danger-foreground"
-      >
-        <X className="h-3 w-3" />
-      </button>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={() => onDelete(item)}
+          aria-label="Supprimer ce bagage"
+          className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-card/90 text-muted-foreground shadow transition-colors hover:bg-danger hover:text-danger-foreground"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
     </div>
   );
 }

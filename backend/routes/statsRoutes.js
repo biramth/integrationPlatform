@@ -1,6 +1,6 @@
 const express = require('express');
 const statsController = require('../controllers/statsController');
-const { verifyToken, requireRole, requireOrgaScope, requireSanteScope } = require('../middleware/auth');
+const { verifyToken, requireRole, requireSanteScope } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -16,7 +16,11 @@ const OVERVIEW_ROLES = ['orga', 'communication', 'presidentielle'];
 router.get('/overview', requireRole(...OVERVIEW_ROLES), statsController.overview);
 router.get('/by-department', requireRole(...OVERVIEW_ROLES), statsController.byDepartment);
 router.get('/by-gender', requireRole(...OVERVIEW_ROLES), statsController.byGender);
-router.get('/rooms-occupancy', requireRole(...OVERVIEW_ROLES), requireOrgaScope('chambres'), statsController.roomsOccupancy);
+// Le sous-rôle Orga "chambres" ne configure plus les chambres (cf.
+// roomRoutes.js) : pas de raison de le scoper spécifiquement ici, cette
+// statistique suit le même accès que les autres compteurs de la Vue
+// d'ensemble (réservée au chef côté front, cf. RoleRoute requireLead).
+router.get('/rooms-occupancy', requireRole(...OVERVIEW_ROLES), statsController.roomsOccupancy);
 router.get('/illness-trend', requireRole('sante'), requireSanteScope('suivi'), statsController.illnessTrend);
 router.get('/allergy-prevalence', requireRole('sante'), requireSanteScope('suivi'), statsController.allergyPrevalence);
 router.get('/by-admission-list', requireRole(...OVERVIEW_ROLES), statsController.byAdmissionList);

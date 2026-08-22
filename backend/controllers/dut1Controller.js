@@ -439,6 +439,53 @@ async function deleteRecord(req, res) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
 
+  // Un agent Orga ne peut supprimer que le dossier qu'il a lui-même
+  // enregistré (droit à l'erreur pour recommencer une saisie), et seulement
+  // tant qu'aucune autre commission n'a construit dessus : au-delà (phase 2
+  // Santé, bagages photographiés, allergies, restriction de santé déclarée),
+  // le DUT1 est devenu une dépendance d'un autre travail et seul IT peut
+  // trancher, pour ne jamais effacer le travail d'une autre commission à son
+  // insu.
+  const dependents = await db.get(
+    `SELECT
+       (SELECT COUNT(*) FROM luggage_items WHERE dut1_id = $1) AS luggage,
+       (SELECT COUNT(*) FROM dut1_allergens WHERE dut1_id = $1) AS allergens,
+       (SELECT COUNT(*) FROM health_restrictions WHERE dut1_id = $1) AS restrictions`,
+    [id]
+  );
+  const impact = {
+    complementaryCompleted: existing.complementary_completed_at !== null,
+    luggageCount: Number(dependents.luggage),
+    allergensCount: Number(dependents.allergens),
+    restrictionsCount: Number(dependents.restrictions),
+  };
+  const hasDependents =
+    impact.complementaryCompleted || impact.luggageCount > 0 || impact.allergensCount > 0 || impact.restrictionsCount > 0;
+
+  if (req.user.role === 'orga') {
+    if (existing.created_by !== req.user.id) {
+      return res.status(403).json({ error: 'Vous ne pouvez supprimer que les dossiers que vous avez vous-même enregistrés.' });
+    }
+    if (hasDependents) {
+      return res.status(409).json({
+        error:
+          "Ce dossier a déjà été complété par une autre commission (phase 2 Santé, bagages, allergies ou suivi santé) : il ne peut plus être supprimé que par la commission IT.",
+      });
+    }
+  } else if (hasDependents && req.query.confirm !== 'true') {
+    // IT garde le dernier mot, mais pas sans le savoir : supprimer ce dossier
+    // effacerait aussi le travail d'une autre commission construit dessus
+    // (cascade sur luggage_items/dut1_allergens/health_restrictions), donc on
+    // exige une confirmation explicite (?confirm=true) plutôt qu'une
+    // suppression silencieuse — même schéma que confirmDuplicate côté
+    // création.
+    return res.status(409).json({
+      error: "Ce dossier contient des données d'autres commissions qui seront perdues définitivement.",
+      requiresConfirmation: true,
+      impact,
+    });
+  }
+
   await db.run('DELETE FROM dut1_records WHERE id = $1', [id]);
 
   const resourceLabel = `${existing.first_name} ${existing.last_name}`;
@@ -478,6 +525,82 @@ async function listWithoutLuggage(req, res) {
      ORDER BY d.created_at ASC, d.id ASC`
   );
   res.json({ records: records.map(serializeRecord) });
+}
+
+// Sous-rôle Orga "chambres" : DUT1 dont la chambre est assignée et les
+// bagages entièrement photographiés (même condition que listWithoutLuggage,
+// inversée) mais pas encore livrés en chambre. luggage_count > 0 exclut les
+// DUT1 sans bagage déclaré, qui n'ont rien à livrer.
+async function listPendingDelivery(req, res) {
+  const records = await db.all(
+    `SELECT d.*, r.label AS room_label,
+       ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
+       ${LUGGAGE_SENSITIVE_SUBQUERY}
+     FROM dut1_records d
+     LEFT JOIN rooms r ON r.id = d.room_id
+     WHERE d.room_id IS NOT NULL
+       AND d.luggage_delivered_at IS NULL
+       AND d.luggage_count IS NOT NULL
+       AND d.luggage_count > 0
+       AND (SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id) >= d.luggage_count
+     ORDER BY r.label ASC, d.last_name ASC`
+  );
+  res.json({ records: records.map(serializeRecord) });
+}
+
+async function confirmLuggageDelivery(req, res) {
+  const { id } = req.params;
+  const existing = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
+  if (!existing) {
+    return res.status(404).json({ error: 'Dossier introuvable.' });
+  }
+  if (!existing.room_id) {
+    return res.status(409).json({ error: "Ce DUT1 n'a pas encore de chambre assignée." });
+  }
+  if (existing.luggage_delivered_at) {
+    return res.status(409).json({ error: 'Le dépôt des bagages a déjà été confirmé pour ce DUT1.' });
+  }
+  const itemsCount = Number(
+    (await db.get('SELECT COUNT(*) AS n FROM luggage_items WHERE dut1_id = $1', [id])).n
+  );
+  if (itemsCount === 0) {
+    return res.status(409).json({ error: 'Aucun bagage enregistré pour ce DUT1.' });
+  }
+
+  await db.run(
+    `UPDATE dut1_records SET luggage_delivered_at = NOW(), luggage_delivered_by = $1, updated_at = NOW() WHERE id = $2`,
+    [req.user.id, id]
+  );
+
+  const record = await db.get(
+    `SELECT d.*, r.label AS room_label FROM dut1_records d LEFT JOIN rooms r ON r.id = d.room_id WHERE d.id = $1`,
+    [id]
+  );
+
+  await auditService.logAction(req, {
+    action: 'dut1.confirm_luggage_delivery',
+    resourceType: 'dut1_record',
+    resourceId: id,
+    resourceLabel: `${existing.first_name} ${existing.last_name}`,
+    commission: 'orga',
+    before: { luggage_delivered_at: null },
+    after: { luggage_delivered_at: record.luggage_delivered_at, room_label: record.room_label },
+  });
+
+  res.json({ record: serializeRecord(record) });
+}
+
+async function listMyDeliveries(req, res) {
+  const records = await db.all(
+    `SELECT d.id, d.first_name, d.last_name, d.department, d.luggage_delivered_at, r.label AS room_label
+     FROM dut1_records d
+     LEFT JOIN rooms r ON r.id = d.room_id
+     WHERE d.luggage_delivered_by = $1
+     ORDER BY d.luggage_delivered_at DESC
+     LIMIT 100`,
+    [req.user.id]
+  );
+  res.json({ records });
 }
 
 async function listWithoutComplementary(req, res) {
@@ -637,6 +760,9 @@ module.exports = {
   updateRecord,
   deleteRecord,
   listWithoutLuggage,
+  listPendingDelivery,
+  confirmLuggageDelivery,
+  listMyDeliveries,
   listWithoutComplementary,
   completeComplementary,
   getRoomHistory,

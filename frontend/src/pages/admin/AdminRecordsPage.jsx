@@ -106,6 +106,15 @@ export default function AdminRecordsPage() {
     }
   }
 
+  function describeImpact(impact) {
+    const parts = [];
+    if (impact.complementaryCompleted) parts.push('la phase 2 (Santé) est complétée');
+    if (impact.luggageCount > 0) parts.push(`${impact.luggageCount} bagage(s) photographié(s)`);
+    if (impact.allergensCount > 0) parts.push(`${impact.allergensCount} allergie(s) déclarée(s)`);
+    if (impact.restrictionsCount > 0) parts.push(`${impact.restrictionsCount} restriction(s) de santé`);
+    return parts.join(', ');
+  }
+
   async function handleDelete() {
     if (!window.confirm(`Supprimer définitivement le dossier de ${selected.first_name} ${selected.last_name} ?`)) return;
     setDeleting(true);
@@ -116,7 +125,24 @@ export default function AdminRecordsPage() {
       roomsFetch.reload();
       closeModal();
     } catch (err) {
-      showToast(err.response?.data?.error || 'Suppression impossible.', 'error');
+      if (err.response?.status === 409 && err.response.data?.requiresConfirmation) {
+        const proceed = window.confirm(
+          `Attention : ${describeImpact(err.response.data.impact)} — ces données seront perdues définitivement. Confirmer la suppression ?`
+        );
+        if (proceed) {
+          try {
+            await deleteDut1(selected.id, { confirm: true });
+            showToast('Dossier supprimé.', 'success');
+            reload();
+            roomsFetch.reload();
+            closeModal();
+          } catch (err2) {
+            showToast(err2.response?.data?.error || 'Suppression impossible.', 'error');
+          }
+        }
+      } else {
+        showToast(err.response?.data?.error || 'Suppression impossible.', 'error');
+      }
     } finally {
       setDeleting(false);
     }
@@ -139,15 +165,42 @@ export default function AdminRecordsPage() {
   async function handleBulkDelete() {
     if (!window.confirm(`Supprimer définitivement ${selectedIds.size} dossier(s) ?`)) return;
     setBulkDeleting(true);
+    const ids = [...selectedIds];
     try {
-      await Promise.all([...selectedIds].map((id) => deleteDut1(id)));
-      showToast(`${selectedIds.size} dossier(s) supprimé(s).`, 'success');
+      const results = await Promise.allSettled(ids.map((id) => deleteDut1(id)));
+      const needsConfirm = [];
+      let otherFailures = 0;
+      results.forEach((r, i) => {
+        if (r.status !== 'rejected') return;
+        if (r.reason?.response?.status === 409 && r.reason.response.data?.requiresConfirmation) {
+          needsConfirm.push(ids[i]);
+        } else {
+          otherFailures += 1;
+        }
+      });
+
+      let confirmedFailures = 0;
+      if (needsConfirm.length > 0) {
+        const proceed = window.confirm(
+          `${needsConfirm.length} dossier(s) contiennent des données d'autres commissions (phase 2, bagages, allergies, restrictions) qui seront perdues définitivement. Confirmer leur suppression aussi ?`
+        );
+        if (proceed) {
+          const retry = await Promise.allSettled(needsConfirm.map((id) => deleteDut1(id, { confirm: true })));
+          confirmedFailures = retry.filter((r) => r.status === 'rejected').length;
+        } else {
+          confirmedFailures = needsConfirm.length;
+        }
+      }
+
+      const totalFailures = otherFailures + confirmedFailures;
+      if (totalFailures > 0) {
+        showToast(`${ids.length - totalFailures} dossier(s) supprimé(s), ${totalFailures} non supprimé(s).`, 'error');
+      } else {
+        showToast(`${ids.length} dossier(s) supprimé(s).`, 'success');
+      }
       setSelectedIds(new Set());
       reload();
       roomsFetch.reload();
-    } catch {
-      showToast('Certaines suppressions ont échoué.', 'error');
-      reload();
     } finally {
       setBulkDeleting(false);
     }
