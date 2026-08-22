@@ -78,6 +78,15 @@
 [data-role="presidentielle"] { --role-accent: #ea580c; --role-accent-soft: #fff7ed; }
 [data-role="dreudj"]         { --role-accent: #65a30d; --role-accent-soft: #f7fee7; }
 
+/* [data-role] est posé sur un <div> à l'intérieur de la page, pas sur <html>
+   (où vit la classe .dark) : une règle .dark { --role-accent-soft: … } ne
+   l'emporte pas sur [data-role="x"] pour ce <div>, elle ne s'applique qu'à
+   <html> et ses descendants qui n'ont pas déjà leur propre valeur — d'où un
+   fond de pastille de nav resté clair en mode nuit. Cibler directement
+   .dark [data-role] (spécificité plus élevée que [data-role="x"] seul)
+   corrige ça, quel que soit le rôle actif. */
+.dark [data-role] { --role-accent-soft: color-mix(in oklch, var(--role-accent) 20%, black); }
+
 body {
   margin: 0;
 }
