@@ -4,7 +4,6 @@ import { useFetch } from '../../hooks/useFetch';
 import * as allergenApi from '../../api/allergenApi';
 import Input from '../common/Input';
 import Button from '../common/Button';
-import Badge from '../common/Badge';
 import { ErrorState, EmptyState } from '../common/StateViews';
 import Skeleton from '../common/Skeleton';
 import { useToast } from '../../hooks/useToast';
@@ -136,11 +135,6 @@ export default function AllergensManager() {
                     <div className="flex min-w-0 items-center gap-2">
                       <Leaf className="h-3.5 w-3.5 shrink-0 text-success" />
                       <span className="truncate text-sm text-foreground">{a.label}</span>
-                      {(a.dut1_count > 0 || a.dish_count > 0) && (
-                        <Badge variant="neutral" className="shrink-0">
-                          {a.dut1_count} DUT1 · {a.dish_count} plats
-                        </Badge>
-                      )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <button onClick={() => startEdit(a)} className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline">
