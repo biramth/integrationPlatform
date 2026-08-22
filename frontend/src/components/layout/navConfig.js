@@ -9,7 +9,6 @@ import {
   Users,
   AlertTriangle,
   Stethoscope,
-  Leaf,
   UtensilsCrossed,
   CalendarDays,
   Contact,
@@ -44,7 +43,6 @@ const SANTE_ITEMS = {
   suivi: [
     { to: '/sante/risques', label: 'Risques du jour', icon: AlertTriangle },
     { to: '/sante/suivi', label: 'Suivi santé', icon: Stethoscope },
-    { to: '/sante/allergenes', label: 'Allergènes', icon: Leaf },
   ],
   phase2: [{ to: '/sante/complementary', label: 'Compléter', icon: ClipboardList }],
 };
@@ -116,7 +114,7 @@ export function getNavItems(user, settings) {
   }
   if (user.role === ROLES.SANTE) {
     // Contrairement aux autres commissions, le chef Santé garde ses onglets
-    // opérationnels : Risques du jour/Suivi santé/Allergènes ("suivi") restent
+    // opérationnels : Risques du jour/Suivi santé ("suivi") restent
     // son travail au quotidien, et "phase2" lui sert à corriger un dossier
     // déjà complété (cf. leadBypassesScope dans App.jsx) — jamais masqué par
     // l'interrupteur phase2Enabled, qui ne concerne que la saisie initiale.

@@ -15,6 +15,7 @@ import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import Card from '../../components/common/Card';
 import PageHeader from '../../components/common/PageHeader';
+import AllergensManager from '../../components/sante/AllergensManager';
 import { ErrorState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
@@ -24,7 +25,7 @@ const NEW_DRAFT = { id: 'new', label: '', type: 'texte_court', required: false, 
 
 const PREVIEW_NOTE = {
   traitement_medical: 'Réponse Oui/Non, avec détail des traitements si Oui.',
-  allergies: 'Sélection des allergies déclarées, avec niveau de sévérité, depuis le référentiel Allergènes.',
+  allergies: "Oui/Non, puis sélection des allergies déclarées si Oui, avec niveau de sévérité.",
 };
 
 function QuestionPreview({ question }) {
@@ -321,6 +322,12 @@ export default function Phase2QuestionsPage() {
                             )}
                           </div>
                           <QuestionPreview question={q} />
+                          {q.type === 'allergies' && (
+                            <div className="mt-4 border-t border-border pt-4">
+                              <p className="mb-3 text-sm font-medium text-foreground">Allergènes proposés</p>
+                              <AllergensManager />
+                            </div>
+                          )}
                         </>
                       )}
                     </div>

@@ -62,6 +62,7 @@ export default function CompleteInfoFormPage() {
   const [selected, setSelected] = useState(null);
   const [values, setValues] = useState({});
   const [allergies, setAllergies] = useState({});
+  const [hasAllergies, setHasAllergies] = useState(null);
   const [onTreatment, setOnTreatment] = useState(null);
   const [treatmentDetails, setTreatmentDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -95,6 +96,11 @@ export default function CompleteInfoFormPage() {
     setAllergies((prev) => ({ ...prev, [allergenId]: severity }));
   }
 
+  function handleHasAllergiesChange(value) {
+    setHasAllergies(value);
+    if (!value) setAllergies({});
+  }
+
   function updateFilters(patch) {
     setFilters((f) => ({ ...f, ...patch }));
     setPage(1);
@@ -110,6 +116,10 @@ export default function CompleteInfoFormPage() {
       initial[a.id] = a.severity || 'moderee';
     }
     setAllergies(initial);
+    // Un dossier déjà complété a forcément répondu à la question (ses
+    // allergènes, ou aucun) ; un dossier pas encore complété part sans
+    // réponse, pour forcer l'agent à passer par le Oui/Non.
+    setHasAllergies(record.complementary_completed_at ? Object.keys(initial).length > 0 : null);
   }
 
   function handleChange(key, value) {
@@ -128,6 +138,10 @@ export default function CompleteInfoFormPage() {
     }
     if (onTreatment && !treatmentDetails.trim()) {
       showToast('Le détail des traitements suivis doit être renseigné.', 'error');
+      return;
+    }
+    if (typeof hasAllergies !== 'boolean') {
+      showToast('La question des allergies doit être renseignée avant de continuer.', 'error');
       return;
     }
     for (const q of questions) {
@@ -215,6 +229,8 @@ export default function CompleteInfoFormPage() {
               severities={allergies}
               onAllergyChange={setAllergenIds}
               onSeverityChange={setSeverity}
+              hasAllergies={hasAllergies}
+              onHasAllergiesChange={handleHasAllergiesChange}
               disabled={isLocked}
             />
           </div>

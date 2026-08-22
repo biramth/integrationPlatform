@@ -1,6 +1,6 @@
 import Button from '../common/Button';
 import Dut1TreatmentQuestion from './Dut1TreatmentQuestion';
-import AllergySelect from './AllergySelect';
+import Dut1AllergyQuestion from './Dut1AllergyQuestion';
 
 const FIELD_CLASS =
   'rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground';
@@ -22,6 +22,8 @@ export default function Dut1ComplementaryForm({
   severities,
   onAllergyChange,
   onSeverityChange,
+  hasAllergies,
+  onHasAllergiesChange,
   disabled = false,
 }) {
   return (
@@ -44,7 +46,9 @@ export default function Dut1ComplementaryForm({
           )}
 
           {q.type === 'allergies' && (
-            <AllergySelect
+            <Dut1AllergyQuestion
+              hasAllergies={hasAllergies}
+              onHasAllergiesChange={onHasAllergiesChange}
               selectedIds={allergenIds}
               onChange={onAllergyChange}
               severities={severities}

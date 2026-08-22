@@ -16,9 +16,9 @@ import { homePathForRole } from '../utils/roles';
 // supervise, il n'exécute pas les tâches de sous-rôle (le backend refuse déjà
 // l'appel API correspondant, cf. requireOrgaScope/requireSanteScope).
 // leadBypassesScope : exception à cette exclusion, pour les domaines où le
-// chef reste un agent à part entière (ex: Santé "suivi" — Risques du jour,
-// Suivi santé, Allergènes restent son travail au quotidien, contrairement à
-// la saisie de phase 1/2 dans les autres commissions) — le backend applique
+// chef reste un agent à part entière (ex: Santé "suivi" — Risques du jour et
+// Suivi santé restent son travail au quotidien, contrairement à la saisie de
+// phase 1/2 dans les autres commissions) — le backend applique
 // la même exception via requireOrgaScope/requireSanteScope({ allowLead }).
 // requireLead : pour les pages "Vue d'ensemble", en plus d'être dans la bonne
 // commission il faut être chef — sans ça la page reste joignable par URL même

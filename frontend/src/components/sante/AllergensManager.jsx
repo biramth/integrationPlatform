@@ -2,16 +2,19 @@ import { useState } from 'react';
 import { Trash2, Plus, Leaf, Pencil, Check, X } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as allergenApi from '../../api/allergenApi';
-import Input from '../../components/common/Input';
-import Button from '../../components/common/Button';
-import Badge from '../../components/common/Badge';
-import PageHeader from '../../components/common/PageHeader';
-import { ErrorState, EmptyState } from '../../components/common/StateViews';
-import Skeleton from '../../components/common/Skeleton';
+import Input from '../common/Input';
+import Button from '../common/Button';
+import Badge from '../common/Badge';
+import { ErrorState, EmptyState } from '../common/StateViews';
+import Skeleton from '../common/Skeleton';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
 
-export default function AllergensAdminPage() {
+// Référentiel des allergènes, géré directement depuis la question "Allergies"
+// du questionnaire phase 2 (plutôt qu'une page à part) : c'est là que le chef
+// Santé configure déjà cette question, et ce référentiel n'a pas d'autre
+// utilité (croisement menu/allergènes côté Cuisine mis à part).
+export default function AllergensManager() {
   const { showToast } = useToast();
   const { data, loading, error, reload } = useFetch(allergenApi.listAllergens, []);
   const [label, setLabel] = useState('');
@@ -76,12 +79,7 @@ export default function AllergensAdminPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Liste des allergènes"
-        description="Utilisée pour les allergies des DUT1 et les allergènes des plats. Gérée par la commission Santé."
-      />
-
-      <form onSubmit={handleCreate} className="mb-6 flex gap-2">
+      <form onSubmit={handleCreate} className="mb-4 flex gap-2">
         <Input placeholder="Nouvel allergène…" value={label} onChange={(e) => setLabel(e.target.value)} className="flex-1" />
         <Button type="submit" loading={submitting}>
           <Plus className="h-4 w-4" /> Ajouter
@@ -89,8 +87,8 @@ export default function AllergensAdminPage() {
       </form>
 
       {loading && (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 9 }).map((_, i) => (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-10" />
           ))}
         </div>
@@ -99,7 +97,7 @@ export default function AllergensAdminPage() {
       {!loading && !error && data.allergens.length === 0 && <EmptyState label="Aucun allergène configuré." />}
 
       {!loading && !error && data.allergens.length > 0 && (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {data.allergens.map((a, i) => {
             const editing = editingId === a.id;
             return (
