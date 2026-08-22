@@ -126,7 +126,7 @@ function App() {
             </Route>
 
             {/* Phase 2 (complément de dossier) : transféré depuis Orga, ce sont des
-                questions médicales (traitement, allergies, admission). */}
+                questions médicales (traitement, allergies). */}
             <Route element={<RoleRoute roles={['sante']} subScope="phase2" />}>
               <Route path="/sante/complementary" element={<CompleteInfoFormPage />} />
             </Route>

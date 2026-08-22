@@ -353,6 +353,26 @@ VALUES
   ('allergies', 'Allergies', 'allergies', FALSE, -10)
 ON CONFLICT (field_key) DO NOTHING;
 
+-- Interrupteurs de fonctionnalités "jour d'accueil" : Enregistrement (phase 1,
+-- Orga) et Phase 2 (complément de dossier, Santé) n'ont d'utilité que le
+-- premier jour — IT les désactive une fois la saisie terminée pour empêcher
+-- toute altération ultérieure des dossiers. La page correspondante disparaît
+-- alors du menu des agents concernés et l'API refuse l'action (cf.
+-- requireFeatureEnabled), même pour IT : le but est de figer les données,
+-- pas de garder une porte de secours. TRUE par défaut, pour ne rien changer
+-- au comportement de la plateforme tant qu'IT n'a rien désactivé.
+CREATE TABLE IF NOT EXISTS platform_settings (
+  key         TEXT PRIMARY KEY,
+  enabled     BOOLEAN NOT NULL DEFAULT TRUE,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by  INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+
+INSERT INTO platform_settings (key, enabled) VALUES
+  ('registration', TRUE),
+  ('phase2', TRUE)
+ON CONFLICT (key) DO NOTHING;
+
 -- Journal d'audit générique : qui a fait quoi, sur quelle ressource, quand.
 -- commission = domaine métier PROPRIÉTAIRE de la ressource touchée (pas le rôle
 -- de l'acteur — un compte "it" peut agir sur une ressource "sante"). 'global'

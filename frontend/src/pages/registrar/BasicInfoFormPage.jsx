@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Plus, Search, TriangleAlert, Trash2 } from 'lucide-react';
+import { Plus, Search, TriangleAlert, Trash2, Lock } from 'lucide-react';
+import { getPlatformSettings } from '../../api/platformSettingsApi';
 import Dut1BasicForm from '../../components/dut1/Dut1BasicForm';
 import AdmittedStudentLookup from '../../components/dut1/AdmittedStudentLookup';
 import Dut1Card from '../../components/dut1/Dut1Card';
@@ -33,6 +34,8 @@ export default function BasicInfoFormPage() {
     () => listDut1({ createdBy: user.id, search }),
     [user.id, search]
   );
+  const settingsFetch = useFetch(getPlatformSettings, []);
+  const registrationEnabled = settingsFetch.data?.registration !== false;
 
   function handleChange(key, value) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -133,11 +136,22 @@ export default function BasicInfoFormPage() {
         eyebrow="Mon historique"
         title="Enregistrements"
         action={
-          <Button onClick={openModal} className="sm:w-auto">
-            <Plus className="h-4 w-4" /> Nouvelle fiche
-          </Button>
+          registrationEnabled && (
+            <Button onClick={openModal} className="sm:w-auto">
+              <Plus className="h-4 w-4" /> Nouvelle fiche
+            </Button>
+          )
         }
       />
+
+      {!registrationEnabled && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-warning bg-warning-soft px-3 py-2.5">
+          <Lock className="h-4 w-4 shrink-0 text-warning" />
+          <p className="text-sm text-warning-soft-foreground">
+            L'enregistrement de nouveaux dossiers est désactivé pour cette édition. L'historique reste consultable.
+          </p>
+        </div>
+      )}
 
       <Input
         icon={Search}
@@ -150,7 +164,13 @@ export default function BasicInfoFormPage() {
       {loading && <CardListSkeleton />}
       {error && <ErrorState label={error} onRetry={reload} />}
       {!loading && !error && data.records.length === 0 && (
-        <EmptyState label="Aucun dossier enregistré pour l'instant — clique sur « Nouvelle fiche » pour commencer." />
+        <EmptyState
+          label={
+            registrationEnabled
+              ? "Aucun dossier enregistré pour l'instant — clique sur « Nouvelle fiche » pour commencer."
+              : 'Aucun dossier enregistré pour l\'instant.'
+          }
+        />
       )}
 
       {!loading && !error && data.records.length > 0 && (

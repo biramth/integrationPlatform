@@ -16,6 +16,7 @@ const activityRoutes = require('./routes/activityRoutes');
 const importRoutes = require('./routes/importRoutes');
 const admittedStudentsRoutes = require('./routes/admittedStudentsRoutes');
 const platformRoutes = require('./routes/platformRoutes');
+const platformSettingsRoutes = require('./routes/platformSettingsRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const phase2QuestionsRoutes = require('./routes/phase2QuestionsRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
@@ -91,6 +92,7 @@ app.use('/api/activities', activityRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/admitted-students', admittedStudentsRoutes);
 app.use('/api/platform', platformRoutes);
+app.use('/api/platform-settings', platformSettingsRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/phase2-questions', phase2QuestionsRoutes);
 

@@ -2,6 +2,8 @@ import { Suspense } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { GraduationCap, Power } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useFetch } from '../../hooks/useFetch';
+import { getPlatformSettings } from '../../api/platformSettingsApi';
 import { ROLE_LABELS } from '../../utils/roles';
 import { getNavItems } from './navConfig';
 import Avatar from '../common/Avatar';
@@ -10,7 +12,8 @@ import RouteFallback from '../../routes/RouteFallback';
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const items = getNavItems(user);
+  const settingsFetch = useFetch(getPlatformSettings, []);
+  const items = getNavItems(user, settingsFetch.data);
 
   return (
     <div

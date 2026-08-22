@@ -39,7 +39,7 @@ const ORGA_ROOMS_ADMIN_ITEM = { to: '/orga/rooms', label: 'Config. chambres', ic
 
 // Même principe pour Santé : "suivi" (travail santé classique) et "phase2"
 // (complément de dossier, transféré depuis Orga car médical — traitement,
-// allergies, admission).
+// allergies).
 const SANTE_ITEMS = {
   suivi: [
     { to: '/sante/risques', label: 'Risques du jour', icon: AlertTriangle },
@@ -82,8 +82,14 @@ const SANTE_QUESTIONS_ITEM = { to: '/sante/questions-phase2', label: 'Questions 
 // chef peut vouloir voir qui a touché à son menu/planning/activités.
 const AUDIT_ITEM = { to: '/audit', label: "Journal d'audit", icon: ScrollText };
 
-export function getNavItems(user) {
+// settings vient de GET /platform-settings (cf. platformSettingsApi.js) :
+// { registration, phase2 }, chacun true/false. Absent (page pas encore
+// chargée) = traité comme activé, pour ne pas faire disparaître un lien le
+// temps du premier chargement.
+export function getNavItems(user, settings) {
   if (!user) return [];
+  const registrationEnabled = settings?.registration !== false;
+  const phase2Enabled = settings?.phase2 !== false;
   const leadItems = [
     ...(user.isCommissionLead && !NO_AGENTS_ROLES.includes(user.role) ? [AGENTS_ITEM] : []),
     ...(user.isCommissionLead && OVERVIEW_ITEM_BY_ROLE[user.role] ? [OVERVIEW_ITEM_BY_ROLE[user.role]] : []),
@@ -91,14 +97,24 @@ export function getNavItems(user) {
     ...(user.isCommissionLead && user.role === ROLES.ORGA ? [ORGA_ROOMS_ADMIN_ITEM] : []),
     ...(user.isCommissionLead ? [AUDIT_ITEM] : []),
   ];
+  // Le chef de commission supervise, il n'exécute pas les tâches de
+  // sous-rôle : il ne voit aucun des onglets opérationnels ci-dessus, quel
+  // que soit son sub_role — seulement leadItems (Vue d'ensemble, config,
+  // agents, audit) et Planning.
   if (user.role === ROLES.ORGA) {
-    const scoped = user.subRole
-      ? ORGA_ITEMS[user.subRole] || []
-      : [...ORGA_ITEMS.enregistrement, ...ORGA_ITEMS.bagages, ...ORGA_ITEMS.chambres];
+    const scoped = user.isCommissionLead
+      ? []
+      : user.subRole
+      ? (user.subRole === 'enregistrement' && !registrationEnabled ? [] : ORGA_ITEMS[user.subRole] || [])
+      : [...(registrationEnabled ? ORGA_ITEMS.enregistrement : []), ...ORGA_ITEMS.bagages, ...ORGA_ITEMS.chambres];
     return [...scoped, PLANNING_ITEM, ...leadItems];
   }
   if (user.role === ROLES.SANTE) {
-    const scoped = user.subRole ? SANTE_ITEMS[user.subRole] || [] : [...SANTE_ITEMS.suivi, ...SANTE_ITEMS.phase2];
+    const scoped = user.isCommissionLead
+      ? []
+      : user.subRole
+      ? (user.subRole === 'phase2' && !phase2Enabled ? [] : SANTE_ITEMS[user.subRole] || [])
+      : [...SANTE_ITEMS.suivi, ...(phase2Enabled ? SANTE_ITEMS.phase2 : [])];
     return [...scoped, PLANNING_ITEM, ...leadItems];
   }
   return [...(NAV_ITEMS[user.role] || []), ...leadItems];

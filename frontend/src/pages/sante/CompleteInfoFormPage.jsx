@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
-import { ArrowLeft, Search } from 'lucide-react';
+import { ArrowLeft, Search, Lock } from 'lucide-react';
 import { listDut1, completeComplementary } from '../../api/dut1Api';
 import { setDut1Allergies } from '../../api/dut1AllergyApi';
 import { listAllergens } from '../../api/allergenApi';
 import { listPhase2Questions } from '../../api/phase2QuestionsApi';
+import { getPlatformSettings } from '../../api/platformSettingsApi';
 import Dut1Card from '../../components/dut1/Dut1Card';
 import Dut1ComplementaryForm from '../../components/dut1/Dut1ComplementaryForm';
 import Input from '../../components/common/Input';
@@ -72,6 +73,8 @@ export default function CompleteInfoFormPage() {
   const allergenLabelById = Object.fromEntries((allergensFetch.data?.allergens || []).map((a) => [a.id, a.label]));
   const questionsFetch = useFetch(listPhase2Questions, []);
   const questions = questionsFetch.data?.questions || [];
+  const settingsFetch = useFetch(getPlatformSettings, []);
+  const phase2Enabled = settingsFetch.data?.phase2 !== false;
 
   const allergenIds = Object.keys(allergies).map(Number);
 
@@ -112,6 +115,7 @@ export default function CompleteInfoFormPage() {
 
   function openRecap(e) {
     e.preventDefault();
+    if (!phase2Enabled) return;
     if (typeof onTreatment !== 'boolean') {
       showToast('La question du traitement médical en cours doit être renseignée avant de continuer.', 'error');
       return;
@@ -149,7 +153,8 @@ export default function CompleteInfoFormPage() {
   }
 
   if (selected) {
-    const isLocked = !!selected.complementary_completed_at;
+    const completed = !!selected.complementary_completed_at;
+    const isLocked = completed || !phase2Enabled;
 
     return (
       <div>
@@ -163,13 +168,19 @@ export default function CompleteInfoFormPage() {
           eyebrow="Phase 2 — infos complémentaires"
           title={`${selected.first_name} ${selected.last_name}`}
           description={
-            isLocked
+            completed
               ? 'Dossier complété — verrouillé. Une correction doit passer par un administrateur.'
+              : !phase2Enabled
+              ? 'La phase 2 est désactivée pour cette édition — ce dossier ne peut plus être complété.'
               : "Ces informations viennent du questionnaire de la commission Santé."
           }
           action={
-            isLocked ? (
+            completed ? (
               <Badge variant="success">Déjà complété — verrouillé</Badge>
+            ) : !phase2Enabled ? (
+              <Badge variant="neutral">
+                <Lock className="mr-1 inline h-3 w-3" /> Désactivée
+              </Badge>
             ) : (
               <Badge variant="warning">Pas encore complété</Badge>
             )
@@ -260,6 +271,15 @@ export default function CompleteInfoFormPage() {
         title="Compléter un dossier DUT1"
         description="Tous les dossiers sont listés ci-dessous — recherche par nom, prénom, téléphone ou matricule pour affiner."
       />
+
+      {!phase2Enabled && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-warning bg-warning-soft px-3 py-2.5">
+          <Lock className="h-4 w-4 shrink-0 text-warning" />
+          <p className="text-sm text-warning-soft-foreground">
+            La phase 2 est désactivée pour cette édition — les dossiers non encore complétés le restent.
+          </p>
+        </div>
+      )}
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Input
