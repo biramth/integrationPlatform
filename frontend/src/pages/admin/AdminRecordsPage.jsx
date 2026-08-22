@@ -219,7 +219,7 @@ export default function AdminRecordsPage() {
     }
   }
 
-  const compatibleRooms = (roomsFetch.data?.rooms || []).filter((r) => !selected || r.gender === selected.gender);
+  const compatibleRooms = (roomsFetch.data?.rooms || []).filter((r) => !formValues || r.gender === formValues.gender);
   const pageIds = data?.records.map((r) => r.id) || [];
   const allSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
 

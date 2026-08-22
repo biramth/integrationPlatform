@@ -9,7 +9,7 @@ export const ACTION_LABELS = {
   'dut1.complete_complementary': 'Complément de dossier (phase 2)',
   'dut1.correct_complementary': 'Correction du complément de dossier (phase 2)',
   'dut1.set_allergies': 'Modification allergies',
-  'dut1.set_unmet_criteria': "Modification des critères d'aptitude non remplis",
+  'dut1.set_aptitude_levels': "Modification des niveaux d'aptitude déclarés",
   'dut1.room_reassign': 'Réaffectation de chambre',
   'dut1.set_luggage_count': 'Modification nombre de bagages déclarés',
   'dut1.confirm_luggage_delivery': 'Confirmation dépôt de bagages en chambre',
@@ -50,6 +50,9 @@ export const ACTION_LABELS = {
   'aptitude_criterion.create': "Création d'un critère d'aptitude",
   'aptitude_criterion.update': "Modification d'un critère d'aptitude",
   'aptitude_criterion.delete': "Suppression d'un critère d'aptitude",
+  'aptitude_criterion.add_level': "Ajout d'un niveau à un critère d'aptitude",
+  'aptitude_criterion.update_level': "Modification d'un niveau de critère d'aptitude",
+  'aptitude_criterion.delete_level': "Suppression d'un niveau de critère d'aptitude",
   'activity.set_required_criteria': "Modification des critères exigés pour une activité",
 };
 

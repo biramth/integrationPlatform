@@ -27,10 +27,8 @@ export default function Dut1ComplementaryForm({
   hasAllergies,
   onHasAllergiesChange,
   aptitudeCriteria,
-  unmetCriterionIds,
-  onUnmetCriteriaChange,
-  hasAptitudeLimitations,
-  onHasAptitudeLimitationsChange,
+  aptitudeLevels,
+  onAptitudeLevelChange,
   disabled = false,
 }) {
   return (
@@ -66,11 +64,9 @@ export default function Dut1ComplementaryForm({
 
           {q.type === 'aptitude' && (
             <Dut1AptitudeQuestion
-              hasLimitations={hasAptitudeLimitations}
-              onHasLimitationsChange={onHasAptitudeLimitationsChange}
               criteria={aptitudeCriteria}
-              selectedIds={unmetCriterionIds}
-              onChange={onUnmetCriteriaChange}
+              levels={aptitudeLevels}
+              onLevelChange={onAptitudeLevelChange}
               disabled={disabled}
             />
           )}

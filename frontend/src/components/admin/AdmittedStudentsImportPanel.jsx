@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Plus, Trash2, ExternalLink, CheckCircle2 } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
@@ -29,6 +29,8 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
   const [analyzing, setAnalyzing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [lastImport, setLastImport] = useState(null);
+  const nextKeyRef = useRef(0);
+  const withKey = (row) => ({ ...row, _key: nextKeyRef.current++ });
 
   async function handleAnalyze() {
     if (!file) return;
@@ -36,7 +38,7 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
     try {
       const res = await previewAdmittedStudentsFile(file);
       setDepartment(res.detectedDepartment || '');
-      setCandidates(res.candidates);
+      setCandidates(res.candidates.map(withKey));
       if (res.candidates.length === 0) {
         showToast("Aucune ligne détectée automatiquement — ajoute les candidats à la main en t'aidant du fichier.", 'info');
       }
@@ -47,18 +49,18 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
     }
   }
 
-  function updateRow(index, patch) {
-    setCandidates((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  function updateRow(key, patch) {
+    setCandidates((rows) => rows.map((r) => (r._key === key ? { ...r, ...patch } : r)));
   }
 
-  function removeRow(index) {
-    setCandidates((rows) => rows.filter((_, i) => i !== index));
+  function removeRow(key) {
+    setCandidates((rows) => rows.filter((r) => r._key !== key));
   }
 
   function addRow() {
     setCandidates((rows) => [
       ...(rows || []),
-      { firstName: '', lastName: '', birthDate: '', birthPlace: '', listType: 'principale', rank: null },
+      withKey({ firstName: '', lastName: '', birthDate: '', birthPlace: '', listType: 'principale', rank: null }),
     ]);
   }
 
@@ -67,7 +69,11 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
       showToast('Département requis avant confirmation.', 'error');
       return;
     }
-    const rows = candidates.map((c) => ({ ...c, department }));
+    const rows = candidates.map((c) => {
+      const clean = { ...c };
+      delete clean._key;
+      return { ...clean, department };
+    });
     setConfirming(true);
     try {
       const res = await confirmAdmittedStudentsImport(rows);
@@ -184,24 +190,24 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
                 </tr>
               </thead>
               <tbody>
-                {candidates.map((row, i) => (
-                  <tr key={i} className="border-b border-border/50">
+                {candidates.map((row) => (
+                  <tr key={row._key} className="border-b border-border/50">
                     <td className="py-1.5 pr-2">
-                      <RowInput value={row.firstName} onChange={(v) => updateRow(i, { firstName: v })} />
+                      <RowInput value={row.firstName} onChange={(v) => updateRow(row._key, { firstName: v })} />
                     </td>
                     <td className="py-1.5 pr-2">
-                      <RowInput value={row.lastName} onChange={(v) => updateRow(i, { lastName: v })} />
+                      <RowInput value={row.lastName} onChange={(v) => updateRow(row._key, { lastName: v })} />
                     </td>
                     <td className="py-1.5 pr-2">
-                      <RowInput type="date" value={row.birthDate} onChange={(v) => updateRow(i, { birthDate: v })} />
+                      <RowInput type="date" value={row.birthDate} onChange={(v) => updateRow(row._key, { birthDate: v })} />
                     </td>
                     <td className="py-1.5 pr-2">
-                      <RowInput value={row.birthPlace} onChange={(v) => updateRow(i, { birthPlace: v })} />
+                      <RowInput value={row.birthPlace} onChange={(v) => updateRow(row._key, { birthPlace: v })} />
                     </td>
                     <td className="py-1.5 pr-2">
                       <select
                         value={row.listType}
-                        onChange={(e) => updateRow(i, { listType: e.target.value })}
+                        onChange={(e) => updateRow(row._key, { listType: e.target.value })}
                         className="h-9 rounded-lg border border-border bg-card px-2 text-sm text-foreground"
                       >
                         <option value="principale">Principale</option>
@@ -211,7 +217,7 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
                     <td className="py-1.5">
                       <button
                         type="button"
-                        onClick={() => removeRow(i)}
+                        onClick={() => removeRow(row._key)}
                         className="text-danger transition-colors hover:opacity-80"
                       >
                         <Trash2 className="h-4 w-4" />

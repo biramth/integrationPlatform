@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Plus, Trash2, ExternalLink } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
@@ -22,13 +22,15 @@ export default function RoomsImportPanel({ onImported }) {
   const [candidates, setCandidates] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const nextKeyRef = useRef(0);
+  const withKey = (row) => ({ ...row, _key: nextKeyRef.current++ });
 
   async function handleAnalyze() {
     if (!file) return;
     setAnalyzing(true);
     try {
       const res = await previewRoomsFile(file);
-      setCandidates(res.candidates);
+      setCandidates(res.candidates.map(withKey));
       if (res.candidates.length === 0) {
         showToast("Aucune ligne détectée automatiquement — ajoute les chambres à la main en t'aidant du fichier.", 'info');
       }
@@ -39,22 +41,28 @@ export default function RoomsImportPanel({ onImported }) {
     }
   }
 
-  function updateRow(index, patch) {
-    setCandidates((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  function updateRow(key, patch) {
+    setCandidates((rows) => rows.map((r) => (r._key === key ? { ...r, ...patch } : r)));
   }
 
-  function removeRow(index) {
-    setCandidates((rows) => rows.filter((_, i) => i !== index));
+  function removeRow(key) {
+    setCandidates((rows) => rows.filter((r) => r._key !== key));
   }
 
   function addRow() {
-    setCandidates((rows) => [...(rows || []), { label: '', gender: 'M', capacity: '', building: '' }]);
+    setCandidates((rows) => [...(rows || []), withKey({ label: '', gender: 'M', capacity: '', building: '' })]);
   }
 
   async function handleConfirm() {
     setConfirming(true);
     try {
-      const res = await confirmRoomsImport(candidates);
+      const res = await confirmRoomsImport(
+        candidates.map((c) => {
+          const clean = { ...c };
+          delete clean._key;
+          return clean;
+        })
+      );
       showToast(`${res.createdCount} chambre(s) créée(s)${res.skippedCount ? `, ${res.skippedCount} ignorée(s)` : ''}.`, 'success');
       setCandidates(null);
       setFile(null);
@@ -107,15 +115,15 @@ export default function RoomsImportPanel({ onImported }) {
                 </tr>
               </thead>
               <tbody>
-                {candidates.map((row, i) => (
-                  <tr key={i} className="border-b border-border/50">
+                {candidates.map((row) => (
+                  <tr key={row._key} className="border-b border-border/50">
                     <td className="py-1.5 pr-2">
-                      <RowInput value={row.label} onChange={(v) => updateRow(i, { label: v })} />
+                      <RowInput value={row.label} onChange={(v) => updateRow(row._key, { label: v })} />
                     </td>
                     <td className="py-1.5 pr-2">
                       <select
                         value={row.gender}
-                        onChange={(e) => updateRow(i, { gender: e.target.value })}
+                        onChange={(e) => updateRow(row._key, { gender: e.target.value })}
                         className="h-9 rounded-lg border border-border bg-card px-2 text-sm text-foreground"
                       >
                         <option value="M">Masculin</option>
@@ -123,15 +131,15 @@ export default function RoomsImportPanel({ onImported }) {
                       </select>
                     </td>
                     <td className="py-1.5 pr-2">
-                      <RowInput type="number" value={row.capacity} onChange={(v) => updateRow(i, { capacity: v })} className="w-20" />
+                      <RowInput type="number" value={row.capacity} onChange={(v) => updateRow(row._key, { capacity: v })} className="w-20" />
                     </td>
                     <td className="py-1.5 pr-2">
-                      <RowInput value={row.building} onChange={(v) => updateRow(i, { building: v })} />
+                      <RowInput value={row.building} onChange={(v) => updateRow(row._key, { building: v })} />
                     </td>
                     <td className="py-1.5">
                       <button
                         type="button"
-                        onClick={() => removeRow(i)}
+                        onClick={() => removeRow(row._key)}
                         className="text-danger transition-colors hover:opacity-80"
                       >
                         <Trash2 className="h-4 w-4" />

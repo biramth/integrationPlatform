@@ -10,11 +10,16 @@ const ALLERGENS_SUBQUERY = `(
   WHERE da.dut1_id = d.id
 ) AS allergens_json`;
 
-const UNMET_CRITERIA_SUBQUERY = `(
-  SELECT COALESCE(json_agg(json_build_object('id', ac.id, 'label', ac.label)), '[]'::json)
-  FROM dut1_unmet_criteria duc JOIN aptitude_criteria ac ON ac.id = duc.criterion_id
-  WHERE duc.dut1_id = d.id
-) AS unmet_criteria_json`;
+const APTITUDE_LEVELS_SUBQUERY = `(
+  SELECT COALESCE(json_agg(json_build_object(
+      'criterionId', ac.id, 'criterionLabel', ac.label,
+      'levelId', lvl.id, 'levelLabel', lvl.label, 'rank', lvl.rank
+    )), '[]'::json)
+  FROM dut1_aptitude_levels dal
+  JOIN aptitude_criteria ac ON ac.id = dal.criterion_id
+  JOIN aptitude_criterion_levels lvl ON lvl.id = dal.level_id
+  WHERE dal.dut1_id = d.id
+) AS aptitude_levels_json`;
 
 const LUGGAGE_ITEMS_COUNT_SUBQUERY = `(
   SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id
@@ -30,7 +35,7 @@ function serializeRecord(record) {
     ...record,
     extra_fields: record.extra_fields_json ? JSON.parse(record.extra_fields_json) : null,
     allergens: 'allergens_json' in record ? record.allergens_json : undefined,
-    unmet_criteria: 'unmet_criteria_json' in record ? record.unmet_criteria_json : undefined,
+    aptitude_levels: 'aptitude_levels_json' in record ? record.aptitude_levels_json : undefined,
   };
 }
 
@@ -45,8 +50,8 @@ const MEDICAL_FIELDS = [
   'treatment_details',
   'extra_fields',
   'extra_fields_json',
-  'unmet_criteria',
-  'unmet_criteria_json',
+  'aptitude_levels',
+  'aptitude_levels_json',
 ];
 
 function stripMedicalFields(record) {
@@ -240,7 +245,7 @@ async function listRecords(req, res) {
        ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
        ${LUGGAGE_SENSITIVE_SUBQUERY},
        ${ALLERGENS_SUBQUERY},
-       ${UNMET_CRITERIA_SUBQUERY}
+       ${APTITUDE_LEVELS_SUBQUERY}
      FROM dut1_records d
      LEFT JOIN rooms r ON r.id = d.room_id
      ${whereSql}
@@ -340,7 +345,7 @@ async function getRecord(req, res) {
        ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
        ${LUGGAGE_SENSITIVE_SUBQUERY},
        ${ALLERGENS_SUBQUERY},
-       ${UNMET_CRITERIA_SUBQUERY}
+       ${APTITUDE_LEVELS_SUBQUERY}
      FROM dut1_records d
      LEFT JOIN rooms r ON r.id = d.room_id
      WHERE d.id = $1`,
@@ -604,7 +609,7 @@ async function listMyDeliveries(req, res) {
 
 async function listWithoutComplementary(req, res) {
   const records = await db.all(
-    `SELECT d.*, ${ALLERGENS_SUBQUERY}, ${UNMET_CRITERIA_SUBQUERY}
+    `SELECT d.*, ${ALLERGENS_SUBQUERY}, ${APTITUDE_LEVELS_SUBQUERY}
      FROM dut1_records d
      WHERE d.complementary_completed_at IS NULL
      ORDER BY d.created_at ASC, d.id ASC`
@@ -642,12 +647,13 @@ async function completeComplementary(req, res) {
     return res.status(400).json({ error: 'Le détail des traitements suivis est requis.' });
   }
 
-  // traitement_medical/allergies ont leur propre validation ci-dessus (ou
-  // aucune) — leur réponse vit dans des colonnes/tables dédiées, pas dans
-  // extraFields, donc ce contrôle générique ne les concerne pas.
+  // traitement_medical/allergies/aptitude ont leur propre validation (ci-dessus,
+  // ou côté frontend pour aptitude via setAptitudeLevels) — leur réponse vit
+  // dans des colonnes/tables dédiées, pas dans extraFields, donc ce contrôle
+  // générique ne les concerne pas.
   const requiredQuestions = await db.all(
     `SELECT field_key, label FROM phase2_questions
-     WHERE required = TRUE AND type NOT IN ('traitement_medical','allergies')`
+     WHERE required = TRUE AND type NOT IN ('traitement_medical','allergies','aptitude')`
   );
   for (const q of requiredQuestions) {
     const val = extraFields[q.field_key];
@@ -737,38 +743,51 @@ async function setAllergies(req, res) {
   res.json({ record: serializeRecord(record) });
 }
 
-// Profil d'aptitude saisi à l'enregistrement (question intégrée "aptitude") :
-// remplace l'ensemble des critères non remplis, comme setAllergies remplace
-// l'ensemble des allergies déclarées — pas d'ajout incrémental.
-async function setUnmetCriteria(req, res) {
+// Profil d'aptitude saisi à l'enregistrement (question intégrée "aptitude",
+// obligatoire) : un niveau par critère configuré, remplace l'ensemble comme
+// setAllergies remplace l'ensemble des allergies déclarées — pas d'ajout
+// incrémental. levels = [{ criterionId, levelId }, ...].
+async function setAptitudeLevels(req, res) {
   const { id } = req.params;
   const existing = await db.get('SELECT id, first_name, last_name FROM dut1_records WHERE id = $1', [id]);
   if (!existing) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
 
-  const before = await db.all('SELECT criterion_id FROM dut1_unmet_criteria WHERE dut1_id = $1', [id]);
-  const criterionIds = Array.isArray(req.body.criterionIds) ? req.body.criterionIds : [];
+  const before = await db.all('SELECT criterion_id, level_id FROM dut1_aptitude_levels WHERE dut1_id = $1', [id]);
+  const levels = Array.isArray(req.body.levels) ? req.body.levels : [];
 
-  await db.transaction(async (tx) => {
-    await tx.run('DELETE FROM dut1_unmet_criteria WHERE dut1_id = $1', [id]);
-    for (const criterionId of criterionIds) {
-      const numericId = Number(criterionId);
-      if (!numericId) continue;
-      await tx.run('INSERT INTO dut1_unmet_criteria (dut1_id, criterion_id) VALUES ($1, $2)', [id, numericId]);
+  try {
+    await db.transaction(async (tx) => {
+      await tx.run('DELETE FROM dut1_aptitude_levels WHERE dut1_id = $1', [id]);
+      for (const entry of levels) {
+        const criterionId = Number(entry.criterionId);
+        const levelId = Number(entry.levelId);
+        if (!criterionId || !levelId) continue;
+        await tx.run('INSERT INTO dut1_aptitude_levels (dut1_id, criterion_id, level_id) VALUES ($1, $2, $3)', [
+          id,
+          criterionId,
+          levelId,
+        ]);
+      }
+    });
+  } catch (err) {
+    if (err.code === '23503') {
+      return res.status(400).json({ error: 'Critère ou niveau invalide.' });
     }
-  });
+    throw err;
+  }
 
-  const record = await db.get(`SELECT d.*, ${UNMET_CRITERIA_SUBQUERY} FROM dut1_records d WHERE d.id = $1`, [id]);
+  const record = await db.get(`SELECT d.*, ${APTITUDE_LEVELS_SUBQUERY} FROM dut1_records d WHERE d.id = $1`, [id]);
 
   await auditService.logAction(req, {
-    action: 'dut1.set_unmet_criteria',
+    action: 'dut1.set_aptitude_levels',
     resourceType: 'dut1_record',
     resourceId: id,
     resourceLabel: `${existing.first_name} ${existing.last_name}`,
     commission: 'sante',
     before,
-    after: record.unmet_criteria_json,
+    after: record.aptitude_levels_json,
   });
 
   res.json({ record: serializeRecord(record) });
@@ -790,5 +809,5 @@ module.exports = {
   completeComplementary,
   getRoomHistory,
   setAllergies,
-  setUnmetCriteria,
+  setAptitudeLevels,
 };

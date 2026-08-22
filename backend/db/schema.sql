@@ -360,20 +360,27 @@ ON CONFLICT (field_key) DO NOTHING;
 DELETE FROM phase2_questions WHERE field_key = 'admission_list_type';
 
 -- 'aptitude' ajouté en même temps que le resserrement (jamais utilisé avant,
--- pas besoin d'élargissement séparé) : réponse câblée sur dut1_unmet_criteria
+-- pas besoin d'élargissement séparé) : réponse câblée sur dut1_aptitude_levels
 -- (cf. plus bas), pas sur extra_fields_json, comme allergies/traitement_medical.
 ALTER TABLE phase2_questions DROP CONSTRAINT IF EXISTS phase2_questions_type_check;
 ALTER TABLE phase2_questions ADD CONSTRAINT phase2_questions_type_check
   CHECK (type IN ('texte_court','texte_long','choix_unique','choix_multiple','oui_non','traitement_medical','allergies','aptitude'));
 
 -- Positions négatives : elles se placent avant personnalite/remarques (0/1)
--- sans avoir à toucher aux positions déjà attribuées ailleurs.
+-- sans avoir à toucher aux positions déjà attribuées ailleurs. "aptitude" est
+-- obligatoire (contrairement à allergies) : pas de Oui/Non préalable, chaque
+-- critère configuré attend une réponse (un niveau) pour chaque DUT1.
 INSERT INTO phase2_questions (field_key, label, type, required, position)
 VALUES
   ('on_treatment', 'Traitement médical en cours ?', 'traitement_medical', TRUE, -20),
   ('allergies', 'Allergies', 'allergies', FALSE, -10),
-  ('aptitude_criteria', 'Critères d''aptitude', 'aptitude', FALSE, -5)
+  ('aptitude_criteria', 'Critères d''aptitude', 'aptitude', TRUE, -5)
 ON CONFLICT (field_key) DO NOTHING;
+
+-- Si la ligne existait déjà (créée quand le type était encore optionnel),
+-- l'élargir en obligatoire : ON CONFLICT DO NOTHING ci-dessus ne touche pas
+-- une ligne déjà présente.
+UPDATE phase2_questions SET required = TRUE WHERE field_key = 'aptitude_criteria';
 
 -- Interrupteurs de fonctionnalités "jour d'accueil" : Enregistrement (phase 1),
 -- Bagages (photo/comptage) et Logistique (livraison en chambre) — tout le
@@ -487,51 +494,71 @@ CREATE INDEX IF NOT EXISTS idx_medication_movements_medication ON medication_mov
 CREATE INDEX IF NOT EXISTS idx_medication_movements_created_at ON medication_movements(created_at DESC);
 
 -- Référentiel des critères d'aptitude physique (commission Santé, chef
--- uniquement) : mêmes principes que les allergènes, réutilisé par les
--- restrictions de santé (criterion_id ci-dessous) et par les activités
--- (activity_required_criteria) pour croiser automatiquement qui est à risque.
+-- uniquement) : mêmes principes que les allergènes. Chaque critère porte sa
+-- PROPRE échelle de niveaux nommés (aptitude_criterion_levels ci-dessous) —
+-- pas un simple rempli/pas rempli, ni une échelle numérique commune à tous
+-- les critères : "Sportif" peut avoir Pas sportif/Peu sportif/Sportif/Très
+-- sportif, un autre critère aura ses propres libellés.
 CREATE TABLE IF NOT EXISTS aptitude_criteria (
   id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   label       TEXT NOT NULL UNIQUE,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Critères exigés pour participer à une activité donnée, choisis par le chef
--- de la commission Santé — la commission Présidentielle crée l'activité mais
--- n'a pas la compétence médicale pour juger de ses prérequis physiques.
+-- rank ordonne l'échelle (0 = niveau le plus faible) : c'est sur ce rang que
+-- se comparent le niveau déclaré d'un DUT1 et le niveau minimum exigé par une
+-- activité (ci-dessous), pas sur le libellé.
+CREATE TABLE IF NOT EXISTS aptitude_criterion_levels (
+  id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  criterion_id  INTEGER NOT NULL REFERENCES aptitude_criteria(id) ON DELETE CASCADE,
+  label         TEXT NOT NULL,
+  rank          INTEGER NOT NULL,
+  UNIQUE (criterion_id, rank)
+);
+
+CREATE INDEX IF NOT EXISTS idx_aptitude_criterion_levels_criterion ON aptitude_criterion_levels(criterion_id, rank);
+
+-- Niveau minimum exigé, par critère, pour participer à une activité donnée —
+-- choisi par le chef de la commission Santé (Présidentielle crée l'activité
+-- mais n'a pas la compétence médicale pour juger de ses prérequis physiques).
+-- Aucune donnée existante au moment de ce passage au modèle gradué (la
+-- fonctionnalité venait d'être livrée en rempli/pas rempli) : la table est
+-- recréée directement avec min_level_id NOT NULL plutôt qu'élargie.
+DROP TABLE IF EXISTS activity_required_criteria CASCADE;
 CREATE TABLE IF NOT EXISTS activity_required_criteria (
   activity_id   INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
   criterion_id  INTEGER NOT NULL REFERENCES aptitude_criteria(id) ON DELETE CASCADE,
+  min_level_id  INTEGER NOT NULL REFERENCES aptitude_criterion_levels(id) ON DELETE CASCADE,
   PRIMARY KEY (activity_id, criterion_id)
 );
 
--- Un critère non rempli devient le motif structuré d'une restriction, en plus
--- du texte libre existant (reason reste NOT NULL, pour ne rien casser des
--- restrictions déjà déclarées) : quand une restriction porte un criterion_id,
--- Risques du jour (getRisks) calcule automatiquement, pour la date demandée,
--- quelles activités du jour exigent ce critère — sans que l'agent ait besoin
--- de connaître à l'avance l'activité concernée ni de la resaisir à chaque
--- fois qu'une nouvelle activité exige le même critère.
+CREATE INDEX IF NOT EXISTS idx_activity_required_criteria_activity ON activity_required_criteria(activity_id);
+
+-- Une restriction ponctuelle liée à un critère reste un blocage simple et
+-- total pour ce critère (pas de niveau) : utile pour un imprévu découvert
+-- après l'enregistrement (blessure pendant la semaine), où le DUT1 ne doit
+-- provisoirement plus être considéré apte du tout sur ce point, quel que soit
+-- le niveau qu'il avait déclaré. Le profil gradué (dut1_aptitude_levels
+-- ci-dessous) reste la source pour ce qui est connu dès l'enregistrement.
 ALTER TABLE health_restrictions
   ADD COLUMN IF NOT EXISTS criterion_id INTEGER REFERENCES aptitude_criteria(id) ON DELETE SET NULL;
 
-CREATE INDEX IF NOT EXISTS idx_activity_required_criteria_activity ON activity_required_criteria(activity_id);
 CREATE INDEX IF NOT EXISTS idx_health_restrictions_criterion ON health_restrictions(criterion_id);
 
--- Profil d'aptitude du DUT1, saisi une fois à l'enregistrement (phase 2,
--- question intégrée "aptitude" ci-dessus) : ne liste que les critères qu'il
--- NE remplit PAS (comme dut1_allergens ne liste que les allergies qu'il a),
--- pas un état par critère. Contrairement à health_restrictions, ce n'est pas
--- borné dans le temps ni déclaré au coup par coup — Risques du jour (getRisks)
--- croise directement ce profil avec les activités du jour qui exigent un de
--- ces critères, sans qu'un agent Santé ait besoin de le signaler à part. Les
--- deux mécanismes coexistent : ce profil couvre ce qui est connu dès
--- l'enregistrement, health_restrictions reste utile pour un imprévu découvert
--- après coup (blessure pendant la semaine).
-CREATE TABLE IF NOT EXISTS dut1_unmet_criteria (
+-- Profil d'aptitude du DUT1, saisi obligatoirement à l'enregistrement (phase
+-- 2, question intégrée "aptitude") : un niveau choisi par critère configuré
+-- (pas de Oui/Non préalable, une réponse est requise pour chacun). Remplace
+-- dut1_unmet_criteria (modèle rempli/pas rempli, aucune donnée réelle au
+-- moment de ce changement — abandonnée plutôt que migrée). Contrairement à
+-- health_restrictions, ce n'est pas borné dans le temps ni déclaré au coup
+-- par coup : Risques du jour (getRisks) compare directement le rang du
+-- niveau déclaré au rang minimum exigé par chaque activité du jour.
+DROP TABLE IF EXISTS dut1_unmet_criteria CASCADE;
+CREATE TABLE IF NOT EXISTS dut1_aptitude_levels (
   dut1_id      INTEGER NOT NULL REFERENCES dut1_records(id) ON DELETE CASCADE,
   criterion_id INTEGER NOT NULL REFERENCES aptitude_criteria(id) ON DELETE CASCADE,
+  level_id     INTEGER NOT NULL REFERENCES aptitude_criterion_levels(id) ON DELETE CASCADE,
   PRIMARY KEY (dut1_id, criterion_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_dut1_unmet_criteria_dut1 ON dut1_unmet_criteria(dut1_id);
+CREATE INDEX IF NOT EXISTS idx_dut1_aptitude_levels_dut1 ON dut1_aptitude_levels(dut1_id);

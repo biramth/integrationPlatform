@@ -59,42 +59,74 @@ async function getRisks(req, res) {
     [date]
   );
 
-  // Un critère d'aptitude non rempli (criterion_id) s'applique automatiquement
-  // à toute activité du jour qui l'exige, sans que l'agent ait eu besoin de
-  // lier la restriction à cette activité précise au moment de la déclarer —
-  // seul un lien explicite (hr.activity_id) restait limité à une activité
-  // choisie à l'avance.
+  // Un critère lié à une restriction ponctuelle (hr.criterion_id) s'applique
+  // automatiquement à toute activité du jour qui l'exige, sans que l'agent
+  // ait eu besoin de lier la restriction à cette activité précise au moment
+  // de la déclarer — seul un lien explicite (hr.activity_id) restait limité
+  // à une activité choisie à l'avance.
   const todaysActivities = await db.all(
     `SELECT id, name FROM activities WHERE $1 BETWEEN activity_date AND COALESCE(end_date, activity_date)`,
     [date]
   );
+  const activityNameById = new Map(todaysActivities.map((a) => [a.id, a.name]));
+
+  // Niveau minimum exigé par critère, pour chaque activité du jour.
   const requiredCriteriaRows = todaysActivities.length
     ? await db.all(
-        `SELECT activity_id, criterion_id FROM activity_required_criteria WHERE activity_id = ANY($1::int[])`,
+        `SELECT arc.activity_id, arc.criterion_id, ac.label AS criterion_label,
+           lvl.rank AS min_rank, lvl.label AS min_level_label
+         FROM activity_required_criteria arc
+         JOIN aptitude_criteria ac ON ac.id = arc.criterion_id
+         JOIN aptitude_criterion_levels lvl ON lvl.id = arc.min_level_id
+         WHERE arc.activity_id = ANY($1::int[])`,
         [todaysActivities.map((a) => a.id)]
       )
     : [];
-  const activityNameById = new Map(todaysActivities.map((a) => [a.id, a.name]));
+  // Pour la restriction ponctuelle (blocage total, pas de niveau) : simple
+  // regroupement activité(s) par critère, comme avant.
   const activitiesByCriterion = new Map();
   for (const row of requiredCriteriaRows) {
     if (!activitiesByCriterion.has(row.criterion_id)) activitiesByCriterion.set(row.criterion_id, new Set());
     activitiesByCriterion.get(row.criterion_id).add(activityNameById.get(row.activity_id));
   }
 
-  // Profil d'aptitude saisi à l'enregistrement (dut1_unmet_criteria, question
-  // phase 2 "aptitude") : contrairement à une restriction, ce n'est jamais
-  // déclaré au coup par coup — dès qu'une activité du jour exige un critère
-  // que le DUT1 n'a pas coché comme rempli à l'enregistrement, il apparaît
-  // automatiquement ici, comme une restriction dont le motif serait le
-  // critère lui-même.
-  const unmetCriteriaRows = await db.all(
-    `SELECT d.id, d.first_name, d.last_name, d.department, d.gender, r.label AS room_label,
-       duc.criterion_id, ac.label AS criterion_label
-     FROM dut1_unmet_criteria duc
-     JOIN dut1_records d ON d.id = duc.dut1_id
-     JOIN aptitude_criteria ac ON ac.id = duc.criterion_id
-     LEFT JOIN rooms r ON r.id = d.room_id`
-  );
+  // Profil d'aptitude saisi à l'enregistrement (dut1_aptitude_levels, question
+  // phase 2 "aptitude" obligatoire) : un niveau par critère, jamais déclaré au
+  // coup par coup — dès que le rang du niveau déclaré est inférieur au rang
+  // minimum exigé par une activité du jour (ou qu'aucun niveau n'a été
+  // renseigné pour ce critère, dossier complété avant son ajout), le DUT1
+  // apparaît automatiquement à risque pour cette activité.
+  const aptitudeMismatches = [];
+  if (requiredCriteriaRows.length) {
+    const completedDut1Rows = await db.all(
+      `SELECT d.id, d.first_name, d.last_name, d.department, d.gender, r.label AS room_label
+       FROM dut1_records d
+       LEFT JOIN rooms r ON r.id = d.room_id
+       WHERE d.complementary_completed_at IS NOT NULL`
+    );
+    const ownLevelRows = await db.all(
+      `SELECT dal.dut1_id, dal.criterion_id, lvl.rank, lvl.label
+       FROM dut1_aptitude_levels dal
+       JOIN aptitude_criterion_levels lvl ON lvl.id = dal.level_id`
+    );
+    const ownLevelByDut1 = new Map();
+    for (const row of ownLevelRows) {
+      if (!ownLevelByDut1.has(row.dut1_id)) ownLevelByDut1.set(row.dut1_id, new Map());
+      ownLevelByDut1.get(row.dut1_id).set(row.criterion_id, { rank: row.rank, label: row.label });
+    }
+
+    for (const req of requiredCriteriaRows) {
+      const activityName = activityNameById.get(req.activity_id);
+      for (const dut1 of completedDut1Rows) {
+        const own = ownLevelByDut1.get(dut1.id)?.get(req.criterion_id);
+        if (own && own.rank >= req.min_rank) continue;
+        const reason = own
+          ? `${req.criterion_label} : niveau requis "${req.min_level_label}", actuellement "${own.label}"`
+          : `${req.criterion_label} : niveau requis "${req.min_level_label}", non renseigné`;
+        aptitudeMismatches.push({ ...dut1, reason, activityName });
+      }
+    }
+  }
 
   // Traitement médical en cours (déclaré en phase 2) : pas de bornes de dates
   // dans le questionnaire, donc un traitement déclaré est considéré actif tant
@@ -145,11 +177,10 @@ async function getRisks(req, res) {
       endDate: row.end_date,
     });
   }
-  for (const row of unmetCriteriaRows) {
-    if (!activitiesByCriterion.has(row.criterion_id)) continue;
-    ensure(row).restrictions.push({
-      reason: `Critère non rempli : ${row.criterion_label}`,
-      activityNames: Array.from(activitiesByCriterion.get(row.criterion_id)),
+  for (const mismatch of aptitudeMismatches) {
+    ensure(mismatch).restrictions.push({
+      reason: mismatch.reason,
+      activityNames: [mismatch.activityName],
       endDate: null,
     });
   }

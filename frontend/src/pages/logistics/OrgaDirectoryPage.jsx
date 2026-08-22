@@ -17,6 +17,7 @@ import { CardListSkeleton } from '../../components/common/Skeleton';
 import { getLuggageStatus } from '../../utils/luggageStatus';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../../utils/departments';
 import { staggerStyle } from '../../utils/stagger';
+import Dut1Card from '../../components/dut1/Dut1Card';
 
 const PAGE_SIZE = 25;
 
@@ -155,7 +156,7 @@ export default function OrgaDirectoryPage() {
 
       {!loading && !error && data.records.length > 0 && (
         <>
-          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 text-xs uppercase text-muted-foreground hover:bg-muted/50">
@@ -200,6 +201,30 @@ export default function OrgaDirectoryPage() {
               </TableBody>
             </Table>
           </div>
+
+          <div className="flex flex-col gap-3 md:hidden">
+            {data.records.map((record, i) => {
+              const luggage = getLuggageStatus(record);
+              return (
+                <div key={record.id} className="animate-fade-in-up" style={staggerStyle(i)}>
+                  <Dut1Card
+                    record={record}
+                    onClick={() => openRecord(record)}
+                    actions={
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm text-muted-foreground">Tél. {record.phone_number || '—'}</p>
+                        <Badge variant={luggage.variant} className="shrink-0">
+                          <LuggageIcon className="mr-1 inline h-3 w-3" />
+                          {luggage.label}
+                        </Badge>
+                      </div>
+                    }
+                  />
+                </div>
+              );
+            })}
+          </div>
+
           <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onPageChange={setPage} />
         </>
       )}

@@ -7,7 +7,7 @@ const CHOICE_TYPES = ['choix_unique', 'choix_multiple'];
 
 // Types "intégrés" : traitement/allergies/aptitude, câblés sur leurs
 // colonnes/tables dédiées (dut1_records.on_treatment/treatment_details,
-// dut1_allergens, dut1_unmet_criteria) — jamais sur extra_fields_json. Créés
+// dut1_allergens, dut1_aptitude_levels) — jamais sur extra_fields_json. Créés
 // une seule fois par le seed du schéma, jamais par createQuestion.
 const BUILTIN_TYPES = ['traitement_medical', 'allergies', 'aptitude'];
 // traitement_medical, allergies et aptitude alimentent Risques du jour (et le

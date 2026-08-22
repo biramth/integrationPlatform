@@ -8,6 +8,6 @@ export function setDut1Allergies(dut1Id, allergiesMap) {
   return axiosClient.put(`/dut1/${dut1Id}/allergies`, { allergies }).then((res) => res.data);
 }
 
-export function setDut1UnmetCriteria(dut1Id, criterionIds) {
-  return axiosClient.put(`/dut1/${dut1Id}/aptitude-criteria`, { criterionIds }).then((res) => res.data);
+export function setDut1AptitudeLevels(dut1Id, levels) {
+  return axiosClient.put(`/dut1/${dut1Id}/aptitude-criteria`, { levels }).then((res) => res.data);
 }

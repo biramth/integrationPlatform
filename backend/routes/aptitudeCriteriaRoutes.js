@@ -18,6 +18,10 @@ router.use(requireRole('sante'), requireCommissionLead);
 router.post('/', controller.createCriterion);
 router.put('/:id', controller.updateCriterion);
 router.delete('/:id', controller.deleteCriterion);
+router.post('/:id/levels', controller.createLevel);
+router.put('/:id/levels/reorder', controller.reorderLevels);
+router.put('/:id/levels/:levelId', controller.updateLevel);
+router.delete('/:id/levels/:levelId', controller.deleteLevel);
 router.put('/activities/:id', controller.setActivityCriteria);
 
 module.exports = router;

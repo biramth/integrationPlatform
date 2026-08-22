@@ -1,25 +1,38 @@
-import YesNoToggle from '../common/YesNoToggle';
-import AllergenCheckboxes from '../common/AllergenCheckboxes';
+import Button from '../common/Button';
 
-// Même schéma que Dut1AllergyQuestion : tout le monde n'a pas de limitation
-// d'aptitude, un Oui/Non d'abord — la sélection des critères non remplis ne
-// s'affiche que si Oui. Pas de sévérité ici (AllergenCheckboxes s'en passe
-// dès qu'on ne lui fournit pas severities/onSeverityChange), juste coché/non
-// coché : "ce critère n'est pas rempli par ce DUT1".
-export default function Dut1AptitudeQuestion({
-  hasLimitations,
-  onHasLimitationsChange,
-  criteria,
-  selectedIds,
-  onChange,
-  disabled = false,
-}) {
+// Contrairement à Allergies, pas de Oui/Non préalable : chaque critère
+// configuré par le chef Santé attend une réponse (un niveau) pour tous les
+// DUT1, la question phase 2 "aptitude" est obligatoire dans son ensemble.
+export default function Dut1AptitudeQuestion({ criteria, levels, onLevelChange, disabled = false }) {
+  if (criteria.length === 0) {
+    return <p className="text-sm text-muted-foreground">Aucun critère configuré par la commission Santé pour l'instant.</p>;
+  }
+
   return (
-    <div className="flex flex-col gap-3">
-      <YesNoToggle value={hasLimitations} onChange={onHasLimitationsChange} disabled={disabled} />
-      {hasLimitations === true && (
-        <AllergenCheckboxes allergens={criteria} selectedIds={selectedIds} onChange={onChange} disabled={disabled} />
-      )}
+    <div className="flex flex-col gap-4">
+      {criteria.map((c) => (
+        <div key={c.id} className="flex flex-col gap-1.5">
+          <span className="text-sm text-foreground">{c.label}</span>
+          {(c.levels || []).length === 0 ? (
+            <p className="text-xs text-muted-foreground">Aucun niveau configuré pour ce critère.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {c.levels.map((level) => (
+                <Button
+                  key={level.id}
+                  type="button"
+                  variant={levels[c.id] === level.id ? 'primary' : 'secondary'}
+                  className="px-3 py-1.5 text-xs"
+                  disabled={disabled}
+                  onClick={() => onLevelChange(c.id, level.id)}
+                >
+                  {level.label}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ArrowLeft, Search, Lock, X } from 'lucide-react';
 import { listDut1, completeComplementary } from '../../api/dut1Api';
-import { setDut1Allergies, setDut1UnmetCriteria } from '../../api/dut1AllergyApi';
+import { setDut1Allergies, setDut1AptitudeLevels } from '../../api/dut1AllergyApi';
 import { listAllergens } from '../../api/allergenApi';
 import { listCriteria } from '../../api/aptitudeCriteriaApi';
 import { listPhase2Questions } from '../../api/phase2QuestionsApi';
@@ -62,8 +62,7 @@ export default function CompleteInfoFormPage() {
   const [values, setValues] = useState({});
   const [allergies, setAllergies] = useState({});
   const [hasAllergies, setHasAllergies] = useState(null);
-  const [unmetCriteriaIds, setUnmetCriteriaIds] = useState([]);
-  const [hasAptitudeLimitations, setHasAptitudeLimitations] = useState(null);
+  const [aptitudeLevels, setAptitudeLevels] = useState({});
   const [onTreatment, setOnTreatment] = useState(null);
   const [treatmentDetails, setTreatmentDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -78,7 +77,6 @@ export default function CompleteInfoFormPage() {
   const allergenLabelById = Object.fromEntries((allergensFetch.data?.allergens || []).map((a) => [a.id, a.label]));
   const criteriaFetch = useFetch(listCriteria, []);
   const aptitudeCriteria = criteriaFetch.data?.criteria || [];
-  const criterionLabelById = Object.fromEntries(aptitudeCriteria.map((c) => [c.id, c.label]));
   const questionsFetch = useFetch(listPhase2Questions, []);
   const questions = questionsFetch.data?.questions || [];
   const settingsFetch = useFetch(getPlatformSettings, []);
@@ -105,9 +103,8 @@ export default function CompleteInfoFormPage() {
     if (!value) setAllergies({});
   }
 
-  function handleHasAptitudeLimitationsChange(value) {
-    setHasAptitudeLimitations(value);
-    if (!value) setUnmetCriteriaIds([]);
+  function handleAptitudeLevelChange(criterionId, levelId) {
+    setAptitudeLevels((prev) => ({ ...prev, [criterionId]: levelId }));
   }
 
   function updateFilters(patch) {
@@ -135,9 +132,11 @@ export default function CompleteInfoFormPage() {
     // réponse, pour forcer l'agent à passer par le Oui/Non.
     setHasAllergies(record.complementary_completed_at ? Object.keys(initial).length > 0 : null);
 
-    const initialCriteria = (record.unmet_criteria || []).map((c) => c.id);
-    setUnmetCriteriaIds(initialCriteria);
-    setHasAptitudeLimitations(record.complementary_completed_at ? initialCriteria.length > 0 : null);
+    const initialLevels = {};
+    for (const l of record.aptitude_levels || []) {
+      initialLevels[l.criterionId] = l.levelId;
+    }
+    setAptitudeLevels(initialLevels);
   }
 
   function handleChange(key, value) {
@@ -162,8 +161,9 @@ export default function CompleteInfoFormPage() {
       showToast('La question des allergies doit être renseignée avant de continuer.', 'error');
       return;
     }
-    if (typeof hasAptitudeLimitations !== 'boolean') {
-      showToast("La question des critères d'aptitude doit être renseignée avant de continuer.", 'error');
+    const criteriaWithLevels = aptitudeCriteria.filter((c) => (c.levels || []).length > 0);
+    if (criteriaWithLevels.some((c) => !aptitudeLevels[c.id])) {
+      showToast("Chaque critère d'aptitude doit avoir un niveau renseigné avant de continuer.", 'error');
       return;
     }
     for (const q of questions) {
@@ -179,10 +179,14 @@ export default function CompleteInfoFormPage() {
   async function confirmAndSave() {
     setSubmitting(true);
     try {
+      const levelsPayload = Object.entries(aptitudeLevels).map(([criterionId, levelId]) => ({
+        criterionId: Number(criterionId),
+        levelId,
+      }));
       const [data] = await Promise.all([
         completeComplementary(selected.id, { extraFields: values, onTreatment, treatmentDetails }),
         setDut1Allergies(selected.id, allergies),
-        setDut1UnmetCriteria(selected.id, unmetCriteriaIds),
+        setDut1AptitudeLevels(selected.id, levelsPayload),
       ]);
       showToast('Infos complémentaires enregistrées.', 'success');
       setRecapOpen(false);
@@ -255,10 +259,8 @@ export default function CompleteInfoFormPage() {
               hasAllergies={hasAllergies}
               onHasAllergiesChange={handleHasAllergiesChange}
               aptitudeCriteria={aptitudeCriteria}
-              unmetCriterionIds={unmetCriteriaIds}
-              onUnmetCriteriaChange={setUnmetCriteriaIds}
-              hasAptitudeLimitations={hasAptitudeLimitations}
-              onHasAptitudeLimitationsChange={handleHasAptitudeLimitationsChange}
+              aptitudeLevels={aptitudeLevels}
+              onAptitudeLevelChange={handleAptitudeLevelChange}
               disabled={isLocked}
             />
           </div>
@@ -298,15 +300,21 @@ export default function CompleteInfoFormPage() {
                   ))}
 
                 {q.type === 'aptitude' &&
-                  (unmetCriteriaIds.length === 0 ? (
-                    <p className="mt-1 text-sm text-muted-foreground">Aucune limitation d'aptitude déclarée.</p>
+                  (aptitudeCriteria.filter((c) => (c.levels || []).length > 0).length === 0 ? (
+                    <p className="mt-1 text-sm text-muted-foreground">Aucun critère configuré.</p>
                   ) : (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {unmetCriteriaIds.map((id) => (
-                        <Badge key={id} variant="danger">
-                          {criterionLabelById[id] || `#${id}`}
-                        </Badge>
-                      ))}
+                      {aptitudeCriteria
+                        .filter((c) => (c.levels || []).length > 0)
+                        .map((c) => {
+                          const levelId = aptitudeLevels[c.id];
+                          const level = (c.levels || []).find((l) => l.id === levelId);
+                          return (
+                            <Badge key={c.id} variant={level ? 'neutral' : 'danger'}>
+                              {c.label} : {level ? level.label : 'non renseigné'}
+                            </Badge>
+                          );
+                        })}
                     </div>
                   ))}
 

@@ -50,7 +50,10 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       const loggedInUser = await login(username, password);
-      navigate(homePathForRole(loggedInUser.role, loggedInUser.subRole), { replace: true });
+      navigate(
+        homePathForRole(loggedInUser.role, loggedInUser.subRole, loggedInUser.isCommissionLead, loggedInUser.isPoleLead),
+        { replace: true }
+      );
     } catch (err) {
       setError(err.response?.data?.error || 'Connexion impossible.');
     } finally {

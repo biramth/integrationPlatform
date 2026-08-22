@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Plus, Trash2, ChevronUp, ChevronDown, ListChecks, X, Lock, Pencil, Check } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as phase2QuestionsApi from '../../api/phase2QuestionsApi';
@@ -28,7 +28,7 @@ const PREVIEW_NOTE = {
   traitement_medical: 'Réponse Oui/Non, avec détail des traitements si Oui.',
   allergies: "Oui/Non, puis sélection des allergies déclarées si Oui, avec niveau de sévérité.",
   aptitude:
-    "Oui/Non, puis sélection des critères non remplis si Oui — la liste se configure depuis Critères d'aptitude, dans le menu.",
+    "Réponse obligatoire : un niveau à choisir pour chaque critère configuré (ex. Sportif : Pas sportif / Peu sportif / Sportif / Très sportif) — les critères et leurs niveaux se configurent depuis Critères d'aptitude, dans le menu.",
 };
 
 function QuestionPreview({ question }) {
@@ -62,15 +62,19 @@ function QuestionPreview({ question }) {
 
 function QuestionEditor({ draft, onChange, onSave, onCancel, saving, locked }) {
   const isChoiceType = PHASE2_CHOICE_TYPES.includes(draft.type);
+  const nextOptionKeyRef = useRef(draft.options.length);
+  const [optionKeys, setOptionKeys] = useState(() => draft.options.map((_, i) => i));
 
   function updateOption(index, value) {
     onChange({ ...draft, options: draft.options.map((o, i) => (i === index ? value : o)) });
   }
   function addOption() {
     onChange({ ...draft, options: [...draft.options, ''] });
+    setOptionKeys((keys) => [...keys, nextOptionKeyRef.current++]);
   }
   function removeOption(index) {
     onChange({ ...draft, options: draft.options.filter((_, i) => i !== index) });
+    setOptionKeys((keys) => keys.filter((_, i) => i !== index));
   }
 
   return (
@@ -103,7 +107,7 @@ function QuestionEditor({ draft, onChange, onSave, onCancel, saving, locked }) {
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium text-foreground">Options</span>
           {draft.options.map((opt, i) => (
-            <div key={i} className="flex items-center gap-2">
+            <div key={optionKeys[i] ?? i} className="flex items-center gap-2">
               <input
                 value={opt}
                 onChange={(e) => updateOption(i, e.target.value)}
