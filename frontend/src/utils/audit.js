@@ -9,6 +9,7 @@ export const ACTION_LABELS = {
   'dut1.complete_complementary': 'Complément de dossier (phase 2)',
   'dut1.correct_complementary': 'Correction du complément de dossier (phase 2)',
   'dut1.set_allergies': 'Modification allergies',
+  'dut1.set_unmet_criteria': "Modification des critères d'aptitude non remplis",
   'dut1.room_reassign': 'Réaffectation de chambre',
   'dut1.set_luggage_count': 'Modification nombre de bagages déclarés',
   'dut1.confirm_luggage_delivery': 'Confirmation dépôt de bagages en chambre',

@@ -359,16 +359,20 @@ ON CONFLICT (field_key) DO NOTHING;
 -- (cf. plus haut, on ne supprime jamais de colonne dans ce fichier).
 DELETE FROM phase2_questions WHERE field_key = 'admission_list_type';
 
+-- 'aptitude' ajouté en même temps que le resserrement (jamais utilisé avant,
+-- pas besoin d'élargissement séparé) : réponse câblée sur dut1_unmet_criteria
+-- (cf. plus bas), pas sur extra_fields_json, comme allergies/traitement_medical.
 ALTER TABLE phase2_questions DROP CONSTRAINT IF EXISTS phase2_questions_type_check;
 ALTER TABLE phase2_questions ADD CONSTRAINT phase2_questions_type_check
-  CHECK (type IN ('texte_court','texte_long','choix_unique','choix_multiple','oui_non','traitement_medical','allergies'));
+  CHECK (type IN ('texte_court','texte_long','choix_unique','choix_multiple','oui_non','traitement_medical','allergies','aptitude'));
 
 -- Positions négatives : elles se placent avant personnalite/remarques (0/1)
 -- sans avoir à toucher aux positions déjà attribuées ailleurs.
 INSERT INTO phase2_questions (field_key, label, type, required, position)
 VALUES
   ('on_treatment', 'Traitement médical en cours ?', 'traitement_medical', TRUE, -20),
-  ('allergies', 'Allergies', 'allergies', FALSE, -10)
+  ('allergies', 'Allergies', 'allergies', FALSE, -10),
+  ('aptitude_criteria', 'Critères d''aptitude', 'aptitude', FALSE, -5)
 ON CONFLICT (field_key) DO NOTHING;
 
 -- Interrupteurs de fonctionnalités "jour d'accueil" : Enregistrement (phase 1),
@@ -513,3 +517,21 @@ ALTER TABLE health_restrictions
 
 CREATE INDEX IF NOT EXISTS idx_activity_required_criteria_activity ON activity_required_criteria(activity_id);
 CREATE INDEX IF NOT EXISTS idx_health_restrictions_criterion ON health_restrictions(criterion_id);
+
+-- Profil d'aptitude du DUT1, saisi une fois à l'enregistrement (phase 2,
+-- question intégrée "aptitude" ci-dessus) : ne liste que les critères qu'il
+-- NE remplit PAS (comme dut1_allergens ne liste que les allergies qu'il a),
+-- pas un état par critère. Contrairement à health_restrictions, ce n'est pas
+-- borné dans le temps ni déclaré au coup par coup — Risques du jour (getRisks)
+-- croise directement ce profil avec les activités du jour qui exigent un de
+-- ces critères, sans qu'un agent Santé ait besoin de le signaler à part. Les
+-- deux mécanismes coexistent : ce profil couvre ce qui est connu dès
+-- l'enregistrement, health_restrictions reste utile pour un imprévu découvert
+-- après coup (blessure pendant la semaine).
+CREATE TABLE IF NOT EXISTS dut1_unmet_criteria (
+  dut1_id      INTEGER NOT NULL REFERENCES dut1_records(id) ON DELETE CASCADE,
+  criterion_id INTEGER NOT NULL REFERENCES aptitude_criteria(id) ON DELETE CASCADE,
+  PRIMARY KEY (dut1_id, criterion_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dut1_unmet_criteria_dut1 ON dut1_unmet_criteria(dut1_id);

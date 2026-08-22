@@ -5,15 +5,15 @@ const db = require('../db/database');
 const CUSTOM_TYPES = ['texte_court', 'texte_long', 'choix_unique', 'choix_multiple', 'oui_non'];
 const CHOICE_TYPES = ['choix_unique', 'choix_multiple'];
 
-// Types "intégrés" : traitement/allergies, câblés sur leurs colonnes/tables
-// dédiées (dut1_records.on_treatment/treatment_details, dut1_allergens) —
-// jamais sur extra_fields_json. Créés une seule fois par le seed du schéma,
-// jamais par createQuestion.
-const BUILTIN_TYPES = ['traitement_medical', 'allergies'];
-// traitement_medical et allergies alimentent Risques du jour et le
-// croisement menu/allergènes : suppression bloquée, ce sont les deux seuls
-// types intégrés.
-const LOCKED_DELETE_TYPES = ['traitement_medical', 'allergies'];
+// Types "intégrés" : traitement/allergies/aptitude, câblés sur leurs
+// colonnes/tables dédiées (dut1_records.on_treatment/treatment_details,
+// dut1_allergens, dut1_unmet_criteria) — jamais sur extra_fields_json. Créés
+// une seule fois par le seed du schéma, jamais par createQuestion.
+const BUILTIN_TYPES = ['traitement_medical', 'allergies', 'aptitude'];
+// traitement_medical, allergies et aptitude alimentent Risques du jour (et le
+// croisement menu/allergènes pour allergies) : suppression bloquée, ce sont
+// les trois seuls types intégrés.
+const LOCKED_DELETE_TYPES = ['traitement_medical', 'allergies', 'aptitude'];
 
 const TYPES = [...CUSTOM_TYPES, ...BUILTIN_TYPES];
 

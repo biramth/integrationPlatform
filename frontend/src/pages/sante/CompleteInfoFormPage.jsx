@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
 import { ArrowLeft, Search, Lock, X } from 'lucide-react';
 import { listDut1, completeComplementary } from '../../api/dut1Api';
-import { setDut1Allergies } from '../../api/dut1AllergyApi';
+import { setDut1Allergies, setDut1UnmetCriteria } from '../../api/dut1AllergyApi';
 import { listAllergens } from '../../api/allergenApi';
+import { listCriteria } from '../../api/aptitudeCriteriaApi';
 import { listPhase2Questions } from '../../api/phase2QuestionsApi';
 import { getPlatformSettings } from '../../api/platformSettingsApi';
 import { useAuth } from '../../hooks/useAuth';
@@ -61,6 +62,8 @@ export default function CompleteInfoFormPage() {
   const [values, setValues] = useState({});
   const [allergies, setAllergies] = useState({});
   const [hasAllergies, setHasAllergies] = useState(null);
+  const [unmetCriteriaIds, setUnmetCriteriaIds] = useState([]);
+  const [hasAptitudeLimitations, setHasAptitudeLimitations] = useState(null);
   const [onTreatment, setOnTreatment] = useState(null);
   const [treatmentDetails, setTreatmentDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -73,6 +76,9 @@ export default function CompleteInfoFormPage() {
   const { data, loading, error, reload } = useFetch(fetcher, [debouncedSearch, filters.department, filters.gender, page]);
   const allergensFetch = useFetch(listAllergens, []);
   const allergenLabelById = Object.fromEntries((allergensFetch.data?.allergens || []).map((a) => [a.id, a.label]));
+  const criteriaFetch = useFetch(listCriteria, []);
+  const aptitudeCriteria = criteriaFetch.data?.criteria || [];
+  const criterionLabelById = Object.fromEntries(aptitudeCriteria.map((c) => [c.id, c.label]));
   const questionsFetch = useFetch(listPhase2Questions, []);
   const questions = questionsFetch.data?.questions || [];
   const settingsFetch = useFetch(getPlatformSettings, []);
@@ -99,6 +105,11 @@ export default function CompleteInfoFormPage() {
     if (!value) setAllergies({});
   }
 
+  function handleHasAptitudeLimitationsChange(value) {
+    setHasAptitudeLimitations(value);
+    if (!value) setUnmetCriteriaIds([]);
+  }
+
   function updateFilters(patch) {
     setFilters((f) => ({ ...f, ...patch }));
     setPage(1);
@@ -123,6 +134,10 @@ export default function CompleteInfoFormPage() {
     // allergènes, ou aucun) ; un dossier pas encore complété part sans
     // réponse, pour forcer l'agent à passer par le Oui/Non.
     setHasAllergies(record.complementary_completed_at ? Object.keys(initial).length > 0 : null);
+
+    const initialCriteria = (record.unmet_criteria || []).map((c) => c.id);
+    setUnmetCriteriaIds(initialCriteria);
+    setHasAptitudeLimitations(record.complementary_completed_at ? initialCriteria.length > 0 : null);
   }
 
   function handleChange(key, value) {
@@ -147,8 +162,12 @@ export default function CompleteInfoFormPage() {
       showToast('La question des allergies doit être renseignée avant de continuer.', 'error');
       return;
     }
+    if (typeof hasAptitudeLimitations !== 'boolean') {
+      showToast("La question des critères d'aptitude doit être renseignée avant de continuer.", 'error');
+      return;
+    }
     for (const q of questions) {
-      if (['traitement_medical', 'allergies'].includes(q.type)) continue;
+      if (['traitement_medical', 'allergies', 'aptitude'].includes(q.type)) continue;
       if (q.required && isQuestionAnswerEmpty(values[q.field_key])) {
         showToast(`La question "${q.label}" doit être renseignée avant de continuer.`, 'error');
         return;
@@ -163,6 +182,7 @@ export default function CompleteInfoFormPage() {
       const [data] = await Promise.all([
         completeComplementary(selected.id, { extraFields: values, onTreatment, treatmentDetails }),
         setDut1Allergies(selected.id, allergies),
+        setDut1UnmetCriteria(selected.id, unmetCriteriaIds),
       ]);
       showToast('Infos complémentaires enregistrées.', 'success');
       setRecapOpen(false);
@@ -234,6 +254,11 @@ export default function CompleteInfoFormPage() {
               onSeverityChange={setSeverity}
               hasAllergies={hasAllergies}
               onHasAllergiesChange={handleHasAllergiesChange}
+              aptitudeCriteria={aptitudeCriteria}
+              unmetCriterionIds={unmetCriteriaIds}
+              onUnmetCriteriaChange={setUnmetCriteriaIds}
+              hasAptitudeLimitations={hasAptitudeLimitations}
+              onHasAptitudeLimitationsChange={handleHasAptitudeLimitationsChange}
               disabled={isLocked}
             />
           </div>
@@ -272,7 +297,20 @@ export default function CompleteInfoFormPage() {
                     </div>
                   ))}
 
-                {!['traitement_medical', 'allergies'].includes(q.type) && (
+                {q.type === 'aptitude' &&
+                  (unmetCriteriaIds.length === 0 ? (
+                    <p className="mt-1 text-sm text-muted-foreground">Aucune limitation d'aptitude déclarée.</p>
+                  ) : (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {unmetCriteriaIds.map((id) => (
+                        <Badge key={id} variant="danger">
+                          {criterionLabelById[id] || `#${id}`}
+                        </Badge>
+                      ))}
+                    </div>
+                  ))}
+
+                {!['traitement_medical', 'allergies', 'aptitude'].includes(q.type) && (
                   <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
                     {formatQuestionAnswer(q, values[q.field_key]) ?? <span className="text-muted-foreground">—</span>}
                   </p>

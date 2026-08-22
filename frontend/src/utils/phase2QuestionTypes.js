@@ -14,6 +14,7 @@ export const PHASE2_QUESTION_TYPES = [
 export const PHASE2_BUILTIN_TYPE_LABELS = {
   traitement_medical: 'Traitement médical (intégré)',
   allergies: 'Allergies (intégré)',
+  aptitude: "Critères d'aptitude (intégré)",
 };
 
 export const PHASE2_QUESTION_TYPE_LABELS = {
@@ -23,12 +24,12 @@ export const PHASE2_QUESTION_TYPE_LABELS = {
 
 export const PHASE2_CHOICE_TYPES = ['choix_unique', 'choix_multiple'];
 
-// traitement_medical et allergies alimentent Risques du jour et le
-// croisement menu/allergènes ailleurs sur le site : suppression bloquée
-// côté backend, ce sont les deux seuls types intégrés.
-export const PHASE2_LOCKED_DELETE_TYPES = ['traitement_medical', 'allergies'];
+// traitement_medical, allergies et aptitude alimentent Risques du jour (et le
+// croisement menu/allergènes pour allergies) ailleurs sur le site :
+// suppression bloquée côté backend, ce sont les trois seuls types intégrés.
+export const PHASE2_LOCKED_DELETE_TYPES = ['traitement_medical', 'allergies', 'aptitude'];
 
-export const PHASE2_BUILTIN_TYPES = ['traitement_medical', 'allergies'];
+export const PHASE2_BUILTIN_TYPES = ['traitement_medical', 'allergies', 'aptitude'];
 
 export function isPhase2QuestionLocked(type) {
   return PHASE2_BUILTIN_TYPES.includes(type);

@@ -2,6 +2,7 @@ import Button from '../common/Button';
 import YesNoToggle from '../common/YesNoToggle';
 import Dut1TreatmentQuestion from './Dut1TreatmentQuestion';
 import Dut1AllergyQuestion from './Dut1AllergyQuestion';
+import Dut1AptitudeQuestion from './Dut1AptitudeQuestion';
 
 const FIELD_CLASS =
   'rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground';
@@ -25,6 +26,11 @@ export default function Dut1ComplementaryForm({
   onSeverityChange,
   hasAllergies,
   onHasAllergiesChange,
+  aptitudeCriteria,
+  unmetCriterionIds,
+  onUnmetCriteriaChange,
+  hasAptitudeLimitations,
+  onHasAptitudeLimitationsChange,
   disabled = false,
 }) {
   return (
@@ -54,6 +60,17 @@ export default function Dut1ComplementaryForm({
               onChange={onAllergyChange}
               severities={severities}
               onSeverityChange={onSeverityChange}
+              disabled={disabled}
+            />
+          )}
+
+          {q.type === 'aptitude' && (
+            <Dut1AptitudeQuestion
+              hasLimitations={hasAptitudeLimitations}
+              onHasLimitationsChange={onHasAptitudeLimitationsChange}
+              criteria={aptitudeCriteria}
+              selectedIds={unmetCriterionIds}
+              onChange={onUnmetCriteriaChange}
               disabled={disabled}
             />
           )}

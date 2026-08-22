@@ -64,6 +64,12 @@ router.put(
   requireSanteScope('phase2', { allowLead: true }),
   dut1Controller.setAllergies
 );
+router.put(
+  '/:id/aptitude-criteria',
+  requireRole('sante'),
+  requireSanteScope('phase2', { allowLead: true }),
+  dut1Controller.setUnmetCriteria
+);
 // Réassignation de chambre : outil de gestion du chef Orga (regrouper des
 // DUT1, corriger une erreur d'affectation), pas la tâche quotidienne du
 // sous-rôle "chambres" — celui-ci livre les bagages déjà photographiés dans

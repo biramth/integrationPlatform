@@ -27,6 +27,8 @@ const NEW_DRAFT = { id: 'new', label: '', type: 'texte_court', required: false, 
 const PREVIEW_NOTE = {
   traitement_medical: 'Réponse Oui/Non, avec détail des traitements si Oui.',
   allergies: "Oui/Non, puis sélection des allergies déclarées si Oui, avec niveau de sévérité.",
+  aptitude:
+    "Oui/Non, puis sélection des critères non remplis si Oui — la liste se configure depuis Critères d'aptitude, dans le menu.",
 };
 
 function QuestionPreview({ question }) {

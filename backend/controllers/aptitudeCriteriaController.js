@@ -66,8 +66,9 @@ async function deleteCriterion(req, res) {
   const { id } = req.params;
   const usedByActivity = await db.get('SELECT COUNT(*) AS n FROM activity_required_criteria WHERE criterion_id = $1', [id]);
   const usedByRestriction = await db.get('SELECT COUNT(*) AS n FROM health_restrictions WHERE criterion_id = $1', [id]);
+  const usedByDut1 = await db.get('SELECT COUNT(*) AS n FROM dut1_unmet_criteria WHERE criterion_id = $1', [id]);
 
-  if (Number(usedByActivity.n) > 0 || Number(usedByRestriction.n) > 0) {
+  if (Number(usedByActivity.n) > 0 || Number(usedByRestriction.n) > 0 || Number(usedByDut1.n) > 0) {
     return res.status(409).json({ error: 'Ce critère est utilisé et ne peut pas être supprimé.' });
   }
 

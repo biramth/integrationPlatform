@@ -10,6 +10,12 @@ const ALLERGENS_SUBQUERY = `(
   WHERE da.dut1_id = d.id
 ) AS allergens_json`;
 
+const UNMET_CRITERIA_SUBQUERY = `(
+  SELECT COALESCE(json_agg(json_build_object('id', ac.id, 'label', ac.label)), '[]'::json)
+  FROM dut1_unmet_criteria duc JOIN aptitude_criteria ac ON ac.id = duc.criterion_id
+  WHERE duc.dut1_id = d.id
+) AS unmet_criteria_json`;
+
 const LUGGAGE_ITEMS_COUNT_SUBQUERY = `(
   SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id
 ) AS luggage_items_count`;
@@ -24,6 +30,7 @@ function serializeRecord(record) {
     ...record,
     extra_fields: record.extra_fields_json ? JSON.parse(record.extra_fields_json) : null,
     allergens: 'allergens_json' in record ? record.allergens_json : undefined,
+    unmet_criteria: 'unmet_criteria_json' in record ? record.unmet_criteria_json : undefined,
   };
 }
 
@@ -31,7 +38,16 @@ function serializeRecord(record) {
 // chambre, téléphone…) mais rien de médical : ni allergènes, ni traitement, ni
 // les champs libres de la phase 2 qui peuvent contenir des informations de santé.
 const NON_MEDICAL_ROLES = ['communication', 'presidentielle'];
-const MEDICAL_FIELDS = ['allergens', 'allergens_json', 'on_treatment', 'treatment_details', 'extra_fields', 'extra_fields_json'];
+const MEDICAL_FIELDS = [
+  'allergens',
+  'allergens_json',
+  'on_treatment',
+  'treatment_details',
+  'extra_fields',
+  'extra_fields_json',
+  'unmet_criteria',
+  'unmet_criteria_json',
+];
 
 function stripMedicalFields(record) {
   if (!record) return record;
@@ -223,7 +239,8 @@ async function listRecords(req, res) {
     `SELECT d.*, r.label AS room_label,
        ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
        ${LUGGAGE_SENSITIVE_SUBQUERY},
-       ${ALLERGENS_SUBQUERY}
+       ${ALLERGENS_SUBQUERY},
+       ${UNMET_CRITERIA_SUBQUERY}
      FROM dut1_records d
      LEFT JOIN rooms r ON r.id = d.room_id
      ${whereSql}
@@ -322,7 +339,8 @@ async function getRecord(req, res) {
     `SELECT d.*, r.label AS room_label,
        ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
        ${LUGGAGE_SENSITIVE_SUBQUERY},
-       ${ALLERGENS_SUBQUERY}
+       ${ALLERGENS_SUBQUERY},
+       ${UNMET_CRITERIA_SUBQUERY}
      FROM dut1_records d
      LEFT JOIN rooms r ON r.id = d.room_id
      WHERE d.id = $1`,
@@ -586,7 +604,7 @@ async function listMyDeliveries(req, res) {
 
 async function listWithoutComplementary(req, res) {
   const records = await db.all(
-    `SELECT d.*, ${ALLERGENS_SUBQUERY}
+    `SELECT d.*, ${ALLERGENS_SUBQUERY}, ${UNMET_CRITERIA_SUBQUERY}
      FROM dut1_records d
      WHERE d.complementary_completed_at IS NULL
      ORDER BY d.created_at ASC, d.id ASC`
@@ -719,6 +737,43 @@ async function setAllergies(req, res) {
   res.json({ record: serializeRecord(record) });
 }
 
+// Profil d'aptitude saisi à l'enregistrement (question intégrée "aptitude") :
+// remplace l'ensemble des critères non remplis, comme setAllergies remplace
+// l'ensemble des allergies déclarées — pas d'ajout incrémental.
+async function setUnmetCriteria(req, res) {
+  const { id } = req.params;
+  const existing = await db.get('SELECT id, first_name, last_name FROM dut1_records WHERE id = $1', [id]);
+  if (!existing) {
+    return res.status(404).json({ error: 'Dossier introuvable.' });
+  }
+
+  const before = await db.all('SELECT criterion_id FROM dut1_unmet_criteria WHERE dut1_id = $1', [id]);
+  const criterionIds = Array.isArray(req.body.criterionIds) ? req.body.criterionIds : [];
+
+  await db.transaction(async (tx) => {
+    await tx.run('DELETE FROM dut1_unmet_criteria WHERE dut1_id = $1', [id]);
+    for (const criterionId of criterionIds) {
+      const numericId = Number(criterionId);
+      if (!numericId) continue;
+      await tx.run('INSERT INTO dut1_unmet_criteria (dut1_id, criterion_id) VALUES ($1, $2)', [id, numericId]);
+    }
+  });
+
+  const record = await db.get(`SELECT d.*, ${UNMET_CRITERIA_SUBQUERY} FROM dut1_records d WHERE d.id = $1`, [id]);
+
+  await auditService.logAction(req, {
+    action: 'dut1.set_unmet_criteria',
+    resourceType: 'dut1_record',
+    resourceId: id,
+    resourceLabel: `${existing.first_name} ${existing.last_name}`,
+    commission: 'sante',
+    before,
+    after: record.unmet_criteria_json,
+  });
+
+  res.json({ record: serializeRecord(record) });
+}
+
 module.exports = {
   createRecord,
   listRecords,
@@ -735,4 +790,5 @@ module.exports = {
   completeComplementary,
   getRoomHistory,
   setAllergies,
+  setUnmetCriteria,
 };

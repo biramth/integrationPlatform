@@ -81,6 +81,21 @@ async function getRisks(req, res) {
     activitiesByCriterion.get(row.criterion_id).add(activityNameById.get(row.activity_id));
   }
 
+  // Profil d'aptitude saisi à l'enregistrement (dut1_unmet_criteria, question
+  // phase 2 "aptitude") : contrairement à une restriction, ce n'est jamais
+  // déclaré au coup par coup — dès qu'une activité du jour exige un critère
+  // que le DUT1 n'a pas coché comme rempli à l'enregistrement, il apparaît
+  // automatiquement ici, comme une restriction dont le motif serait le
+  // critère lui-même.
+  const unmetCriteriaRows = await db.all(
+    `SELECT d.id, d.first_name, d.last_name, d.department, d.gender, r.label AS room_label,
+       duc.criterion_id, ac.label AS criterion_label
+     FROM dut1_unmet_criteria duc
+     JOIN dut1_records d ON d.id = duc.dut1_id
+     JOIN aptitude_criteria ac ON ac.id = duc.criterion_id
+     LEFT JOIN rooms r ON r.id = d.room_id`
+  );
+
   // Traitement médical en cours (déclaré en phase 2) : pas de bornes de dates
   // dans le questionnaire, donc un traitement déclaré est considéré actif tant
   // qu'il n'est pas mis à jour — signalé sur "risques du jour" comme les
@@ -128,6 +143,14 @@ async function getRisks(req, res) {
       reason: row.reason,
       activityNames: Array.from(activityNames),
       endDate: row.end_date,
+    });
+  }
+  for (const row of unmetCriteriaRows) {
+    if (!activitiesByCriterion.has(row.criterion_id)) continue;
+    ensure(row).restrictions.push({
+      reason: `Critère non rempli : ${row.criterion_label}`,
+      activityNames: Array.from(activitiesByCriterion.get(row.criterion_id)),
+      endDate: null,
     });
   }
   for (const row of treatmentRows) {
