@@ -1,12 +1,15 @@
-import { HeartPulse, Pill } from 'lucide-react';
+import { HeartPulse, Pill, Boxes } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as statsApi from '../../api/statsApi';
 import { getActiveRestrictions, getOnTreatment } from '../../api/healthApi';
+import { listMedications } from '../../api/medicationApi';
 import StatCard from '../../components/stats/StatCard';
 import IllnessTrendChart from '../../components/stats/IllnessTrendChart';
 import AllergyPrevalenceChart from '../../components/stats/AllergyPrevalenceChart';
+import MedicationStockBar from '../../components/health/MedicationStockBar';
+import Card from '../../components/common/Card';
 import PageHeader from '../../components/common/PageHeader';
-import { ErrorState } from '../../components/common/StateViews';
+import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { StatCardSkeleton } from '../../components/common/Skeleton';
 import { staggerStyle } from '../../utils/stagger';
 
@@ -20,6 +23,7 @@ export default function SanteOverviewPage() {
   const allergyPrevalence = useFetch(statsApi.getAllergyPrevalence, []);
   const activeRestrictions = useFetch(getActiveRestrictions, []);
   const onTreatment = useFetch(getOnTreatment, []);
+  const medications = useFetch(listMedications, []);
 
   const loading = illnessTrend.loading || allergyPrevalence.loading || activeRestrictions.loading || onTreatment.loading;
   const error = illnessTrend.error || allergyPrevalence.error || activeRestrictions.error || onTreatment.error;
@@ -66,6 +70,26 @@ export default function SanteOverviewPage() {
           <AllergyPrevalenceChart rows={allergyPrevalence.data.rows} />
         </div>
       )}
+
+      <div className="mt-4 animate-fade-in-up" style={staggerStyle(3)}>
+        <Card>
+          <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Boxes className="h-4 w-4 text-muted-foreground" /> Stock de médicaments
+          </p>
+          {medications.loading && <p className="text-sm text-muted-foreground">Chargement…</p>}
+          {medications.error && <ErrorState label={medications.error} onRetry={medications.reload} />}
+          {!medications.loading && !medications.error && medications.data.medications.length === 0 && (
+            <EmptyState label="Aucun médicament configuré." />
+          )}
+          {!medications.loading && !medications.error && medications.data.medications.length > 0 && (
+            <div className="flex flex-col gap-4">
+              {medications.data.medications.map((m) => (
+                <MedicationStockBar key={m.id} medication={m} />
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }

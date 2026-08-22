@@ -10,9 +10,10 @@ CREATE TABLE IF NOT EXISTS users (
   role          TEXT NOT NULL CHECK (role IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle','dreudj')),
   -- Sous-rôle : restreint un agent à un seul sous-domaine de sa commission.
   -- Orga : chambres / enregistrement / bagages. Santé : suivi (risques, suivi,
-  -- allergènes) / phase2 (complément de dossier — traitement, allergies,
-  -- admission). NULL = accès à tous les sous-domaines de sa commission.
-  sub_role      TEXT CHECK (sub_role IN ('chambres','enregistrement','bagages','suivi','phase2')),
+  -- allergènes) / phase2 (complément de dossier — traitement, allergies) /
+  -- medoc (stock de médicaments). NULL = accès à tous les sous-domaines de sa
+  -- commission.
+  sub_role      TEXT CHECK (sub_role IN ('chambres','enregistrement','bagages','suivi','phase2','medoc')),
   -- Chef de commission : droits supplémentaires pour gérer les autres agents de sa
   -- propre commission (hors it, qui gère déjà tout le monde).
   is_commission_lead  BOOLEAN NOT NULL DEFAULT FALSE,
@@ -123,9 +124,13 @@ ALTER TABLE dut1_records
 -- nouveau rôle violerait la liste resserrée). D'où un seul élargissement en
 -- haut couvrant tout l'historique, puis un seul resserrement à la toute fin de
 -- ce fichier, sur l'ensemble des rôles réellement valides aujourd'hui.
+-- 'dreudj' inclus ici aussi (pas seulement dans le resserrement final plus
+-- bas) : cet élargissement est rejoué tel quel à chaque déploiement, donc
+-- toute valeur de rôle réellement utilisée en base doit y figurer, même une
+-- ajoutée après l'écriture initiale de cette étape historique.
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check
-  CHECK (role IN ('orga','admin','sante','cuisine','it','communication','culturelle','activites','presidentielle','registrar','logistics'));
+  CHECK (role IN ('orga','admin','sante','cuisine','it','communication','culturelle','activites','presidentielle','registrar','logistics','dreudj'));
 
 UPDATE users SET role = 'orga' WHERE role IN ('registrar', 'logistics');
 
@@ -148,7 +153,7 @@ ALTER TABLE users
 -- données existantes (contrairement au piège rencontré avec users_role_check).
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_sub_role_check;
 ALTER TABLE users ADD CONSTRAINT users_sub_role_check
-  CHECK (sub_role IN ('chambres','enregistrement','bagages','suivi','phase2'));
+  CHECK (sub_role IN ('chambres','enregistrement','bagages','suivi','phase2','medoc'));
 
 -- "admin" n'est pas une commission à part : la commission IT EST l'admin de la
 -- plateforme, donc les comptes admin deviennent des comptes it (chef +
@@ -426,3 +431,38 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_id, created_
 CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
+
+-- Stock de médicaments (commission Santé, sous-rôle "medoc") : le responsable
+-- désigné enregistre chaque mouvement, le stock courant s'en déduit.
+-- reference_stock sert de repère "stock plein" pour le pourcentage affiché au
+-- chef de commission (current_stock / reference_stock), pas une limite dure.
+CREATE TABLE IF NOT EXISTS medications (
+  id                       INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name                     TEXT NOT NULL UNIQUE,
+  unit                     TEXT NOT NULL DEFAULT 'unité(s)',
+  reference_stock          INTEGER NOT NULL CHECK (reference_stock > 0),
+  current_stock            INTEGER NOT NULL DEFAULT 0 CHECK (current_stock >= 0),
+  alert_threshold_percent  INTEGER NOT NULL DEFAULT 20 CHECK (alert_threshold_percent BETWEEN 0 AND 100),
+  created_by               INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Historique des mouvements : quantity est un delta signé (positif = entrée,
+-- négatif = sortie ou ajustement à la baisse) ; stock_after fige le résultat
+-- pour reconstituer l'évolution dans le temps sans rejouer tout l'historique.
+-- type reste indicatif (filtre/affichage) : un ajustement (recomptage) peut
+-- aller dans les deux sens, sa quantité n'est donc pas contrainte en signe.
+CREATE TABLE IF NOT EXISTS medication_movements (
+  id             INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  medication_id  INTEGER NOT NULL REFERENCES medications(id) ON DELETE CASCADE,
+  type           TEXT NOT NULL CHECK (type IN ('entree','sortie','ajustement')),
+  quantity       INTEGER NOT NULL CHECK (quantity <> 0),
+  stock_after    INTEGER NOT NULL CHECK (stock_after >= 0),
+  note           TEXT,
+  recorded_by    INTEGER NOT NULL REFERENCES users(id),
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_medication_movements_medication ON medication_movements(medication_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_medication_movements_created_at ON medication_movements(created_at DESC);

@@ -16,6 +16,7 @@ import {
   LineChart,
   ListChecks,
   ScrollText,
+  Pill,
 } from 'lucide-react';
 import { ROLES } from '../../utils/roles';
 
@@ -36,15 +37,16 @@ const ORGA_ITEMS = {
 // sous-rôle "chambres", qui ne s'en occupe plus (cf. ORGA_ITEMS ci-dessus).
 const ORGA_ROOMS_ADMIN_ITEM = { to: '/orga/rooms', label: 'Config. chambres', icon: DoorOpen };
 
-// Même principe pour Santé : "suivi" (travail santé classique) et "phase2"
+// Même principe pour Santé : "suivi" (travail santé classique), "phase2"
 // (complément de dossier, transféré depuis Orga car médical — traitement,
-// allergies).
+// allergies) et "medoc" (gestion du stock de médicaments, cf. MedicationStockPage.jsx).
 const SANTE_ITEMS = {
   suivi: [
     { to: '/sante/risques', label: 'Risques du jour', icon: AlertTriangle },
     { to: '/sante/suivi', label: 'Suivi santé', icon: Stethoscope },
   ],
   phase2: [{ to: '/sante/complementary', label: 'Compléter', icon: ClipboardList }],
+  medoc: [{ to: '/sante/medicaments', label: 'Stock médicaments', icon: Pill }],
 };
 
 // Le planning est un calendrier d'activités sans donnée sensible : visible par
@@ -118,11 +120,15 @@ export function getNavItems(user, settings) {
     // son travail au quotidien, et "phase2" lui sert à corriger un dossier
     // déjà complété (cf. leadBypassesScope dans App.jsx) — jamais masqué par
     // l'interrupteur phase2Enabled, qui ne concerne que la saisie initiale.
+    // "medoc" (stock de médicaments) fait exception à cette exception : le
+    // chef n'y a PAS accès (pas de leadBypassesScope côté backend non plus) —
+    // le responsable désigné gère seul le stock, le chef se contente de
+    // suivre l'évolution en pourcentage depuis sa Vue d'ensemble.
     const scoped = user.isCommissionLead
       ? [...SANTE_ITEMS.suivi, ...SANTE_ITEMS.phase2]
       : user.subRole
       ? (user.subRole === 'phase2' && !phase2Enabled ? [] : SANTE_ITEMS[user.subRole] || [])
-      : [...SANTE_ITEMS.suivi, ...(phase2Enabled ? SANTE_ITEMS.phase2 : [])];
+      : [...SANTE_ITEMS.suivi, ...(phase2Enabled ? SANTE_ITEMS.phase2 : []), ...SANTE_ITEMS.medoc];
     return [...scoped, PLANNING_ITEM, ...leadItems];
   }
   return [...(NAV_ITEMS[user.role] || []), ...leadItems];

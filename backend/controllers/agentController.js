@@ -4,11 +4,12 @@ const auditService = require('../services/auditService');
 
 const ROLES = ['orga', 'sante', 'cuisine', 'it', 'communication', 'culturelle', 'presidentielle', 'dreudj'];
 // Sous-rôles valides par commission — NULL = accès à tout le périmètre de la
-// commission. Santé : "suivi" (risques, suivi santé, allergènes) et "phase2"
-// (complément de dossier, transféré depuis Orga car médical).
+// commission. Santé : "suivi" (risques, suivi santé, allergènes), "phase2"
+// (complément de dossier, transféré depuis Orga car médical) et "medoc"
+// (gestion du stock de médicaments).
 const SUB_ROLES_BY_ROLE = {
   orga: ['chambres', 'enregistrement', 'bagages'],
-  sante: ['suivi', 'phase2'],
+  sante: ['suivi', 'phase2', 'medoc'],
 };
 
 function isValidSubRole(role, subRole) {

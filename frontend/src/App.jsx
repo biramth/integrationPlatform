@@ -26,6 +26,7 @@ const HealthTrackingPage = lazy(() => import('./pages/sante/HealthTrackingPage')
 const SanteOverviewPage = lazy(() => import('./pages/sante/OverviewPage'));
 const CompleteInfoFormPage = lazy(() => import('./pages/sante/CompleteInfoFormPage'));
 const Phase2QuestionsPage = lazy(() => import('./pages/sante/Phase2QuestionsPage'));
+const MedicationStockPage = lazy(() => import('./pages/sante/MedicationStockPage'));
 const DirectoryPage = lazy(() => import('./pages/communication/DirectoryPage'));
 const PlanningReadOnlyPage = lazy(() => import('./pages/shared/PlanningReadOnlyPage'));
 const OverviewPage = lazy(() => import('./pages/shared/OverviewPage'));
@@ -144,6 +145,16 @@ function App() {
                 un DUT1 ne dit pas toujours tout du premier coup. */}
             <Route element={<RoleRoute roles={['sante']} subScope="phase2" leadBypassesScope />}>
               <Route path="/sante/complementary" element={<CompleteInfoFormPage />} />
+            </Route>
+
+            {/* Stock de médicaments : contrairement à "suivi"/"phase2", le chef de
+                commission n'y touche pas lui-même (pas de leadBypassesScope) — un
+                responsable désigné gère seul les entrées/sorties au quotidien, le
+                chef ne fait que consulter l'évolution en pourcentage depuis sa Vue
+                d'ensemble (cf. GET /medications, seule route ouverte au chef côté
+                backend). */}
+            <Route element={<RoleRoute roles={['sante']} subScope="medoc" />}>
+              <Route path="/sante/medicaments" element={<MedicationStockPage />} />
             </Route>
 
             {/* Vue d'ensemble : réservée au chef de commission — les graphiques et

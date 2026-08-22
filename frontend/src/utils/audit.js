@@ -40,6 +40,12 @@ export const ACTION_LABELS = {
   'allergen.delete': "Suppression d'allergène",
   'admitted_students.import': 'Import candidats admis',
   'rooms.import': 'Import chambres',
+  'medication.create': "Création d'un médicament",
+  'medication.update': "Modification d'un médicament",
+  'medication.delete': "Suppression d'un médicament",
+  'medication.entree': 'Entrée de stock',
+  'medication.sortie': 'Sortie de stock',
+  'medication.ajustement': 'Ajustement de stock (recomptage)',
 };
 
 export const RESOURCE_TYPE_LABELS = {
@@ -55,6 +61,7 @@ export const RESOURCE_TYPE_LABELS = {
   activity: 'Activité',
   allergen: 'Allergène',
   admitted_students: 'Candidats admis',
+  medication: 'Médicament',
 };
 
 export const COMMISSION_LABELS = {

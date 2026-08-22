@@ -19,6 +19,7 @@ const platformRoutes = require('./routes/platformRoutes');
 const platformSettingsRoutes = require('./routes/platformSettingsRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const phase2QuestionsRoutes = require('./routes/phase2QuestionsRoutes');
+const medicationRoutes = require('./routes/medicationRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const { requestId } = require('./middleware/requestId');
 
@@ -95,6 +96,7 @@ app.use('/api/platform', platformRoutes);
 app.use('/api/platform-settings', platformSettingsRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/phase2-questions', phase2QuestionsRoutes);
+app.use('/api/medications', medicationRoutes);
 
 app.use('/api', notFoundHandler);
 

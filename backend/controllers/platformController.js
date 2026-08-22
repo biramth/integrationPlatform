@@ -15,6 +15,8 @@ const CONFIRMATION_PHRASE = 'RESET PLATEFORME';
 // Ordre important : les dossiers/admis/repas/activités sont effacés AVANT les
 // comptes, pour que plus rien ne référence un user (created_by, uploaded_by,
 // declared_by…) au moment du DELETE FROM users — sinon les FK bloqueraient.
+// Le stock de médicaments suit la même règle (recorded_by référence users) et
+// est de toute façon propre à l'édition en cours, comme le reste effacé ici.
 async function resetPlatform(req, res) {
   // Action la plus destructrice de la plateforme : contrairement aux 403/400
   // ordinaires ailleurs (non loggés), une tentative non habilitée ou une
@@ -56,6 +58,8 @@ async function resetPlatform(req, res) {
     await tx.run('DELETE FROM rooms');
     await tx.run('DELETE FROM meal_services');
     await tx.run('DELETE FROM activities');
+    await tx.run('DELETE FROM medication_movements');
+    await tx.run('DELETE FROM medications');
     await tx.run('DELETE FROM users WHERE id != $1', [req.user.id]);
   });
 
