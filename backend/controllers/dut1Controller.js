@@ -2,6 +2,7 @@ const db = require('../db/database');
 const { DEPARTMENTS, DEPARTMENT_LABELS } = require('../constants/departments');
 const { autoAssignRoom, getHistoryForDut1 } = require('../services/roomAssignmentService');
 const auditService = require('../services/auditService');
+const { getSetting } = require('../services/platformSettingsService');
 
 const ALLERGENS_SUBQUERY = `(
   SELECT COALESCE(json_agg(json_build_object('id', a.id, 'label', a.label, 'severity', da.severity)), '[]'::json)
@@ -599,8 +600,19 @@ async function completeComplementary(req, res) {
   if (!existing) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
-  if (existing.complementary_completed_at) {
+  const isCorrection = !!existing.complementary_completed_at;
+  // Un dossier déjà complété est verrouillé pour l'agent qui l'a rempli — un
+  // DUT1 ne dit pas toujours tout dès le premier passage (oubli, mensonge…) —
+  // mais reste corrigible par le chef de commission après coup.
+  if (isCorrection && !req.user.isCommissionLead) {
     return res.status(409).json({ error: 'Ce dossier a déjà été complété et ne peut plus être modifié depuis cette page.' });
+  }
+  // La phase 2 peut être désactivée par IT une fois la saisie du jour
+  // terminée (cf. requireFeatureEnabled sur la création d'enregistrement) —
+  // mais une correction par le chef, potentiellement bien après coup, n'a pas
+  // à en dépendre : seule la toute première complétion respecte l'interrupteur.
+  if (!isCorrection && !(await getSetting('phase2'))) {
+    return res.status(403).json({ error: 'Le complément de dossier (phase 2) est désactivé pour cette édition.' });
   }
 
   const extraFields = req.body.extraFields || {};
@@ -634,8 +646,8 @@ async function completeComplementary(req, res) {
   await db.run(
     `UPDATE dut1_records
      SET extra_fields_json = $1,
-         complementary_completed_at = NOW(),
-         complementary_completed_by = $2,
+         complementary_completed_at = COALESCE(complementary_completed_at, NOW()),
+         complementary_completed_by = COALESCE(complementary_completed_by, $2),
          updated_by = $2,
          updated_at = NOW(),
          on_treatment = $4,
@@ -647,7 +659,7 @@ async function completeComplementary(req, res) {
   const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
 
   await auditService.logAction(req, {
-    action: 'dut1.complete_complementary',
+    action: isCorrection ? 'dut1.correct_complementary' : 'dut1.complete_complementary',
     resourceType: 'dut1_record',
     resourceId: id,
     resourceLabel: `${record.first_name} ${record.last_name}`,

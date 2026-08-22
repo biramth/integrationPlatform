@@ -7,6 +7,7 @@ export const ACTION_LABELS = {
   'dut1.export_csv': 'Export CSV dossiers',
   'dut1.export_contacts_csv': 'Export CSV contacts',
   'dut1.complete_complementary': 'Complément de dossier (phase 2)',
+  'dut1.correct_complementary': 'Correction du complément de dossier (phase 2)',
   'dut1.set_allergies': 'Modification allergies',
   'dut1.room_reassign': 'Réaffectation de chambre',
   'dut1.set_luggage_count': 'Modification nombre de bagages déclarés',

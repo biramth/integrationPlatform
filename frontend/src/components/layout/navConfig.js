@@ -100,7 +100,7 @@ export function getNavItems(user, settings) {
   // Le chef de commission supervise, il n'exécute pas les tâches de
   // sous-rôle : il ne voit aucun des onglets opérationnels ci-dessus, quel
   // que soit son sub_role — seulement leadItems (Vue d'ensemble, config,
-  // agents, audit) et Planning.
+  // agents, audit) et Planning. Exception pour Santé, cf. plus bas.
   if (user.role === ROLES.ORGA) {
     const scoped = user.isCommissionLead
       ? []
@@ -110,8 +110,13 @@ export function getNavItems(user, settings) {
     return [...scoped, PLANNING_ITEM, ...leadItems];
   }
   if (user.role === ROLES.SANTE) {
+    // Contrairement aux autres commissions, le chef Santé garde ses onglets
+    // opérationnels : Risques du jour/Suivi santé/Allergènes ("suivi") restent
+    // son travail au quotidien, et "phase2" lui sert à corriger un dossier
+    // déjà complété (cf. leadBypassesScope dans App.jsx) — jamais masqué par
+    // l'interrupteur phase2Enabled, qui ne concerne que la saisie initiale.
     const scoped = user.isCommissionLead
-      ? []
+      ? [...SANTE_ITEMS.suivi, ...SANTE_ITEMS.phase2]
       : user.subRole
       ? (user.subRole === 'phase2' && !phase2Enabled ? [] : SANTE_ITEMS[user.subRole] || [])
       : [...SANTE_ITEMS.suivi, ...(phase2Enabled ? SANTE_ITEMS.phase2 : [])];

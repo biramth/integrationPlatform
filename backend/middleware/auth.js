@@ -47,13 +47,21 @@ function requireRoleStrict(...roles) {
 }
 
 // Restreint un agent Orga à son sous-domaine (chambres / enregistrement / bagages)
-// quand on lui en a assigné un. sub_role NULL = accès aux trois. Ne s'applique
-// qu'au rôle "orga" : les autres rôles autorisés par requireRole (it via le
-// bypass ci-dessus) ne sont jamais restreints par un sous-rôle.
+// quand on lui en a assigné un. sub_role NULL = accès aux trois — sauf pour le
+// chef de commission, qui supervise et n'exécute pas les tâches quotidiennes
+// des sous-rôles : il n'a jamais accès à ces routes, quel que soit son
+// sub_role. Ne s'applique qu'au rôle "orga" : les autres rôles autorisés par
+// requireRole (it via le bypass ci-dessus) ne sont jamais restreints par un
+// sous-rôle.
 function requireOrgaScope(scope) {
   return (req, res, next) => {
-    if (req.user.role === 'orga' && req.user.subRole && req.user.subRole !== scope) {
-      return res.status(403).json({ error: 'Accès refusé pour ce sous-rôle de la commission Orga.' });
+    if (req.user.role === 'orga') {
+      if (req.user.isCommissionLead) {
+        return res.status(403).json({ error: 'Réservé aux agents Orga — le chef de commission supervise, il n\'exécute pas les tâches de sous-rôle.' });
+      }
+      if (req.user.subRole && req.user.subRole !== scope) {
+        return res.status(403).json({ error: 'Accès refusé pour ce sous-rôle de la commission Orga.' });
+      }
     }
     next();
   };
@@ -61,12 +69,22 @@ function requireOrgaScope(scope) {
 
 // Même principe que requireOrgaScope, pour la commission Santé : "suivi"
 // (risques, suivi santé, allergènes) et "phase2" (complément de dossier —
-// traitement, allergies, admission), déplacé depuis Orga car ce sont des
-// questions médicales. sub_role NULL = accès aux deux.
-function requireSanteScope(scope) {
+// traitement, allergies), déplacé depuis Orga car ce sont des questions
+// médicales. sub_role NULL = accès aux deux — le chef supervise et n'exécute
+// pas les tâches de sous-rôle lui-même, SAUF pour "suivi" (Risques du jour,
+// Suivi santé, Allergènes) où il reste un agent Santé à part entière, et pour
+// la configuration du questionnaire phase2 (pas son remplissage — cf.
+// requireCommissionLead sur phase2QuestionsRoutes.js) : les deux passent
+// { allowLead: true }.
+function requireSanteScope(scope, { allowLead = false } = {}) {
   return (req, res, next) => {
-    if (req.user.role === 'sante' && req.user.subRole && req.user.subRole !== scope) {
-      return res.status(403).json({ error: 'Accès refusé pour ce sous-rôle de la commission Santé.' });
+    if (req.user.role === 'sante' && !(allowLead && req.user.isCommissionLead)) {
+      if (req.user.isCommissionLead) {
+        return res.status(403).json({ error: 'Réservé aux agents Santé — le chef de commission supervise, il n\'exécute pas les tâches de sous-rôle.' });
+      }
+      if (req.user.subRole && req.user.subRole !== scope) {
+        return res.status(403).json({ error: 'Accès refusé pour ce sous-rôle de la commission Santé.' });
+      }
     }
     next();
   };

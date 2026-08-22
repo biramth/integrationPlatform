@@ -21,7 +21,7 @@ router.get('/by-gender', requireRole(...OVERVIEW_ROLES), statsController.byGende
 // statistique suit le même accès que les autres compteurs de la Vue
 // d'ensemble (réservée au chef côté front, cf. RoleRoute requireLead).
 router.get('/rooms-occupancy', requireRole(...OVERVIEW_ROLES), statsController.roomsOccupancy);
-router.get('/illness-trend', requireRole('sante'), requireSanteScope('suivi'), statsController.illnessTrend);
-router.get('/allergy-prevalence', requireRole('sante'), requireSanteScope('suivi'), statsController.allergyPrevalence);
+router.get('/illness-trend', requireRole('sante'), requireSanteScope('suivi', { allowLead: true }), statsController.illnessTrend);
+router.get('/allergy-prevalence', requireRole('sante'), requireSanteScope('suivi', { allowLead: true }), statsController.allergyPrevalence);
 
 module.exports = router;

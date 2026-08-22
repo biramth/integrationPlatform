@@ -119,15 +119,20 @@ function App() {
               <Route path="/cuisine/menu" element={<MenuPage />} />
             </Route>
 
-            <Route element={<RoleRoute roles={['sante']} subScope="suivi" />}>
+            {/* Risques du jour / Suivi santé / Allergènes restent le travail
+                quotidien du chef Santé aussi (leadBypassesScope), contrairement
+                aux tâches de sous-rôle des autres commissions. */}
+            <Route element={<RoleRoute roles={['sante']} subScope="suivi" leadBypassesScope />}>
               <Route path="/sante/risques" element={<RisksPage />} />
               <Route path="/sante/suivi" element={<HealthTrackingPage />} />
               <Route path="/sante/allergenes" element={<AllergensAdminPage />} />
             </Route>
 
             {/* Phase 2 (complément de dossier) : transféré depuis Orga, ce sont des
-                questions médicales (traitement, allergies). */}
-            <Route element={<RoleRoute roles={['sante']} subScope="phase2" />}>
+                questions médicales (traitement, allergies). Le chef y garde accès
+                (leadBypassesScope) pour pouvoir corriger un dossier déjà complété —
+                un DUT1 ne dit pas toujours tout du premier coup. */}
+            <Route element={<RoleRoute roles={['sante']} subScope="phase2" leadBypassesScope />}>
               <Route path="/sante/complementary" element={<CompleteInfoFormPage />} />
             </Route>
 

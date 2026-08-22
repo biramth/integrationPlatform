@@ -24,7 +24,7 @@ router.get('/deliveries/mine', requireRole('orga'), requireOrgaScope('chambres')
 router.get(
   '/without-complementary',
   requireRole('sante'),
-  requireSanteScope('phase2'),
+  requireSanteScope('phase2', { allowLead: true }),
   dut1Controller.listWithoutComplementary
 );
 // Annuaire en lecture : Orga/Santé/Cuisine voient tout, Communication et
@@ -46,16 +46,24 @@ router.put('/:id', requireRole('it'), dut1Controller.updateRecord);
 // vérification fine (propriétaire + absence de dépendances) vit dans le
 // contrôleur, pas ici.
 router.delete('/:id', requireRole('it', 'orga'), requireOrgaScope('enregistrement'), dut1Controller.deleteRecord);
-// Même principe que l'enregistrement : phase 2 n'a d'utilité que le premier
-// jour, IT peut la désactiver une fois la saisie terminée.
+// Comme l'enregistrement, la phase 2 n'a d'utilité que le premier jour et IT
+// peut la désactiver une fois la saisie terminée — mais un dossier déjà
+// complété reste corrigible par le chef de commission après coup (un DUT1 ne
+// dit pas toujours tout du premier coup), y compris si la phase 2 a depuis
+// été désactivée : cf. la logique fine dans completeComplementary lui-même,
+// pas de requireFeatureEnabled ici.
 router.put(
   '/:id/complementary',
   requireRole('sante'),
-  requireSanteScope('phase2'),
-  requireFeatureEnabled('phase2'),
+  requireSanteScope('phase2', { allowLead: true }),
   dut1Controller.completeComplementary
 );
-router.put('/:id/allergies', requireRole('sante'), requireSanteScope('phase2'), dut1Controller.setAllergies);
+router.put(
+  '/:id/allergies',
+  requireRole('sante'),
+  requireSanteScope('phase2', { allowLead: true }),
+  dut1Controller.setAllergies
+);
 // Réassignation de chambre : outil de gestion du chef Orga (regrouper des
 // DUT1, corriger une erreur d'affectation), pas la tâche quotidienne du
 // sous-rôle "chambres" — celui-ci livre les bagages déjà photographiés dans

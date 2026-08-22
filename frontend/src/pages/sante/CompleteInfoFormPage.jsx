@@ -5,6 +5,7 @@ import { setDut1Allergies } from '../../api/dut1AllergyApi';
 import { listAllergens } from '../../api/allergenApi';
 import { listPhase2Questions } from '../../api/phase2QuestionsApi';
 import { getPlatformSettings } from '../../api/platformSettingsApi';
+import { useAuth } from '../../hooks/useAuth';
 import Dut1Card from '../../components/dut1/Dut1Card';
 import Dut1ComplementaryForm from '../../components/dut1/Dut1ComplementaryForm';
 import Input from '../../components/common/Input';
@@ -53,6 +54,8 @@ function isQuestionAnswerEmpty(value) {
 
 export default function CompleteInfoFormPage() {
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const isLead = !!user.isCommissionLead;
   const [filters, setFilters] = useState({ search: '', department: '', gender: '' });
   const debouncedSearch = useDebouncedValue(filters.search, 350);
   const [page, setPage] = useState(1);
@@ -115,7 +118,10 @@ export default function CompleteInfoFormPage() {
 
   function openRecap(e) {
     e.preventDefault();
-    if (!phase2Enabled) return;
+    const completed = !!selected.complementary_completed_at;
+    // La toute première complétion respecte l'interrupteur phase2 ; une
+    // correction par le chef sur un dossier déjà complété n'en dépend pas.
+    if (!completed && !phase2Enabled) return;
     if (typeof onTreatment !== 'boolean') {
       showToast('La question du traitement médical en cours doit être renseignée avant de continuer.', 'error');
       return;
@@ -154,7 +160,11 @@ export default function CompleteInfoFormPage() {
 
   if (selected) {
     const completed = !!selected.complementary_completed_at;
-    const isLocked = completed || !phase2Enabled;
+    // Un dossier complété est verrouillé pour l'agent qui l'a rempli, mais
+    // reste corrigible par le chef de commission (un DUT1 ne dit pas toujours
+    // tout du premier coup) — y compris si la phase 2 a depuis été désactivée,
+    // qui ne bloque que la toute première complétion.
+    const isLocked = (completed && !isLead) || (!completed && !phase2Enabled);
 
     return (
       <div>
@@ -168,14 +178,18 @@ export default function CompleteInfoFormPage() {
           eyebrow="Phase 2 — infos complémentaires"
           title={`${selected.first_name} ${selected.last_name}`}
           description={
-            completed
-              ? 'Dossier complété — verrouillé. Une correction doit passer par un administrateur.'
+            completed && isLead
+              ? 'Dossier déjà complété — modifiable par le chef de la commission Santé.'
+              : completed
+              ? 'Dossier complété — verrouillé. Une correction doit passer par le chef de la commission Santé.'
               : !phase2Enabled
               ? 'La phase 2 est désactivée pour cette édition — ce dossier ne peut plus être complété.'
               : "Ces informations viennent du questionnaire de la commission Santé."
           }
           action={
-            completed ? (
+            completed && isLead ? (
+              <Badge variant="warning">Complété — modifiable (chef)</Badge>
+            ) : completed ? (
               <Badge variant="success">Déjà complété — verrouillé</Badge>
             ) : !phase2Enabled ? (
               <Badge variant="neutral">
@@ -248,7 +262,9 @@ export default function CompleteInfoFormPage() {
             ))}
 
             <p className="rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
-              Une fois confirmé, ce dossier ne sera plus modifiable depuis cette page.
+              {selected.complementary_completed_at
+                ? 'Cette correction sera enregistrée immédiatement.'
+                : 'Une fois confirmé, ce dossier ne sera plus modifiable depuis cette page.'}
             </p>
 
             <div className="flex justify-end gap-2">
@@ -277,6 +293,7 @@ export default function CompleteInfoFormPage() {
           <Lock className="h-4 w-4 shrink-0 text-warning" />
           <p className="text-sm text-warning-soft-foreground">
             La phase 2 est désactivée pour cette édition — les dossiers non encore complétés le restent.
+            {isLead && ' Les dossiers déjà complétés restent corrigibles.'}
           </p>
         </div>
       )}

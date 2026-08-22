@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, Plus, Pencil, ChevronDown, BedDouble, Printer, Upload, DoorOpen, Users, PercentCircle, ArrowRightLeft } from 'lucide-react';
+import { Trash2, Plus, Pencil, ChevronDown, BedDouble, Printer, Upload, DoorOpen, Users, PercentCircle, ArrowRightLeft, Search } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import RoomsImportPanel from '../../components/admin/RoomsImportPanel';
 import * as roomApi from '../../api/roomApi';
 import * as statsApi from '../../api/statsApi';
@@ -42,6 +43,20 @@ export default function AdminRoomsPage() {
   const [historyRoomId, setHistoryRoomId] = useState(null);
   const [historyByRoom, setHistoryByRoom] = useState({});
   const [importOpen, setImportOpen] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 350);
+
+  // Recherche directe d'un DUT1 par nom/numéro/téléphone, indépendamment de sa
+  // chambre actuelle — pour regrouper facilement deux DUT1 qui se connaissent
+  // (ex. même ancienne école) sans avoir à ouvrir chaque carte de chambre pour
+  // les retrouver.
+  const searchFetcher = useCallback(() => {
+    if (!debouncedSearchQuery.trim()) return Promise.resolve({ records: [] });
+    return listDut1({ search: debouncedSearchQuery, pageSize: 8 });
+  }, [debouncedSearchQuery]);
+  const { data: searchData, loading: searching, reload: reloadSearch } = useFetch(searchFetcher, [debouncedSearchQuery]);
+  const searchResults = searchData?.records || [];
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -150,6 +165,7 @@ export default function AdminRoomsPage() {
       closeMove();
       reload();
       occupancyFetch.reload();
+      reloadSearch();
     } catch (err) {
       showToast(err.response?.data?.error || 'Déplacement impossible.', 'error');
     } finally {
@@ -188,6 +204,42 @@ export default function AdminRoomsPage() {
           <StatCard label="Taux d'occupation" value={`${occ.occupancyRate}%`} icon={PercentCircle} tone="amber" />
         </div>
       )}
+
+      <Card className="mb-6">
+        <p className="mb-3 text-sm font-semibold text-foreground">Déplacer un DUT1</p>
+        <Input
+          placeholder="Rechercher par nom, numéro étudiant ou téléphone…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        {searchQuery.trim() && (
+          <div className="mt-3 flex flex-col gap-2">
+            {searching && <p className="text-xs text-muted-foreground">Recherche…</p>}
+            {!searching && searchResults.length === 0 && (
+              <p className="text-xs text-muted-foreground">Aucun DUT1 ne correspond à cette recherche.</p>
+            )}
+            {!searching &&
+              searchResults.map((r) => (
+                <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+                  <span className="flex items-center gap-2">
+                    <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="text-foreground">
+                      {r.first_name} {r.last_name}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{DEPARTMENT_LABELS[r.department] || r.department}</span>
+                    <Badge variant={r.room_label ? 'success' : 'neutral'}>{r.room_label || 'Aucune chambre'}</Badge>
+                  </span>
+                  <button
+                    onClick={() => openMove(r, r.room_id)}
+                    className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline"
+                  >
+                    <ArrowRightLeft className="h-3.5 w-3.5" /> Déplacer
+                  </button>
+                </div>
+              ))}
+          </div>
+        )}
+      </Card>
 
       {importOpen && (
         <RoomsImportPanel

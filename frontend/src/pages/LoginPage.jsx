@@ -35,7 +35,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (user) {
-    return <Navigate to={homePathForRole(user.role, user.subRole)} replace />;
+    return <Navigate to={homePathForRole(user.role, user.subRole, user.isCommissionLead)} replace />;
   }
 
   async function handleSubmit(e) {

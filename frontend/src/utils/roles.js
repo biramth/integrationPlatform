@@ -46,7 +46,7 @@ export const ORGA_SUB_ROLE_LABELS = {
   [ORGA_SUB_ROLES.BAGAGES]: 'Bagages',
 };
 
-// Phase 2 (complément de dossier — traitement médical, allergies, admission)
+// Phase 2 (complément de dossier — traitement médical, allergies)
 // relève de la commission Santé, pas d'Orga : ce sont des questions médicales.
 // "suivi" regroupe le travail santé classique (risques, suivi, allergènes).
 export const SANTE_SUB_ROLES = {
@@ -76,15 +76,20 @@ export function santeHasScope(user, scope) {
   return user.role === ROLES.SANTE && (!user.subRole || user.subRole === scope);
 }
 
-export function homePathForRole(role, subRole) {
+// isCommissionLead : le chef de commission n'a plus accès aux pages
+// opérationnelles de sous-rôle (cf. RoleRoute/navConfig) — sa page d'accueil
+// est sa Vue d'ensemble, pas la page par défaut d'un agent généraliste.
+export function homePathForRole(role, subRole, isCommissionLead) {
   switch (role) {
     case ROLES.ORGA:
+      if (isCommissionLead) return '/orga/apercu';
       if (subRole === ORGA_SUB_ROLES.CHAMBRES) return '/orga/deliveries';
       if (subRole === ORGA_SUB_ROLES.BAGAGES) return '/orga/luggage';
       return '/orga/basic';
     case ROLES.IT:
       return '/admin';
     case ROLES.SANTE:
+      if (isCommissionLead) return '/sante/apercu';
       if (subRole === SANTE_SUB_ROLES.PHASE2) return '/sante/complementary';
       return '/sante/risques';
     case ROLES.CUISINE:
