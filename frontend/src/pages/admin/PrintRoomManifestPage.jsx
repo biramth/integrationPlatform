@@ -5,7 +5,7 @@ import { listRooms } from '../../api/roomApi';
 import { listDut1 } from '../../api/dut1Api';
 import Button from '../../components/common/Button';
 import PageHeader from '../../components/common/PageHeader';
-import { ErrorState, LoadingState } from '../../components/common/StateViews';
+import { ErrorState, LoadingState, EmptyState } from '../../components/common/StateViews';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
 
 export default function PrintRoomManifestPage() {
@@ -36,8 +36,11 @@ export default function PrintRoomManifestPage() {
 
       {loading && <LoadingState />}
       {error && <ErrorState label={error} onRetry={roomsFetch.reload} />}
+      {!loading && !error && roomsFetch.data.rooms.length === 0 && (
+        <EmptyState label="Aucune chambre configurée." />
+      )}
 
-      {!loading && !error && (
+      {!loading && !error && roomsFetch.data.rooms.length > 0 && (
         <div className="flex flex-col gap-6 print:text-black">
           {roomsFetch.data.rooms.map((room) => {
             const occupants = occupantsFetch.data?.[room.id] || [];

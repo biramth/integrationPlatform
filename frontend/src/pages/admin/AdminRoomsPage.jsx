@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Trash2, Plus, Pencil, ChevronDown, BedDouble, Printer, Upload, DoorOpen, Users, PercentCircle, ArrowRightLeft, Search } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useTheme } from '../../hooks/useTheme';
 import RoomsImportPanel from '../../components/admin/RoomsImportPanel';
 import * as roomApi from '../../api/roomApi';
 import * as statsApi from '../../api/statsApi';
@@ -25,8 +26,17 @@ import { DEPARTMENT_LABELS } from '../../utils/departments';
 
 const EMPTY_FORM = { label: '', gender: '', capacity: '', building: '' };
 
+// Décoratif (barre d'accent d'une carte chambre) : pas de token sémantique
+// pour "masculin/féminin", légèrement éclairci en mode nuit comme les autres
+// couleurs codées en dur de l'appli (cf. useRoleColors/useChartColors).
+const GENDER_ACCENT = {
+  light: { M: 'bg-sky-600', F: 'bg-pink-500' },
+  dark: { M: 'bg-sky-400', F: 'bg-pink-400' },
+};
+
 export default function AdminRoomsPage() {
   const { showToast } = useToast();
+  const { theme } = useTheme();
   const { data, loading, error, reload } = useFetch(roomApi.listRooms, []);
   const occupancyFetch = useFetch(statsApi.getRoomsOccupancy, []);
   const [movingOccupant, setMovingOccupant] = useState(null);
@@ -306,7 +316,7 @@ export default function AdminRoomsPage() {
             const mattress = getMattressStatus(room);
             return (
               <div key={room.id} className="animate-fade-in-up" style={staggerStyle(i)}>
-                <Card accent={room.gender === 'M' ? 'bg-sky-600' : 'bg-pink-500'} className="pl-5">
+                <Card accent={GENDER_ACCENT[theme][room.gender]} className="pl-5">
                   <div className="mb-2 flex items-center justify-between">
                     <p className="font-medium text-foreground">{room.label}</p>
                     <Badge variant={room.occupied >= room.capacity ? 'danger' : 'success'}>

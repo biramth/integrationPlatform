@@ -56,6 +56,8 @@
   --info-soft-foreground: #1d4ed8;
   --role-accent: var(--primary);
   --role-accent-soft: var(--info-soft);
+  --shadow-soft-value: 0 1px 2px oklch(0 0 0 / 4%), 0 2px 8px oklch(0 0 0 / 4%);
+  --shadow-lifted-value: 0 4px 16px oklch(0 0 0 / 8%), 0 1px 3px oklch(0 0 0 / 6%);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -161,8 +163,8 @@ body {
   --color-role-accent: var(--role-accent);
   --color-role-accent-soft: var(--role-accent-soft);
   --color-primary-hover: var(--primary-hover);
-  --shadow-soft: 0 1px 2px oklch(0 0 0 / 4%), 0 2px 8px oklch(0 0 0 / 4%);
-  --shadow-lifted: 0 4px 16px oklch(0 0 0 / 8%), 0 1px 3px oklch(0 0 0 / 6%);
+  --shadow-soft: var(--shadow-soft-value);
+  --shadow-lifted: var(--shadow-lifted-value);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -208,6 +210,10 @@ body {
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
+  /* Une ombre noire à faible opacité ne se voit pas sur un fond déjà très
+     sombre : un léger halo clair reste visible et lit comme un relief. */
+  --shadow-soft-value: 0 1px 2px oklch(1 0 0 / 4%), 0 2px 8px oklch(1 0 0 / 6%);
+  --shadow-lifted-value: 0 4px 16px oklch(1 0 0 / 10%), 0 1px 3px oklch(1 0 0 / 8%);
   --ring: #3b82f6;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
