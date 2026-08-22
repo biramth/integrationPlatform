@@ -1,8 +1,9 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { CHART_COLORS } from '../../lib/chartTheme';
+import { useChartColors } from '../../lib/chartTheme';
 import ChartCard from './ChartCard';
 
 export default function AllergyPrevalenceChart({ rows }) {
+  const CHART_COLORS = useChartColors();
   const data = rows.filter((r) => r.count > 0).map((r) => ({ label: r.label, count: r.count }));
 
   return (
@@ -19,7 +20,7 @@ export default function AllergyPrevalenceChart({ rows }) {
               backgroundColor: CHART_COLORS.tooltipBg,
               fontSize: 13,
             }}
-            cursor={{ fill: 'rgba(42,120,214,0.08)' }}
+            cursor={{ fill: CHART_COLORS.hoverCursor }}
           />
           <Bar dataKey="count" name="DUT1 concernés" fill={CHART_COLORS.series[3]} radius={[0, 4, 4, 0]} maxBarSize={20} />
         </BarChart>

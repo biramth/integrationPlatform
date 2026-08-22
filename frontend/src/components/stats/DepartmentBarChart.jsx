@@ -1,9 +1,10 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
-import { CHART_COLORS } from '../../lib/chartTheme';
+import { useChartColors } from '../../lib/chartTheme';
 import ChartCard from './ChartCard';
 
 export default function DepartmentBarChart({ rows }) {
+  const CHART_COLORS = useChartColors();
   const data = rows.map((r) => ({ department: DEPARTMENT_LABELS[r.department] || r.department, count: r.count }));
 
   return (
@@ -27,7 +28,7 @@ export default function DepartmentBarChart({ rows }) {
               backgroundColor: CHART_COLORS.tooltipBg,
               fontSize: 13,
             }}
-            cursor={{ fill: 'rgba(42,120,214,0.08)' }}
+            cursor={{ fill: CHART_COLORS.hoverCursor }}
           />
           <Bar dataKey="count" name="DUT1" fill={CHART_COLORS.series[0]} radius={[4, 4, 0, 0]} maxBarSize={48} />
         </BarChart>

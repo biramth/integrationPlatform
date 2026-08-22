@@ -1,5 +1,5 @@
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { CHART_COLORS } from '../../lib/chartTheme';
+import { useChartColors } from '../../lib/chartTheme';
 import ChartCard from './ChartCard';
 
 function formatDate(iso) {
@@ -9,6 +9,7 @@ function formatDate(iso) {
 }
 
 export default function IllnessTrendChart({ rows }) {
+  const CHART_COLORS = useChartColors();
   const data = rows.map((r) => ({ date: formatDate(r.date), count: r.count }));
 
   return (

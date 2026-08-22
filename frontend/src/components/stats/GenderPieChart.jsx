@@ -1,11 +1,12 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
-import { CHART_COLORS } from '../../lib/chartTheme';
+import { useChartColors } from '../../lib/chartTheme';
 import ChartCard from './ChartCard';
 
-const COLORS = { M: CHART_COLORS.series[0], F: CHART_COLORS.series[1] };
 const LABELS = { M: 'Masculin', F: 'Féminin' };
 
 export default function GenderPieChart({ rows }) {
+  const CHART_COLORS = useChartColors();
+  const COLORS = { M: CHART_COLORS.series[0], F: CHART_COLORS.series[1] };
   const data = rows.map((r) => ({ key: r.gender, name: LABELS[r.gender] || r.gender, value: r.count }));
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
