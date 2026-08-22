@@ -26,7 +26,6 @@ export default function RecordsTable({ records, onSelect, selectedIds, onToggleS
               <TableHead>Chambre</TableHead>
               <TableHead>Bagages</TableHead>
               <TableHead>Phase 2</TableHead>
-              <TableHead>Admission</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -66,15 +65,6 @@ export default function RecordsTable({ records, onSelect, selectedIds, onToggleS
                       <Badge variant="success">Complété</Badge>
                     ) : (
                       <Badge variant="neutral">En attente</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {record.admission_list_type ? (
-                      <Badge variant={record.admission_list_type === 'principale' ? 'success' : 'warning'}>
-                        {record.admission_list_type === 'principale' ? 'Principale' : 'Attente'}
-                      </Badge>
-                    ) : (
-                      <Badge variant="neutral">—</Badge>
                     )}
                   </TableCell>
                 </TableRow>

@@ -379,11 +379,6 @@ async function updateRecord(req, res) {
   if (!updated.father_phone && !updated.mother_phone) {
     return res.status(400).json({ error: 'Au moins un numéro de téléphone parent est requis.' });
   }
-  if (req.body.admissionListType !== undefined && req.body.admissionListType !== null) {
-    if (!['principale', 'attente'].includes(req.body.admissionListType)) {
-      return res.status(400).json({ error: 'admissionListType doit être "principale" ou "attente".' });
-    }
-  }
 
   await db.run(
     `UPDATE dut1_records SET
@@ -401,21 +396,6 @@ async function updateRecord(req, res) {
       updated.address, req.user.id, id,
     ]
   );
-
-  if (req.body.admissionListType !== undefined) {
-    const listType = req.body.admissionListType || null;
-    if (listType) {
-      await db.run(
-        `UPDATE dut1_records SET admission_list_type = $1, admission_validated_at = NOW(), admission_validated_by = $2 WHERE id = $3`,
-        [listType, req.user.id, id]
-      );
-    } else {
-      await db.run(
-        `UPDATE dut1_records SET admission_list_type = NULL, admission_validated_at = NULL, admission_validated_by = NULL WHERE id = $1`,
-        [id]
-      );
-    }
-  }
 
   const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
 
@@ -624,10 +604,7 @@ async function completeComplementary(req, res) {
   }
 
   const extraFields = req.body.extraFields || {};
-  const { admissionListType, onTreatment, treatmentDetails } = req.body;
-  if (admissionListType && !['principale', 'attente'].includes(admissionListType)) {
-    return res.status(400).json({ error: 'admissionListType doit être "principale" ou "attente".' });
-  }
+  const { onTreatment, treatmentDetails } = req.body;
   if (typeof onTreatment !== 'boolean') {
     return res.status(400).json({ error: 'La réponse à la question du traitement médical en cours (oui/non) est requise.' });
   }
@@ -635,12 +612,12 @@ async function completeComplementary(req, res) {
     return res.status(400).json({ error: 'Le détail des traitements suivis est requis.' });
   }
 
-  // admission/traitement_medical/allergies ont leur propre validation
-  // ci-dessus (ou aucune) — leur réponse vit dans des colonnes dédiées, pas
-  // dans extraFields, donc ce contrôle générique ne les concerne pas.
+  // traitement_medical/allergies ont leur propre validation ci-dessus (ou
+  // aucune) — leur réponse vit dans des colonnes/tables dédiées, pas dans
+  // extraFields, donc ce contrôle générique ne les concerne pas.
   const requiredQuestions = await db.all(
     `SELECT field_key, label FROM phase2_questions
-     WHERE required = TRUE AND type NOT IN ('admission','traitement_medical','allergies')`
+     WHERE required = TRUE AND type NOT IN ('traitement_medical','allergies')`
   );
   for (const q of requiredQuestions) {
     const val = extraFields[q.field_key];
@@ -667,13 +644,6 @@ async function completeComplementary(req, res) {
     [JSON.stringify(extraFields), req.user.id, id, onTreatment, onTreatment ? treatmentDetails.trim() : null]
   );
 
-  if (admissionListType) {
-    await db.run(
-      `UPDATE dut1_records SET admission_list_type = $1, admission_validated_at = NOW(), admission_validated_by = $2 WHERE id = $3`,
-      [admissionListType, req.user.id, id]
-    );
-  }
-
   const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
 
   await auditService.logAction(req, {
@@ -685,20 +655,6 @@ async function completeComplementary(req, res) {
     before: existing,
     after: record,
   });
-  if (admissionListType) {
-    // Le statut d'admission est une donnée Orga (suivi de liste), même
-    // réglée depuis l'écran phase 2 de Santé — ligne séparée pour que la
-    // commission Orga la voie dans son propre périmètre.
-    await auditService.logAction(req, {
-      action: 'dut1.update_admission',
-      resourceType: 'dut1_record',
-      resourceId: id,
-      resourceLabel: `${record.first_name} ${record.last_name}`,
-      commission: 'orga',
-      before: { admission_list_type: existing.admission_list_type },
-      after: { admission_list_type: record.admission_list_type },
-    });
-  }
 
   res.json({ record: serializeRecord(record) });
 }

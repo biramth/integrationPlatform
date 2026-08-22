@@ -7,6 +7,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Badge from '../../components/common/Badge';
+import Modal from '../../components/common/Modal';
 import Pagination from '../../components/common/Pagination';
 import PageHeader from '../../components/common/PageHeader';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
@@ -16,15 +17,67 @@ import { staggerStyle } from '../../utils/stagger';
 
 const PAGE_SIZE = 25;
 
-// Annuaire non-médical, partagé par Communication et Présidentielle : nom,
-// département, genre, téléphone, chambre. Le backend (dut1Controller.listRecords)
-// retire déjà tout ce qui est médical pour ces rôles — cette page ne fait
-// qu'afficher ce qu'elle reçoit, sans jamais demander plus (pas de bouton
-// "voir le dossier").
+function DetailField({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-sm text-foreground">{value || '—'}</p>
+    </div>
+  );
+}
+
+// Fiche détaillée d'un DUT1, en lecture seule, pour Communication et
+// Présidentielle : mêmes champs non-médicaux que le tableau (déjà nettoyés
+// côté backend par dut1Controller.listRecords pour ces rôles), juste plus
+// complets — pas de bouton "modifier", ce n'est pas le dossier d'IT/Orga.
+function RecordDetailModal({ record, onClose }) {
+  return (
+    <Modal open={!!record} onClose={onClose} title={record ? `${record.first_name} ${record.last_name}` : ''}>
+      {record && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="neutral">{DEPARTMENT_LABELS[record.department] || record.department}</Badge>
+            <Badge variant="neutral">{record.gender === 'M' ? 'Masculin' : 'Féminin'}</Badge>
+            {record.room_label ? (
+              <Badge variant="success">Chambre {record.room_label}</Badge>
+            ) : (
+              <Badge variant="warning">Aucune chambre</Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <DetailField label="N° étudiant" value={record.student_number} />
+            <DetailField label="Téléphone" value={record.phone_number} />
+            <DetailField label="Date de naissance" value={record.birth_date} />
+            <DetailField label="Lieu de naissance" value={record.birth_place} />
+          </div>
+
+          <DetailField label="Adresse" value={record.address} />
+
+          <div className="grid grid-cols-2 gap-3 border-t border-border pt-3">
+            <DetailField label="Père" value={record.father_name} />
+            <DetailField label="Tél. père" value={record.father_phone} />
+            <DetailField label="Mère" value={record.mother_name} />
+            <DetailField label="Tél. mère" value={record.mother_phone} />
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+// Annuaire non-médical, partagé par Communication et Présidentielle : le
+// tableau reste volontairement compact (nom, département, genre, téléphone,
+// chambre), le clic sur une ligne ouvre une fiche détaillée en lecture seule
+// avec le reste des champs non-médicaux (adresse, parents, naissance…). Le
+// backend (dut1Controller.listRecords) retire déjà tout ce qui est médical
+// pour ces rôles, donc rien de plus à filtrer ici — et pas de bouton
+// "modifier", ce n'est pas le dossier d'IT/Orga.
 export default function DirectoryPage() {
   const [filters, setFilters] = useState({ search: '', department: '' });
   const debouncedSearch = useDebouncedValue(filters.search, 350);
   const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState(null);
 
   const fetcher = useCallback(
     () => listDut1({ search: debouncedSearch, department: filters.department, page, pageSize: PAGE_SIZE }),
@@ -39,7 +92,10 @@ export default function DirectoryPage() {
 
   return (
     <div>
-      <PageHeader title="Annuaire DUT1" description="Nom, département et téléphone — aucune information médicale n'est accessible ici." />
+      <PageHeader
+        title="Annuaire DUT1"
+        description="Nom, département et téléphone — clique sur une ligne pour plus de détails. Aucune information médicale n'est accessible ici."
+      />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Input
@@ -75,7 +131,12 @@ export default function DirectoryPage() {
               </TableHeader>
               <TableBody>
                 {data.records.map((record, i) => (
-                  <TableRow key={record.id} className="animate-fade-in" style={staggerStyle(i, 25, 300)}>
+                  <TableRow
+                    key={record.id}
+                    onClick={() => setSelected(record)}
+                    className="animate-fade-in cursor-pointer"
+                    style={staggerStyle(i, 25, 300)}
+                  >
                     <TableCell className="whitespace-normal py-3 pl-4 font-medium text-foreground">
                       {record.first_name} {record.last_name}
                     </TableCell>
@@ -95,6 +156,8 @@ export default function DirectoryPage() {
           <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onPageChange={setPage} />
         </>
       )}
+
+      <RecordDetailModal record={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }

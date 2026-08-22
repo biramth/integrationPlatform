@@ -22,33 +22,6 @@ async function search(req, res) {
   res.json({ students });
 }
 
-async function match(req, res) {
-  const { lastName = '', firstName = '', department } = req.query;
-  if (!lastName.trim() || !firstName.trim()) {
-    return res.json({ student: null });
-  }
-
-  const clauses = ['LOWER(last_name) = LOWER($1)', 'LOWER(first_name) = LOWER($2)'];
-  const params = [lastName.trim(), firstName.trim()];
-  if (department) {
-    params.push(department);
-    clauses.push(`department = $${params.length}`);
-  }
-
-  // Deux personnes différentes peuvent porter le même nom (homonymes) : dans ce cas on
-  // ne choisit jamais automatiquement entre elles, au risque de rattacher le dossier à
-  // la mauvaise personne. L'agent doit alors passer par la recherche manuelle.
-  const matches = await db.all(
-    `SELECT * FROM admitted_students WHERE ${clauses.join(' AND ')} ORDER BY id LIMIT 2`,
-    params
-  );
-
-  if (matches.length > 1) {
-    return res.json({ student: null, ambiguous: true });
-  }
-  res.json({ student: matches[0] || null, ambiguous: false });
-}
-
 async function progress(req, res) {
   const rows = await db.all(
     `SELECT department, list_type,
@@ -61,4 +34,4 @@ async function progress(req, res) {
   res.json({ progress: rows });
 }
 
-module.exports = { search, match, progress };
+module.exports = { search, progress };

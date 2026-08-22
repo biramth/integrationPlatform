@@ -17,7 +17,6 @@ import RecordsTable from '../../components/table/RecordsTable';
 import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
 import Dut1BasicForm from '../../components/dut1/Dut1BasicForm';
-import AdmissionListToggle from '../../components/dut1/AdmissionListToggle';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
@@ -38,7 +37,6 @@ export default function AdminRecordsPage() {
   const [selected, setSelected] = useState(null);
   const [formValues, setFormValues] = useState(null);
   const [roomChoice, setRoomChoice] = useState('');
-  const [admissionListType, setAdmissionListType] = useState(null);
   const [roomHistory, setRoomHistory] = useState(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -71,7 +69,6 @@ export default function AdminRecordsPage() {
     setSelected(record);
     setFormValues(recordToFormValues(record));
     setRoomChoice(record.room_id || '');
-    setAdmissionListType(record.admission_list_type || null);
     setRoomHistory(null);
     setHistoryOpen(false);
   }
@@ -91,7 +88,7 @@ export default function AdminRecordsPage() {
   async function handleSave() {
     setSaving(true);
     try {
-      await updateDut1(selected.id, { ...formValues, admissionListType });
+      await updateDut1(selected.id, { ...formValues });
       if (roomChoice && Number(roomChoice) !== selected.room_id) {
         await reassignRoom(selected.id, Number(roomChoice));
       }
@@ -326,11 +323,6 @@ export default function AdminRecordsPage() {
         {formValues && (
           <div className="flex flex-col gap-4">
             <Dut1BasicForm values={formValues} onChange={(key, value) => setFormValues((v) => ({ ...v, [key]: value }))} />
-
-            <div>
-              <p className="mb-1.5 text-sm font-medium text-foreground">Admission au concours</p>
-              <AdmissionListToggle value={admissionListType} onChange={setAdmissionListType} />
-            </div>
 
             <div>
               <Select

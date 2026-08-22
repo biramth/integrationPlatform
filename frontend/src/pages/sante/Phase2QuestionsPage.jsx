@@ -23,7 +23,6 @@ import { staggerStyle } from '../../utils/stagger';
 const NEW_DRAFT = { id: 'new', label: '', type: 'texte_court', required: false, options: ['', ''] };
 
 const PREVIEW_NOTE = {
-  admission: "Pré-rempli automatiquement depuis la liste des admis, à la sélection du dossier.",
   traitement_medical: 'Réponse Oui/Non, avec détail des traitements si Oui.',
   allergies: 'Sélection des allergies déclarées, avec niveau de sévérité, depuis le référentiel Allergènes.',
 };

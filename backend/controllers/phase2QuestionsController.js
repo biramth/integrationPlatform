@@ -5,14 +5,14 @@ const db = require('../db/database');
 const CUSTOM_TYPES = ['texte_court', 'texte_long', 'choix_unique', 'choix_multiple', 'oui_non'];
 const CHOICE_TYPES = ['choix_unique', 'choix_multiple'];
 
-// Types "intégrés" : admission/traitement/allergies, câblés sur leurs
-// colonnes/tables dédiées (dut1_records.admission_list_type/on_treatment/
-// treatment_details, dut1_allergens) — jamais sur extra_fields_json. Créés
-// une seule fois par le seed du schéma, jamais par createQuestion.
-const BUILTIN_TYPES = ['admission', 'traitement_medical', 'allergies'];
+// Types "intégrés" : traitement/allergies, câblés sur leurs colonnes/tables
+// dédiées (dut1_records.on_treatment/treatment_details, dut1_allergens) —
+// jamais sur extra_fields_json. Créés une seule fois par le seed du schéma,
+// jamais par createQuestion.
+const BUILTIN_TYPES = ['traitement_medical', 'allergies'];
 // traitement_medical et allergies alimentent Risques du jour et le
-// croisement menu/allergènes : suppression bloquée. admission n'aide qu'à
-// pré-remplir la fiche depuis la liste des admis, donc reste supprimable.
+// croisement menu/allergènes : suppression bloquée, ce sont les deux seuls
+// types intégrés.
 const LOCKED_DELETE_TYPES = ['traitement_medical', 'allergies'];
 
 const TYPES = [...CUSTOM_TYPES, ...BUILTIN_TYPES];
@@ -90,8 +90,8 @@ async function updateQuestion(req, res) {
     return res.status(400).json({ error: 'label requis.' });
   }
 
-  // Le type d'une question intégrée (admission/traitement_medical/allergies)
-  // est figé : sa réponse vit dans une colonne/table dédiée, pas dans
+  // Le type d'une question intégrée (traitement_medical/allergies) est
+  // figé : sa réponse vit dans une colonne/table dédiée, pas dans
   // extra_fields_json, donc rien d'autre que ce type précis n'a de sens pour
   // elle. Une question libre ne peut pas non plus en devenir une (elles ne
   // se créent qu'au seed du schéma).

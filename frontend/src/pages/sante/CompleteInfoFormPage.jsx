@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import { ArrowLeft, Search } from 'lucide-react';
 import { listDut1, completeComplementary } from '../../api/dut1Api';
 import { setDut1Allergies } from '../../api/dut1AllergyApi';
-import { matchAdmittedStudent } from '../../api/admittedStudentsApi';
 import { listAllergens } from '../../api/allergenApi';
 import { listPhase2Questions } from '../../api/phase2QuestionsApi';
 import Dut1Card from '../../components/dut1/Dut1Card';
@@ -59,7 +58,6 @@ export default function CompleteInfoFormPage() {
   const [selected, setSelected] = useState(null);
   const [values, setValues] = useState({});
   const [allergies, setAllergies] = useState({});
-  const [admissionListType, setAdmissionListType] = useState(null);
   const [onTreatment, setOnTreatment] = useState(null);
   const [treatmentDetails, setTreatmentDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -99,7 +97,6 @@ export default function CompleteInfoFormPage() {
   function selectRecord(record) {
     setSelected(record);
     setValues(record.extra_fields || {});
-    setAdmissionListType(record.admission_list_type || null);
     setOnTreatment(record.on_treatment ?? null);
     setTreatmentDetails(record.treatment_details || '');
     const initial = {};
@@ -107,21 +104,6 @@ export default function CompleteInfoFormPage() {
       initial[a.id] = a.severity || 'moderee';
     }
     setAllergies(initial);
-
-    if (!record.admission_list_type) {
-      matchAdmittedStudent({ lastName: record.last_name, firstName: record.first_name, department: record.department })
-        .then((res) => {
-          if (res.student) {
-            setAdmissionListType((current) => current ?? res.student.list_type);
-          } else if (res.ambiguous) {
-            showToast(
-              'Plusieurs admis portent ce nom — vérification manuelle de la liste principale/attente nécessaire.',
-              'info'
-            );
-          }
-        })
-        .catch(() => {});
-    }
   }
 
   function handleChange(key, value) {
@@ -139,7 +121,7 @@ export default function CompleteInfoFormPage() {
       return;
     }
     for (const q of questions) {
-      if (['admission', 'traitement_medical', 'allergies'].includes(q.type)) continue;
+      if (['traitement_medical', 'allergies'].includes(q.type)) continue;
       if (q.required && isQuestionAnswerEmpty(values[q.field_key])) {
         showToast(`La question "${q.label}" doit être renseignée avant de continuer.`, 'error');
         return;
@@ -152,7 +134,7 @@ export default function CompleteInfoFormPage() {
     setSubmitting(true);
     try {
       const [data] = await Promise.all([
-        completeComplementary(selected.id, { extraFields: values, admissionListType, onTreatment, treatmentDetails }),
+        completeComplementary(selected.id, { extraFields: values, onTreatment, treatmentDetails }),
         setDut1Allergies(selected.id, allergies),
       ]);
       showToast('Infos complémentaires enregistrées.', 'success');
@@ -200,8 +182,6 @@ export default function CompleteInfoFormPage() {
               questions={questions}
               values={values}
               onChange={handleChange}
-              admissionListType={admissionListType}
-              onAdmissionChange={setAdmissionListType}
               onTreatment={onTreatment}
               treatmentDetails={treatmentDetails}
               onTreatmentChange={setOnTreatment}
@@ -228,14 +208,6 @@ export default function CompleteInfoFormPage() {
               <div key={q.field_key}>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{q.label}</p>
 
-                {q.type === 'admission' && (
-                  <p className="mt-1 text-sm text-foreground">
-                    {admissionListType === 'principale' && 'Liste principale'}
-                    {admissionListType === 'attente' && "Liste d'attente"}
-                    {!admissionListType && <span className="text-muted-foreground">Non renseigné</span>}
-                  </p>
-                )}
-
                 {q.type === 'traitement_medical' &&
                   (onTreatment ? (
                     <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{treatmentDetails}</p>
@@ -256,7 +228,7 @@ export default function CompleteInfoFormPage() {
                     </div>
                   ))}
 
-                {!['admission', 'traitement_medical', 'allergies'].includes(q.type) && (
+                {!['traitement_medical', 'allergies'].includes(q.type) && (
                   <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
                     {formatQuestionAnswer(q, values[q.field_key]) ?? <span className="text-muted-foreground">—</span>}
                   </p>

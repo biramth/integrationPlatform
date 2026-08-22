@@ -38,11 +38,6 @@ export default function Dut1Card({ record, onClick, actions }) {
           ) : (
             <Badge variant="warning">Sans chambre</Badge>
           )}
-          {record.admission_list_type && (
-            <Badge variant={record.admission_list_type === 'principale' ? 'success' : 'warning'}>
-              {record.admission_list_type === 'principale' ? 'Liste principale' : "Liste d'attente"}
-            </Badge>
-          )}
         </div>
       </div>
       {actions && <div className="mt-3">{actions}</div>}

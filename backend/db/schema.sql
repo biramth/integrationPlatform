@@ -88,8 +88,10 @@ CREATE TABLE IF NOT EXISTS admitted_students (
   imported_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Validation "liste principale / liste d'attente" du dossier DUT1 : statut informatif,
--- ne bloque aucune autre action. Réglable par le registrar (phase 2) ou l'admin.
+-- Colonnes dépréciées, plus renseignées ni lues par aucun code applicatif
+-- (retiré : ça ne servait qu'à accélérer la recherche à l'enregistrement, pas
+-- une fonctionnalité à garder) — conservées telles quelles plutôt que
+-- droppées, comme le reste de ce fichier (jamais de DROP COLUMN).
 ALTER TABLE dut1_records
   ADD COLUMN IF NOT EXISTS admission_list_type TEXT
     CHECK (admission_list_type IN ('principale','attente')),
@@ -322,27 +324,31 @@ VALUES
 ON CONFLICT (field_key) DO NOTHING;
 
 -- Le chef Santé configure le questionnaire de phase 2 dans son ENTIER, pas
--- juste des questions bonus à la fin : admission/traitement/allergies
--- rejoignent la même liste réordonnable que les questions libres, au lieu
--- d'être des sections à part câblées en dur dans la page. Elles restent des
--- types à part (pas 'custom') car leur réponse est stockée dans des colonnes/
--- tables dédiées (dut1_records.on_treatment, dut1_allergens...), jamais dans
+-- juste des questions bonus à la fin : traitement/allergies rejoignent la
+-- même liste réordonnable que les questions libres, au lieu d'être des
+-- sections à part câblées en dur dans la page. Elles restent des types à
+-- part (pas 'custom') car leur réponse est stockée dans des colonnes/tables
+-- dédiées (dut1_records.on_treatment, dut1_allergens...), jamais dans
 -- extra_fields_json — field_key n'est ici qu'un repère stable, pas une clé
--- de stockage. 'traitement_medical' et 'allergies' sont verrouillées côté
--- backend (type figé, suppression bloquée) car Risques du jour et le
--- croisement menu/allergènes en dépendent. 'admission' ne sert qu'à
--- pré-remplir la fiche depuis la liste des admis (aide à la saisie, pas une
--- fonctionnalité à protéger) : le chef peut la supprimer s'il n'en a pas
--- l'usage.
+-- de stockage. Verrouillées côté backend (type figé, suppression bloquée)
+-- car Risques du jour et le croisement menu/allergènes en dépendent.
+--
+-- 'admission' (admission_list_type) a existé un temps comme troisième type
+-- intégré, mais ne servait qu'à pré-remplir la fiche depuis la liste des
+-- admis — pas une fonctionnalité à garder. La ligne est retirée (DELETE
+-- avant le resserrement de la contrainte, pour rester ré-exécutable) ; la
+-- colonne dut1_records.admission_list_type elle-même n'est pas droppée
+-- (cf. plus haut, on ne supprime jamais de colonne dans ce fichier).
+DELETE FROM phase2_questions WHERE field_key = 'admission_list_type';
+
 ALTER TABLE phase2_questions DROP CONSTRAINT IF EXISTS phase2_questions_type_check;
 ALTER TABLE phase2_questions ADD CONSTRAINT phase2_questions_type_check
-  CHECK (type IN ('texte_court','texte_long','choix_unique','choix_multiple','oui_non','admission','traitement_medical','allergies'));
+  CHECK (type IN ('texte_court','texte_long','choix_unique','choix_multiple','oui_non','traitement_medical','allergies'));
 
 -- Positions négatives : elles se placent avant personnalite/remarques (0/1)
 -- sans avoir à toucher aux positions déjà attribuées ailleurs.
 INSERT INTO phase2_questions (field_key, label, type, required, position)
 VALUES
-  ('admission_list_type', 'Admission au concours', 'admission', FALSE, -30),
   ('on_treatment', 'Traitement médical en cours ?', 'traitement_medical', TRUE, -20),
   ('allergies', 'Allergies', 'allergies', FALSE, -10)
 ON CONFLICT (field_key) DO NOTHING;
