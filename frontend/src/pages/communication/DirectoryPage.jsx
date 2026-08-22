@@ -45,7 +45,7 @@ function RecordDetailModal({ record, onClose }) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <DetailField label="N° étudiant" value={record.student_number} />
             <DetailField label="Téléphone" value={record.phone_number} />
             <DetailField label="Date de naissance" value={record.birth_date} />
@@ -54,7 +54,7 @@ function RecordDetailModal({ record, onClose }) {
 
           <DetailField label="Adresse" value={record.address} />
 
-          <div className="grid grid-cols-2 gap-3 border-t border-border pt-3">
+          <div className="grid grid-cols-1 gap-3 border-t border-border pt-3 sm:grid-cols-2">
             <DetailField label="Père" value={record.father_name} />
             <DetailField label="Tél. père" value={record.father_phone} />
             <DetailField label="Mère" value={record.mother_name} />

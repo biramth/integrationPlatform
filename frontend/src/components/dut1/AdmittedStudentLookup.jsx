@@ -4,13 +4,7 @@ import Input from '../common/Input';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { searchAdmittedStudents } from '../../api/admittedStudentsApi';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
-
-function formatBirthDate(birthDate) {
-  if (!birthDate) return null;
-  const d = new Date(birthDate);
-  if (Number.isNaN(d.getTime())) return birthDate;
-  return d.toLocaleDateString('fr-FR');
-}
+import { formatBirthDate } from '../../utils/formatDates';
 
 export default function AdmittedStudentLookup({ department, onSelect }) {
   const [query, setQuery] = useState('');

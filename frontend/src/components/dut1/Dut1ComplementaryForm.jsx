@@ -1,4 +1,5 @@
 import Button from '../common/Button';
+import YesNoToggle from '../common/YesNoToggle';
 import Dut1TreatmentQuestion from './Dut1TreatmentQuestion';
 import Dut1AllergyQuestion from './Dut1AllergyQuestion';
 
@@ -76,23 +77,7 @@ export default function Dut1ComplementaryForm({
           )}
 
           {q.type === 'oui_non' && (
-            <div className="flex gap-2">
-              {[
-                { value: true, label: 'Oui' },
-                { value: false, label: 'Non' },
-              ].map((opt) => (
-                <Button
-                  key={String(opt.value)}
-                  type="button"
-                  variant={values[q.field_key] === opt.value ? 'primary' : 'secondary'}
-                  className="px-3 py-1.5 text-xs"
-                  disabled={disabled}
-                  onClick={() => onChange(q.field_key, opt.value)}
-                >
-                  {opt.label}
-                </Button>
-              ))}
-            </div>
+            <YesNoToggle value={values[q.field_key]} onChange={(v) => onChange(q.field_key, v)} disabled={disabled} />
           )}
 
           {q.type === 'choix_unique' && (

@@ -5,6 +5,7 @@ import Button from '../common/Button';
 import { useFetch } from '../../hooks/useFetch';
 import { getPlatformSettings, updatePlatformSetting } from '../../api/platformSettingsApi';
 import { useToast } from '../../hooks/useToast';
+import { ErrorState } from '../common/StateViews';
 
 const FEATURES = [
   {
@@ -27,7 +28,7 @@ const FEATURES = [
 // empêcher toute altération des dossiers après la saisie initiale.
 export default function FeatureTogglesCard() {
   const { showToast } = useToast();
-  const { data, loading, reload } = useFetch(getPlatformSettings, []);
+  const { data, loading, error, reload } = useFetch(getPlatformSettings, []);
   const [togglingKey, setTogglingKey] = useState(null);
 
   async function toggle(key, enabled) {
@@ -52,7 +53,9 @@ export default function FeatureTogglesCard() {
           agents et bloque l'action côté serveur, pour éviter toute modification après coup.
         </p>
       </div>
+      {error && <ErrorState label={error} onRetry={reload} />}
       {!loading &&
+        !error &&
         FEATURES.map((f) => {
           const enabled = data?.[f.key] !== false;
           return (

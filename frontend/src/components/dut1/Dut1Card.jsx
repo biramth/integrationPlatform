@@ -2,13 +2,7 @@ import Badge from '../common/Badge';
 import Card from '../common/Card';
 import Avatar from '../common/Avatar';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
-
-function formatBirthDate(birthDate) {
-  if (!birthDate) return null;
-  const d = new Date(birthDate);
-  if (Number.isNaN(d.getTime())) return birthDate;
-  return d.toLocaleDateString('fr-FR');
-}
+import { formatBirthDate } from '../../utils/formatDates';
 
 export default function Dut1Card({ record, onClick, actions }) {
   const birthDate = formatBirthDate(record.birth_date);

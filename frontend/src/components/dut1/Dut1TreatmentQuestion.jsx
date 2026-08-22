@@ -1,28 +1,9 @@
-import Button from '../common/Button';
+import YesNoToggle from '../common/YesNoToggle';
 
 export default function Dut1TreatmentQuestion({ value, details, onChangeValue, onChangeDetails, disabled = false }) {
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant={value === true ? 'primary' : 'secondary'}
-          className="px-3 py-1.5 text-xs"
-          disabled={disabled}
-          onClick={() => onChangeValue(true)}
-        >
-          Oui
-        </Button>
-        <Button
-          type="button"
-          variant={value === false ? 'primary' : 'secondary'}
-          className="px-3 py-1.5 text-xs"
-          disabled={disabled}
-          onClick={() => onChangeValue(false)}
-        >
-          Non
-        </Button>
-      </div>
+      <YesNoToggle value={value} onChange={onChangeValue} disabled={disabled} />
       {value === true && (
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-foreground">Quels traitements ?</span>

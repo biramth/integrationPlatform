@@ -99,7 +99,7 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center px-4 py-12">
         <form onSubmit={handleSubmit} className="w-full max-w-sm animate-fade-in-up">
           <div className="mb-8 flex items-center gap-2 lg:hidden">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-800 text-white">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-hover text-primary-foreground">
               <GraduationCap className="h-5 w-5" />
             </span>
             <span className="text-lg font-semibold text-foreground">Intégration DUT1</span>

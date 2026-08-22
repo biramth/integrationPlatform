@@ -22,11 +22,9 @@ import { useFetch } from '../../hooks/useFetch';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../../utils/departments';
 import { staggerStyle } from '../../utils/stagger';
+import { SEVERITY_LABELS, SEVERITY_BADGE_VARIANT } from '../../utils/severity';
 
 const PAGE_SIZE = 25;
-
-const SEVERITY_LABELS = { legere: 'Légère', moderee: 'Modérée', severe: 'Sévère' };
-const SEVERITY_BADGE_VARIANT = { legere: 'neutral', moderee: 'warning', severe: 'danger' };
 
 function formatQuestionAnswer(question, value) {
   if (question.type === 'oui_non') {

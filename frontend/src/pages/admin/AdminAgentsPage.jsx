@@ -11,7 +11,7 @@ import Avatar from '../../components/common/Avatar';
 import Modal from '../../components/common/Modal';
 import { confirm } from '../../components/common/confirmService';
 import PageHeader from '../../components/common/PageHeader';
-import { ErrorState } from '../../components/common/StateViews';
+import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { ROLE_LABELS, ROLES, ROLE_COLORS, SUB_ROLE_LABELS_BY_ROLE } from '../../utils/roles';
 import { useAuth } from '../../hooks/useAuth';
@@ -235,8 +235,9 @@ export default function AdminAgentsPage() {
 
       {loading && <CardListSkeleton />}
       {error && <ErrorState label={error} onRetry={reload} />}
+      {!loading && !error && data.agents.length === 0 && <EmptyState label="Aucun compte pour l'instant." />}
 
-      {!loading && !error && (
+      {!loading && !error && data.agents.length > 0 && (
         <div className="flex flex-col gap-3">
           {data.agents.map((agent, i) => {
             const editing = editingId === agent.id;

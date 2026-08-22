@@ -13,9 +13,7 @@ import { DEPARTMENT_LABELS } from '../../utils/departments';
 import { staggerStyle } from '../../utils/stagger';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../hooks/useAuth';
-
-const SEVERITY_BADGE = { severe: 'danger', moderee: 'warning', legere: 'neutral' };
-const SEVERITY_LABEL = { severe: 'Sévère', moderee: 'Modérée', legere: 'Légère' };
+import { SEVERITY_LABELS as SEVERITY_LABEL, SEVERITY_BADGE_VARIANT as SEVERITY_BADGE } from '../../utils/severity';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
