@@ -4,7 +4,6 @@ import * as statsApi from '../../api/statsApi';
 import StatCard from '../../components/stats/StatCard';
 import DepartmentBarChart from '../../components/stats/DepartmentBarChart';
 import GenderPieChart from '../../components/stats/GenderPieChart';
-import AdmissionListChart from '../../components/stats/AdmissionListChart';
 import Card from '../../components/common/Card';
 import PageHeader from '../../components/common/PageHeader';
 import { Progress } from '@/components/ui/progress';
@@ -14,7 +13,7 @@ import { staggerStyle } from '../../utils/stagger';
 
 // Vue d'ensemble non-médicale, partagée par les chefs des commissions Orga,
 // Communication et Présidentielle : mêmes chiffres globaux que le tableau de
-// bord IT (total DUT1, chambres, bagages, répartitions, admission), sans les
+// bord IT (total DUT1, chambres, bagages, répartitions), sans les
 // statistiques médicales (tendance des maladies, prévalence des allergies) —
 // celles-ci restent réservées à la commission Santé (voir sante/OverviewPage.jsx),
 // cf. le principe "le médical reste médical". Cuisine et Culturelle n'ont pas
@@ -24,10 +23,9 @@ export default function OverviewPage() {
   const byDepartment = useFetch(statsApi.getByDepartment, []);
   const byGender = useFetch(statsApi.getByGender, []);
   const occupancy = useFetch(statsApi.getRoomsOccupancy, []);
-  const admissionList = useFetch(statsApi.getByAdmissionList, []);
 
-  const loading = overview.loading || byDepartment.loading || byGender.loading || occupancy.loading || admissionList.loading;
-  const error = overview.error || byDepartment.error || byGender.error || occupancy.error || admissionList.error;
+  const loading = overview.loading || byDepartment.loading || byGender.loading || occupancy.loading;
+  const error = overview.error || byDepartment.error || byGender.error || occupancy.error;
 
   if (error) return <ErrorState label={error} onRetry={() => window.location.reload()} />;
 
@@ -100,10 +98,6 @@ export default function OverviewPage() {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 animate-fade-in-up" style={staggerStyle(4)}>
             <DepartmentBarChart rows={byDepartment.data.rows} />
             <GenderPieChart rows={byGender.data.rows} />
-          </div>
-
-          <div className="mt-4 animate-fade-in-up" style={staggerStyle(5)}>
-            <AdmissionListChart rows={admissionList.data.rows} />
           </div>
         </>
       )}

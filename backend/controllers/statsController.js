@@ -88,15 +88,6 @@ async function allergyPrevalence(req, res) {
   res.json({ rows: rows.map((r) => ({ ...r, count: Number(r.count) })) });
 }
 
-async function byAdmissionList(req, res) {
-  const rows = await db.all(
-    `SELECT COALESCE(admission_list_type, 'non_validee') AS status, COUNT(*) AS count
-     FROM dut1_records
-     GROUP BY status`
-  );
-  res.json({ rows: rows.map((r) => ({ ...r, count: Number(r.count) })) });
-}
-
 module.exports = {
   overview,
   byDepartment,
@@ -104,5 +95,4 @@ module.exports = {
   roomsOccupancy,
   illnessTrend,
   allergyPrevalence,
-  byAdmissionList,
 };

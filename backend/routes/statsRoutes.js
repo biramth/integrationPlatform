@@ -23,6 +23,5 @@ router.get('/by-gender', requireRole(...OVERVIEW_ROLES), statsController.byGende
 router.get('/rooms-occupancy', requireRole(...OVERVIEW_ROLES), statsController.roomsOccupancy);
 router.get('/illness-trend', requireRole('sante'), requireSanteScope('suivi'), statsController.illnessTrend);
 router.get('/allergy-prevalence', requireRole('sante'), requireSanteScope('suivi'), statsController.allergyPrevalence);
-router.get('/by-admission-list', requireRole(...OVERVIEW_ROLES), statsController.byAdmissionList);
 
 module.exports = router;
