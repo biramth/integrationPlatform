@@ -65,14 +65,14 @@ const AGENTS_ITEM = { to: '/admin/agents', label: 'Agents', icon: Users };
 // is_commission_lead.
 const NO_AGENTS_ROLES = [ROLES.IT, ROLES.PRESIDENTIELLE];
 
-// Chaque chef de commission a une vue d'ensemble sur sa sphère — sauf Cuisine
-// et Culturelle, dont le périmètre (menu du jour, planning en lecture) n'a
-// rien à agréger. IT et Présidentielle ont déjà la leur en page d'accueil,
-// pas besoin d'un lien de nav supplémentaire pour ceux-là.
+// Chaque chef de commission a une vue d'ensemble sur sa sphère — sauf
+// Cuisine, Culturelle et Communication, dont le périmètre (menu du jour,
+// planning en lecture, annuaire) n'a rien à agréger. IT et Présidentielle ont
+// déjà la leur en page d'accueil, pas besoin d'un lien de nav supplémentaire
+// pour ceux-là.
 const OVERVIEW_ITEM_BY_ROLE = {
   [ROLES.ORGA]: { to: '/orga/apercu', label: "Vue d'ensemble", icon: LineChart },
   [ROLES.SANTE]: { to: '/sante/apercu', label: "Vue d'ensemble", icon: LineChart },
-  [ROLES.COMMUNICATION]: { to: '/communication/apercu', label: "Vue d'ensemble", icon: LineChart },
 };
 
 // Le chef de la commission Santé configure lui-même les questions posées en

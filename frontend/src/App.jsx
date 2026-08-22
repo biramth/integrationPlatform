@@ -157,10 +157,6 @@ function App() {
             <Route element={<RoleRoute roles={['communication']} />}>
               <Route path="/communication/annuaire" element={<DirectoryPage />} />
             </Route>
-
-            <Route element={<RoleRoute roles={['communication']} requireLead />}>
-              <Route path="/communication/apercu" element={<OverviewPage />} />
-            </Route>
           </Route>
         </Route>
 

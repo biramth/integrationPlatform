@@ -11,13 +11,13 @@ import { ErrorState } from '../../components/common/StateViews';
 import { StatCardSkeleton } from '../../components/common/Skeleton';
 import { staggerStyle } from '../../utils/stagger';
 
-// Vue d'ensemble non-médicale, partagée par les chefs des commissions Orga,
-// Communication et Présidentielle : mêmes chiffres globaux que le tableau de
-// bord IT (total DUT1, chambres, bagages, répartitions), sans les
-// statistiques médicales (tendance des maladies, prévalence des allergies) —
-// celles-ci restent réservées à la commission Santé (voir sante/OverviewPage.jsx),
-// cf. le principe "le médical reste médical". Cuisine et Culturelle n'ont pas
-// de tableau de bord équivalent : rien de pertinent à y afficher.
+// Vue d'ensemble non-médicale, partagée par les chefs des commissions Orga et
+// Présidentielle : mêmes chiffres globaux que le tableau de bord IT (total
+// DUT1, chambres, bagages, répartitions), sans les statistiques médicales
+// (tendance des maladies, prévalence des allergies) — celles-ci restent
+// réservées à la commission Santé (voir sante/OverviewPage.jsx), cf. le
+// principe "le médical reste médical". Cuisine, Culturelle et Communication
+// n'ont pas de tableau de bord équivalent : rien de pertinent à y afficher.
 export default function OverviewPage() {
   const overview = useFetch(statsApi.getOverview, []);
   const byDepartment = useFetch(statsApi.getByDepartment, []);

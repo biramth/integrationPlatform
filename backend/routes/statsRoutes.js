@@ -7,11 +7,12 @@ const router = express.Router();
 router.use(verifyToken);
 
 // Chaque chef de commission a une vue d'ensemble sur sa sphère : Orga (chambres,
-// enregistrement, bagages), Communication et Présidentielle partagent les mêmes
-// statistiques globales non-médicales. Les statistiques médicales (illness-trend,
+// enregistrement, bagages) et Présidentielle partagent les mêmes statistiques
+// globales non-médicales. Les statistiques médicales (illness-trend,
 // allergy-prevalence) restent réservées à Santé, cf. principe "le médical reste
-// médical". Cuisine et Culturelle n'ont pas de tableau de bord : rien à y voir.
-const OVERVIEW_ROLES = ['orga', 'communication', 'presidentielle'];
+// médical". Cuisine, Culturelle et Communication n'ont pas de tableau de bord :
+// rien à y voir.
+const OVERVIEW_ROLES = ['orga', 'presidentielle'];
 
 router.get('/overview', requireRole(...OVERVIEW_ROLES), statsController.overview);
 router.get('/by-department', requireRole(...OVERVIEW_ROLES), statsController.byDepartment);
