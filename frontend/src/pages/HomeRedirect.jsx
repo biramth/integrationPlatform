@@ -12,5 +12,5 @@ export default function HomeRedirect() {
   if (!user) {
     return <LandingPage />;
   }
-  return <Navigate to={homePathForRole(user.role, user.subRole, user.isCommissionLead)} replace />;
+  return <Navigate to={homePathForRole(user.role, user.subRole, user.isCommissionLead, user.isPoleLead)} replace />;
 }

@@ -188,6 +188,7 @@ export default function AdminRoomsPage() {
   const targetRooms = (data?.rooms || []).filter(
     (r) => movingOccupant && r.id !== movingOccupant.fromRoomId && r.gender === movingOccupant.gender && r.occupied < r.capacity
   );
+  const fromRoom = movingOccupant ? (data?.rooms || []).find((r) => r.id === movingOccupant.fromRoomId) : null;
 
   return (
     <div>
@@ -475,16 +476,41 @@ export default function AdminRoomsPage() {
       >
         {movingOccupant && (
           <div className="flex flex-col gap-3">
-            <Select
-              label="Nouvelle chambre"
-              placeholder="Choisir une chambre…"
-              value={moveTargetRoomId}
-              onChange={(e) => setMoveTargetRoomId(e.target.value)}
-              options={targetRooms.map((r) => ({ value: r.id, label: `${r.label} (${r.occupied}/${r.capacity})` }))}
-            />
-            {targetRooms.length === 0 && (
-              <p className="text-xs text-muted-foreground">Aucune autre chambre disponible pour ce genre.</p>
+            <p className="text-sm text-muted-foreground">
+              Chambre actuelle :{' '}
+              <span className="font-medium text-foreground">{fromRoom ? fromRoom.label : 'aucune'}</span>
+            </p>
+
+            <p className="text-sm font-medium text-foreground">Nouvelle chambre</p>
+            {targetRooms.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucune autre chambre disponible pour ce genre.</p>
+            ) : (
+              <div className="grid max-h-64 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+                {targetRooms.map((r) => {
+                  const selected = moveTargetRoomId === String(r.id);
+                  const free = r.capacity - r.occupied;
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setMoveTargetRoomId(String(r.id))}
+                      className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                        selected ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:bg-muted/50'
+                      }`}
+                    >
+                      <span className="min-w-0">
+                        <span className="font-medium text-foreground">{r.label}</span>
+                        <span className="ml-1.5 truncate text-xs text-muted-foreground">{r.building || '—'}</span>
+                      </span>
+                      <Badge variant={free <= 1 ? 'warning' : 'success'} className="shrink-0">
+                        {r.occupied}/{r.capacity}
+                      </Badge>
+                    </button>
+                  );
+                })}
+              </div>
             )}
+
             <div className="mt-2 flex justify-end gap-2">
               <Button variant="secondary" onClick={closeMove}>
                 Annuler

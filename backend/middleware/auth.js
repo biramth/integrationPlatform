@@ -118,11 +118,16 @@ function requireCommissionLead(req, res, next) {
 // mise en place réservé au chef Orga — le sous-rôle "chambres" ne le fait
 // plus, son travail quotidien est de livrer les bagages déjà photographiés
 // dans la chambre assignée à chaque DUT1, pas de configurer les chambres.
+// Le "chef de pôle" (is_pole_lead) reçoit la même délégation que le chef de
+// commission ici : c'est justement le genre de supervision opérationnelle
+// qu'il partage avec lui — contrairement à la gestion des agents
+// (requireAgentManagement) et au journal d'audit (requireCommissionLead), qui
+// restent volontairement réservés au vrai chef et ne vérifient jamais isPoleLead.
 function requireCommissionLeadStrict(req, res, next) {
-  if (req.user && req.user.isCommissionLead) {
+  if (req.user && (req.user.isCommissionLead || req.user.isPoleLead)) {
     return next();
   }
-  return res.status(403).json({ error: 'Réservé au chef de commission.' });
+  return res.status(403).json({ error: 'Réservé au chef de commission ou de pôle.' });
 }
 
 module.exports = {

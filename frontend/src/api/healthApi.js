@@ -12,9 +12,9 @@ export function getOnTreatment() {
   return axiosClient.get('/health/on-treatment').then((res) => res.data);
 }
 
-export function declareRestriction(dut1Id, { startDate, endDate, reason, activityId }) {
+export function declareRestriction(dut1Id, { startDate, endDate, reason, activityId, criterionId }) {
   return axiosClient
-    .post(`/health/dut1/${dut1Id}/restrictions`, { startDate, endDate, reason, activityId })
+    .post(`/health/dut1/${dut1Id}/restrictions`, { startDate, endDate, reason, activityId, criterionId })
     .then((res) => res.data);
 }
 

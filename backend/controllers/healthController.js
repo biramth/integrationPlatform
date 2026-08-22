@@ -47,7 +47,7 @@ async function getRisks(req, res) {
   const restrictionRows = await db.all(
     `SELECT
        d.id, d.first_name, d.last_name, d.department, d.gender, r.label AS room_label,
-       hr.reason, hr.end_date, act.name AS activity_name
+       hr.reason, hr.end_date, hr.criterion_id, act.name AS activity_name
      FROM health_restrictions hr
      JOIN dut1_records d ON d.id = hr.dut1_id
      LEFT JOIN rooms r ON r.id = d.room_id
@@ -58,6 +58,28 @@ async function getRisks(req, res) {
      ORDER BY d.last_name, d.first_name`,
     [date]
   );
+
+  // Un critère d'aptitude non rempli (criterion_id) s'applique automatiquement
+  // à toute activité du jour qui l'exige, sans que l'agent ait eu besoin de
+  // lier la restriction à cette activité précise au moment de la déclarer —
+  // seul un lien explicite (hr.activity_id) restait limité à une activité
+  // choisie à l'avance.
+  const todaysActivities = await db.all(
+    `SELECT id, name FROM activities WHERE $1 BETWEEN activity_date AND COALESCE(end_date, activity_date)`,
+    [date]
+  );
+  const requiredCriteriaRows = todaysActivities.length
+    ? await db.all(
+        `SELECT activity_id, criterion_id FROM activity_required_criteria WHERE activity_id = ANY($1::int[])`,
+        [todaysActivities.map((a) => a.id)]
+      )
+    : [];
+  const activityNameById = new Map(todaysActivities.map((a) => [a.id, a.name]));
+  const activitiesByCriterion = new Map();
+  for (const row of requiredCriteriaRows) {
+    if (!activitiesByCriterion.has(row.criterion_id)) activitiesByCriterion.set(row.criterion_id, new Set());
+    activitiesByCriterion.get(row.criterion_id).add(activityNameById.get(row.activity_id));
+  }
 
   // Traitement médical en cours (déclaré en phase 2) : pas de bornes de dates
   // dans le questionnaire, donc un traitement déclaré est considéré actif tant
@@ -97,9 +119,14 @@ async function getRisks(req, res) {
     });
   }
   for (const row of restrictionRows) {
+    const activityNames = new Set();
+    if (row.activity_name) activityNames.add(row.activity_name);
+    if (row.criterion_id && activitiesByCriterion.has(row.criterion_id)) {
+      for (const name of activitiesByCriterion.get(row.criterion_id)) activityNames.add(name);
+    }
     ensure(row).restrictions.push({
       reason: row.reason,
-      activityName: row.activity_name || null,
+      activityNames: Array.from(activityNames),
       endDate: row.end_date,
     });
   }
@@ -129,7 +156,7 @@ async function getRisks(req, res) {
 
 async function declareRestriction(req, res) {
   const { id } = req.params;
-  const { startDate, endDate, reason, activityId } = req.body;
+  const { startDate, endDate, reason, activityId, criterionId } = req.body;
 
   if (!startDate || !reason) {
     return res.status(400).json({ error: 'startDate et reason sont requis.' });
@@ -142,9 +169,9 @@ async function declareRestriction(req, res) {
 
   try {
     const result = await db.run(
-      `INSERT INTO health_restrictions (dut1_id, activity_id, start_date, end_date, reason, declared_by)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [id, activityId || null, startDate, endDate || null, reason, req.user.id]
+      `INSERT INTO health_restrictions (dut1_id, activity_id, start_date, end_date, reason, criterion_id, declared_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [id, activityId || null, startDate, endDate || null, reason, criterionId || null, req.user.id]
     );
 
     const record = await db.get('SELECT * FROM health_restrictions WHERE id = $1', [result.rows[0].id]);
@@ -161,7 +188,7 @@ async function declareRestriction(req, res) {
     res.status(201).json({ restriction: record });
   } catch (err) {
     if (err.code === '23503') {
-      return res.status(400).json({ error: 'Activité invalide.' });
+      return res.status(400).json({ error: 'Activité ou critère invalide.' });
     }
     throw err;
   }
@@ -169,9 +196,10 @@ async function declareRestriction(req, res) {
 
 async function listRestrictionsForDut1(req, res) {
   const records = await db.all(
-    `SELECT hr.*, act.name AS activity_name
+    `SELECT hr.*, act.name AS activity_name, ac.label AS criterion_label
      FROM health_restrictions hr
      LEFT JOIN activities act ON act.id = hr.activity_id
+     LEFT JOIN aptitude_criteria ac ON ac.id = hr.criterion_id
      WHERE hr.dut1_id = $1
      ORDER BY hr.start_date DESC, hr.id DESC`,
     [req.params.id]
@@ -181,11 +209,13 @@ async function listRestrictionsForDut1(req, res) {
 
 async function listActiveRestrictions(req, res) {
   const records = await db.all(
-    `SELECT hr.*, act.name AS activity_name, d.first_name, d.last_name, d.department, r.label AS room_label
+    `SELECT hr.*, act.name AS activity_name, ac.label AS criterion_label,
+       d.first_name, d.last_name, d.department, r.label AS room_label
      FROM health_restrictions hr
      JOIN dut1_records d ON d.id = hr.dut1_id
      LEFT JOIN rooms r ON r.id = d.room_id
      LEFT JOIN activities act ON act.id = hr.activity_id
+     LEFT JOIN aptitude_criteria ac ON ac.id = hr.criterion_id
      WHERE hr.resolved_at IS NULL
      ORDER BY hr.start_date ASC, d.last_name ASC`
   );

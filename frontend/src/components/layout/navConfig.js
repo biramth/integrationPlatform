@@ -17,6 +17,7 @@ import {
   ListChecks,
   ScrollText,
   Pill,
+  HeartPulse,
 } from 'lucide-react';
 import { ROLES } from '../../utils/roles';
 
@@ -36,6 +37,11 @@ const ORGA_ITEMS = {
 // imprimables) est un travail de mise en place réservé au chef Orga — pas au
 // sous-rôle "chambres", qui ne s'en occupe plus (cf. ORGA_ITEMS ci-dessus).
 const ORGA_ROOMS_ADMIN_ITEM = { to: '/orga/rooms', label: 'Config. chambres', icon: DoorOpen };
+
+// Annuaire du chef Orga : comme celui de Communication/Présidentielle
+// (identité, contact, parents), mais avec en plus les photos des bagages déjà
+// enregistrés — sa propre commission, cf. OrgaDirectoryPage.jsx.
+const ORGA_DIRECTORY_ITEM = { to: '/orga/annuaire', label: 'Annuaire', icon: Contact };
 
 // Même principe pour Santé : "suivi" (travail santé classique), "phase2"
 // (complément de dossier, transféré depuis Orga car médical — traitement,
@@ -81,6 +87,11 @@ const OVERVIEW_ITEM_BY_ROLE = {
 // phase 2 (complément de dossier) — pas d'utilité pour les autres commissions.
 const SANTE_QUESTIONS_ITEM = { to: '/sante/questions-phase2', label: 'Questions phase 2', icon: ListChecks };
 
+// Idem pour les critères d'aptitude physique exigés par activité (cf.
+// AptitudeCriteriaPage.jsx) — Risques du jour croise ensuite automatiquement
+// les restrictions déclarées avec les activités du jour qui les exigent.
+const SANTE_CRITERIA_ITEM = { to: '/sante/criteres', label: "Critères d'aptitude", icon: HeartPulse };
+
 // Journal d'audit de sa propre commission (scopé côté backend) : proposé à
 // tout chef, y compris Cuisine/Culturelle/Présidentielle — contrairement à
 // AGENTS_ITEM, il n'y a aucune raison de l'exclure pour ces commissions, un
@@ -88,30 +99,52 @@ const SANTE_QUESTIONS_ITEM = { to: '/sante/questions-phase2', label: 'Questions 
 const AUDIT_ITEM = { to: '/audit', label: "Journal d'audit", icon: ScrollText };
 
 // settings vient de GET /platform-settings (cf. platformSettingsApi.js) :
-// { registration, phase2 }, chacun true/false. Absent (page pas encore
-// chargée) = traité comme activé, pour ne pas faire disparaître un lien le
-// temps du premier chargement.
+// { registration, phase2, luggage, logistics }, chacun true/false. Absent
+// (page pas encore chargée) = traité comme activé, pour ne pas faire
+// disparaître un lien le temps du premier chargement.
 export function getNavItems(user, settings) {
   if (!user) return [];
   const registrationEnabled = settings?.registration !== false;
   const phase2Enabled = settings?.phase2 !== false;
+  // La "journée d'accueil" Orga ne se limite pas à l'enregistrement : bagages
+  // (photo/comptage) et logistique (livraison en chambre) en font tout autant
+  // partie, cf. requireFeatureEnabled('luggage'|'logistics') côté backend.
+  const luggageEnabled = settings?.luggage !== false;
+  const logisticsEnabled = settings?.logistics !== false;
+  // Chef de pôle (isPoleLead, propre à Orga) : même supervision opérationnelle
+  // que le chef de commission (Vue d'ensemble, config chambres, annuaire), sauf
+  // la gestion des agents et le journal d'audit — AGENTS_ITEM/AUDIT_ITEM restent
+  // volontairement sur isCommissionLead seul, jamais isLead.
+  const isLead = user.isCommissionLead || user.isPoleLead;
   const leadItems = [
     ...(user.isCommissionLead && !NO_AGENTS_ROLES.includes(user.role) ? [AGENTS_ITEM] : []),
-    ...(user.isCommissionLead && OVERVIEW_ITEM_BY_ROLE[user.role] ? [OVERVIEW_ITEM_BY_ROLE[user.role]] : []),
-    ...(user.isCommissionLead && user.role === ROLES.SANTE ? [SANTE_QUESTIONS_ITEM] : []),
-    ...(user.isCommissionLead && user.role === ROLES.ORGA ? [ORGA_ROOMS_ADMIN_ITEM] : []),
+    ...(isLead && OVERVIEW_ITEM_BY_ROLE[user.role] ? [OVERVIEW_ITEM_BY_ROLE[user.role]] : []),
+    ...(user.isCommissionLead && user.role === ROLES.SANTE ? [SANTE_QUESTIONS_ITEM, SANTE_CRITERIA_ITEM] : []),
+    ...(isLead && user.role === ROLES.ORGA ? [ORGA_ROOMS_ADMIN_ITEM, ORGA_DIRECTORY_ITEM] : []),
     ...(user.isCommissionLead ? [AUDIT_ITEM] : []),
   ];
-  // Le chef de commission supervise, il n'exécute pas les tâches de
-  // sous-rôle : il ne voit aucun des onglets opérationnels ci-dessus, quel
-  // que soit son sub_role — seulement leadItems (Vue d'ensemble, config,
-  // agents, audit) et Planning. Exception pour Santé, cf. plus bas.
+  // Le chef de commission (et le chef de pôle, pour Orga) supervise, il
+  // n'exécute pas les tâches de sous-rôle : il ne voit aucun des onglets
+  // opérationnels ci-dessus, quel que soit son sub_role — seulement leadItems
+  // (Vue d'ensemble, config, agents, audit) et Planning. Exception pour Santé,
+  // cf. plus bas (pas de chef de pôle pour cette commission).
   if (user.role === ROLES.ORGA) {
-    const scoped = user.isCommissionLead
+    // Chaque sous-domaine Orga a son propre interrupteur "journée d'accueil" :
+    // enregistrement, bagages (photo/comptage) et logistique (livraison en
+    // chambre) disparaissent chacun indépendamment une fois désactivés.
+    const subRoleDisabled =
+      (user.subRole === 'enregistrement' && !registrationEnabled) ||
+      (user.subRole === 'bagages' && !luggageEnabled) ||
+      (user.subRole === 'chambres' && !logisticsEnabled);
+    const scoped = isLead
       ? []
       : user.subRole
-      ? (user.subRole === 'enregistrement' && !registrationEnabled ? [] : ORGA_ITEMS[user.subRole] || [])
-      : [...(registrationEnabled ? ORGA_ITEMS.enregistrement : []), ...ORGA_ITEMS.bagages, ...ORGA_ITEMS.chambres];
+      ? (subRoleDisabled ? [] : ORGA_ITEMS[user.subRole] || [])
+      : [
+          ...(registrationEnabled ? ORGA_ITEMS.enregistrement : []),
+          ...(luggageEnabled ? ORGA_ITEMS.bagages : []),
+          ...(logisticsEnabled ? ORGA_ITEMS.chambres : []),
+        ];
     return [...scoped, RISKS_ITEM, PLANNING_ITEM, ...leadItems];
   }
   if (user.role === ROLES.SANTE) {

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Search, Trash2, Download, Phone, ChevronDown, Upload } from 'lucide-react';
+import { Search, Trash2, Download, Phone, ChevronDown, Upload, X } from 'lucide-react';
 import AdmittedStudentsImportPanel from '../../components/admin/AdmittedStudentsImportPanel';
 import { useFetch } from '../../hooks/useFetch';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -59,6 +59,11 @@ export default function AdminRecordsPage() {
     setFilters((f) => ({ ...f, ...patch }));
     setPage(1);
     setSelectedIds(new Set());
+  }
+
+  const hasActiveFilters = !!(filters.search || filters.department || filters.gender);
+  function resetFilters() {
+    updateFilters({ search: '', department: '', gender: '' });
   }
 
   function changePage(nextPage) {
@@ -280,28 +285,35 @@ export default function AdminRecordsPage() {
         />
       )}
 
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Input
-          icon={Search}
-          placeholder="Rechercher un nom…"
-          value={filters.search}
-          onChange={(e) => updateFilters({ search: e.target.value })}
-        />
-        <Select
-          placeholder="Tous les départements"
-          value={filters.department}
-          onChange={(e) => updateFilters({ department: e.target.value })}
-          options={DEPARTMENTS.map((d) => ({ value: d, label: DEPARTMENT_LABELS[d] }))}
-        />
-        <Select
-          placeholder="Tous les genres"
-          value={filters.gender}
-          onChange={(e) => updateFilters({ gender: e.target.value })}
-          options={[
-            { value: 'M', label: 'Masculin' },
-            { value: 'F', label: 'Féminin' },
-          ]}
-        />
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
+          <Input
+            icon={Search}
+            placeholder="Rechercher un nom…"
+            value={filters.search}
+            onChange={(e) => updateFilters({ search: e.target.value })}
+          />
+          <Select
+            placeholder="Tous les départements"
+            value={filters.department}
+            onChange={(e) => updateFilters({ department: e.target.value })}
+            options={DEPARTMENTS.map((d) => ({ value: d, label: DEPARTMENT_LABELS[d] }))}
+          />
+          <Select
+            placeholder="Tous les genres"
+            value={filters.gender}
+            onChange={(e) => updateFilters({ gender: e.target.value })}
+            options={[
+              { value: 'M', label: 'Masculin' },
+              { value: 'F', label: 'Féminin' },
+            ]}
+          />
+        </div>
+        {hasActiveFilters && (
+          <Button variant="secondary" onClick={resetFilters} className="shrink-0">
+            <X className="h-4 w-4" /> Réinitialiser
+          </Button>
+        )}
       </div>
 
       {selectedIds.size > 0 && (

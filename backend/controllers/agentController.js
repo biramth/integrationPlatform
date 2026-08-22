@@ -38,7 +38,7 @@ async function listAgents(req, res) {
 
 async function createAgent(req, res) {
   const { fullName, username, password, role } = req.body;
-  let { subRole, isCommissionLead, canResetPlatform } = req.body;
+  let { subRole, isCommissionLead, isPoleLead, canResetPlatform } = req.body;
 
   if (!fullName || !username || !password || !role) {
     return res.status(400).json({ error: 'fullName, username, password et role sont requis.' });
@@ -55,12 +55,18 @@ async function createAgent(req, res) {
   if (subRole && !isValidSubRole(role, subRole)) {
     return res.status(400).json({ error: 'sub_role invalide pour ce rôle.' });
   }
-  // Seul it peut désigner un chef de commission ou accorder le droit de
-  // réinitialiser la plateforme — un chef de commission ne peut pas
+  // Seul it peut désigner un chef de commission ou de pôle, ou accorder le
+  // droit de réinitialiser la plateforme — un chef de commission ne peut pas
   // s'auto-répliquer ni élever les privilèges d'un compte qu'il crée.
   if (req.user.role !== 'it') {
     isCommissionLead = false;
+    isPoleLead = false;
     canResetPlatform = false;
+  }
+  // Chef de pôle : rôle intermédiaire propre à Orga (cf. schema.sql) — sans
+  // objet pour les autres commissions.
+  if (role !== 'orga') {
+    isPoleLead = false;
   }
   if (canResetPlatform && role !== 'it') {
     return res.status(400).json({ error: 'can_reset_platform ne peut être activé que pour un compte it.' });
@@ -68,9 +74,18 @@ async function createAgent(req, res) {
 
   try {
     const result = await db.run(
-      `INSERT INTO users (full_name, username, password_hash, role, sub_role, is_commission_lead, can_reset_platform)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [fullName, username, hashPassword(password), role, SUB_ROLES_BY_ROLE[role] ? subRole || null : null, !!isCommissionLead, !!canResetPlatform]
+      `INSERT INTO users (full_name, username, password_hash, role, sub_role, is_commission_lead, is_pole_lead, can_reset_platform)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [
+        fullName,
+        username,
+        hashPassword(password),
+        role,
+        SUB_ROLES_BY_ROLE[role] ? subRole || null : null,
+        !!isCommissionLead,
+        !!isPoleLead,
+        !!canResetPlatform,
+      ]
     );
 
     const agent = await db.get('SELECT * FROM users WHERE id = $1', [result.rows[0].id]);
@@ -112,7 +127,7 @@ async function updateAgent(req, res) {
   }
 
   const { fullName, role, isActive } = req.body;
-  let { subRole, isCommissionLead, canResetPlatform } = req.body;
+  let { subRole, isCommissionLead, isPoleLead, canResetPlatform } = req.body;
   const isPrivileged = req.user.role === 'it';
 
   if (role && !ROLES.includes(role)) {
@@ -125,6 +140,7 @@ async function updateAgent(req, res) {
       return res.status(403).json({ error: "Seul it peut changer le rôle d'un agent." });
     }
     isCommissionLead = undefined;
+    isPoleLead = undefined;
     canResetPlatform = undefined;
   }
 
@@ -137,16 +153,20 @@ async function updateAgent(req, res) {
   if (nextCanResetPlatform && nextRole !== 'it') {
     return res.status(400).json({ error: 'can_reset_platform ne peut être activé que pour un compte it.' });
   }
+  // Chef de pôle : rôle intermédiaire propre à Orga (cf. schema.sql) — sans
+  // objet pour les autres commissions, y compris si le rôle change en cours de route.
+  const nextIsPoleLead = nextRole === 'orga' && (isPoleLead !== undefined ? !!isPoleLead : agent.is_pole_lead);
 
   await db.run(
     `UPDATE users SET full_name = $1, role = $2, is_active = $3, sub_role = $4,
-       is_commission_lead = $5, can_reset_platform = $6, updated_at = NOW() WHERE id = $7`,
+       is_commission_lead = $5, is_pole_lead = $6, can_reset_platform = $7, updated_at = NOW() WHERE id = $8`,
     [
       fullName ?? agent.full_name,
       nextRole,
       isActive !== undefined ? !!isActive : agent.is_active,
       SUB_ROLES_BY_ROLE[nextRole] ? nextSubRole || null : null,
       isCommissionLead !== undefined ? !!isCommissionLead : agent.is_commission_lead,
+      nextIsPoleLead,
       nextCanResetPlatform,
       id,
     ]

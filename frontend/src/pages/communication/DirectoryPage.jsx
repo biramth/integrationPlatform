@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { listDut1 } from '../../api/dut1Api';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
+import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import Pagination from '../../components/common/Pagination';
@@ -90,6 +91,11 @@ export default function DirectoryPage() {
     setPage(1);
   }
 
+  const hasActiveFilters = !!(filters.search || filters.department);
+  function resetFilters() {
+    updateFilters({ search: '', department: '' });
+  }
+
   return (
     <div>
       <PageHeader
@@ -97,19 +103,26 @@ export default function DirectoryPage() {
         description="Nom, département et téléphone — clique sur une ligne pour plus de détails. Aucune information médicale n'est accessible ici."
       />
 
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Input
-          icon={Search}
-          placeholder="Rechercher un nom…"
-          value={filters.search}
-          onChange={(e) => updateFilters({ search: e.target.value })}
-        />
-        <Select
-          placeholder="Tous les départements"
-          value={filters.department}
-          onChange={(e) => updateFilters({ department: e.target.value })}
-          options={DEPARTMENTS.map((d) => ({ value: d, label: DEPARTMENT_LABELS[d] }))}
-        />
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input
+            icon={Search}
+            placeholder="Rechercher un nom…"
+            value={filters.search}
+            onChange={(e) => updateFilters({ search: e.target.value })}
+          />
+          <Select
+            placeholder="Tous les départements"
+            value={filters.department}
+            onChange={(e) => updateFilters({ department: e.target.value })}
+            options={DEPARTMENTS.map((d) => ({ value: d, label: DEPARTMENT_LABELS[d] }))}
+          />
+        </div>
+        {hasActiveFilters && (
+          <Button variant="secondary" onClick={resetFilters} className="shrink-0">
+            <X className="h-4 w-4" /> Réinitialiser
+          </Button>
+        )}
       </div>
 
       {loading && <CardListSkeleton rows={6} />}

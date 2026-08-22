@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FilePlus2, ClipboardList } from 'lucide-react';
+import { FilePlus2, ClipboardList, Luggage, PackageCheck } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import { useFetch } from '../../hooks/useFetch';
@@ -15,6 +15,18 @@ const FEATURES = [
     icon: FilePlus2,
   },
   {
+    key: 'luggage',
+    label: 'Bagages — photo & comptage',
+    description: 'Photographie et comptage des bagages par le sous-rôle Bagages (commission Orga).',
+    icon: Luggage,
+  },
+  {
+    key: 'logistics',
+    label: 'Logistique — livraison en chambre',
+    description: 'Livraison des bagages déjà photographiés dans la chambre assignée, par le sous-rôle Chambres (commission Orga).',
+    icon: PackageCheck,
+  },
+  {
     key: 'phase2',
     label: 'Phase 2 — complément de dossier',
     description: 'Complément de dossier par la commission Santé.',
@@ -22,8 +34,10 @@ const FEATURES = [
   },
 ];
 
-// Enregistrement et phase 2 n'ont d'utilité que le premier jour de
-// l'intégration : une fois désactivés, la page correspondante disparaît du
+// La "journée d'accueil" Orga ne se limite pas à l'enregistrement : bagages
+// et logistique en font tout autant partie (parcours complet d'un DUT1 à son
+// arrivée). Comme phase 2, chacune n'a d'utilité que le premier jour de
+// l'intégration : une fois désactivée, la page correspondante disparaît du
 // menu des agents concernés et l'API refuse l'action, même pour IT — pour
 // empêcher toute altération des dossiers après la saisie initiale.
 export default function FeatureTogglesCard() {
@@ -49,8 +63,8 @@ export default function FeatureTogglesCard() {
       <div>
         <p className="text-sm font-semibold text-foreground">Fonctionnalités de la journée d'accueil</p>
         <p className="text-xs text-muted-foreground">
-          Enregistrement et phase 2 ne servent que le premier jour — les désactiver les fait disparaître du menu des
-          agents et bloque l'action côté serveur, pour éviter toute modification après coup.
+          Enregistrement, bagages, logistique et phase 2 ne servent que le premier jour — les désactiver les fait
+          disparaître du menu des agents et bloque l'action côté serveur, pour éviter toute modification après coup.
         </p>
       </div>
       {error && <ErrorState label={error} onRetry={reload} />}

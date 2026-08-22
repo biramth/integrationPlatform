@@ -95,7 +95,7 @@ export default function RisksPage() {
                     ))}
                     {dut1.restrictions.map((r, ri) => (
                       <Badge key={`r-${ri}`} variant="danger">
-                        Inapte — {r.reason} ({r.activityName || 'Toutes activités'})
+                        Inapte — {r.reason} ({r.activityNames.length > 0 ? r.activityNames.join(', ') : 'Toutes activités'})
                       </Badge>
                     ))}
                     {dut1.treatmentDetails && (

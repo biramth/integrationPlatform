@@ -106,11 +106,13 @@ export function santeHasScope(user, scope) {
 
 // isCommissionLead : le chef de commission n'a plus accès aux pages
 // opérationnelles de sous-rôle (cf. RoleRoute/navConfig) — sa page d'accueil
-// est sa Vue d'ensemble, pas la page par défaut d'un agent généraliste.
-export function homePathForRole(role, subRole, isCommissionLead) {
+// est sa Vue d'ensemble, pas la page par défaut d'un agent généraliste. Le
+// chef de pôle (isPoleLead, propre à Orga) reçoit le même traitement : il
+// supervise comme le chef, cf. navConfig.js.
+export function homePathForRole(role, subRole, isCommissionLead, isPoleLead) {
   switch (role) {
     case ROLES.ORGA:
-      if (isCommissionLead) return '/orga/apercu';
+      if (isCommissionLead || isPoleLead) return '/orga/apercu';
       if (subRole === ORGA_SUB_ROLES.CHAMBRES) return '/orga/deliveries';
       if (subRole === ORGA_SUB_ROLES.BAGAGES) return '/orga/luggage';
       return '/orga/basic';

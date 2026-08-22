@@ -69,10 +69,14 @@ router.put(
 // sous-rôle "chambres" — celui-ci livre les bagages déjà photographiés dans
 // la chambre déjà assignée, il ne réassigne pas (cf. /:id/luggage-delivery).
 router.put('/:id/room', requireRole('orga'), requireCommissionLead, roomController.reassignDut1Room);
+// Comme l'enregistrement et les bagages, la livraison en chambre n'a
+// d'utilité que le premier jour — IT peut la désactiver une fois la
+// logistique terminée (cf. requireFeatureEnabled, refuse même IT).
 router.put(
   '/:id/luggage-delivery',
   requireRole('orga'),
   requireOrgaScope('chambres'),
+  requireFeatureEnabled('logistics'),
   dut1Controller.confirmLuggageDelivery
 );
 

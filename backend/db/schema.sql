@@ -148,6 +148,17 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS sub_role TEXT,
   ADD COLUMN IF NOT EXISTS is_commission_lead BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- Chef de pôle : rôle intermédiaire propre à Orga, entre agent de sous-rôle et
+-- chef de commission. Reçoit la même supervision opérationnelle que le chef
+-- (Vue d'ensemble, configuration des chambres, annuaire — cf.
+-- requireCommissionLeadStrict dans middleware/auth.js et navConfig.js côté
+-- front), mais jamais la gestion des agents ni le journal d'audit : ces deux-là
+-- restent volontairement réservés au vrai chef (requireAgentManagement /
+-- requireCommissionLead, non élargis). Seul it peut poser ce drapeau, comme
+-- pour is_commission_lead (cf. agentController.js) — pas d'auto-promotion.
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS is_pole_lead BOOLEAN NOT NULL DEFAULT FALSE;
+
 -- Ajout des sous-rôles Santé (suivi / phase2) : élargissement, jamais de
 -- resserrement ici, donc sûr à rejouer sans egard à l'ordre par rapport aux
 -- données existantes (contrairement au piège rencontré avec users_role_check).
@@ -360,11 +371,13 @@ VALUES
   ('allergies', 'Allergies', 'allergies', FALSE, -10)
 ON CONFLICT (field_key) DO NOTHING;
 
--- Interrupteurs de fonctionnalités "jour d'accueil" : Enregistrement (phase 1,
--- Orga) et Phase 2 (complément de dossier, Santé) n'ont d'utilité que le
--- premier jour — IT les désactive une fois la saisie terminée pour empêcher
--- toute altération ultérieure des dossiers. La page correspondante disparaît
--- alors du menu des agents concernés et l'API refuse l'action (cf.
+-- Interrupteurs de fonctionnalités "jour d'accueil" : Enregistrement (phase 1),
+-- Bagages (photo/comptage) et Logistique (livraison en chambre) — tout le
+-- parcours Orga d'un DUT1 à son arrivée, pas seulement l'enregistrement — et
+-- Phase 2 (complément de dossier, Santé) n'ont d'utilité que le premier jour
+-- — IT les désactive une fois la saisie terminée pour empêcher toute
+-- altération ultérieure des dossiers. La page correspondante disparaît alors
+-- du menu des agents concernés et l'API refuse l'action (cf.
 -- requireFeatureEnabled), même pour IT : le but est de figer les données,
 -- pas de garder une porte de secours. TRUE par défaut, pour ne rien changer
 -- au comportement de la plateforme tant qu'IT n'a rien désactivé.
@@ -377,6 +390,8 @@ CREATE TABLE IF NOT EXISTS platform_settings (
 
 INSERT INTO platform_settings (key, enabled) VALUES
   ('registration', TRUE),
+  ('luggage', TRUE),
+  ('logistics', TRUE),
   ('phase2', TRUE)
 ON CONFLICT (key) DO NOTHING;
 
@@ -466,3 +481,35 @@ CREATE TABLE IF NOT EXISTS medication_movements (
 
 CREATE INDEX IF NOT EXISTS idx_medication_movements_medication ON medication_movements(medication_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_medication_movements_created_at ON medication_movements(created_at DESC);
+
+-- Référentiel des critères d'aptitude physique (commission Santé, chef
+-- uniquement) : mêmes principes que les allergènes, réutilisé par les
+-- restrictions de santé (criterion_id ci-dessous) et par les activités
+-- (activity_required_criteria) pour croiser automatiquement qui est à risque.
+CREATE TABLE IF NOT EXISTS aptitude_criteria (
+  id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  label       TEXT NOT NULL UNIQUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Critères exigés pour participer à une activité donnée, choisis par le chef
+-- de la commission Santé — la commission Présidentielle crée l'activité mais
+-- n'a pas la compétence médicale pour juger de ses prérequis physiques.
+CREATE TABLE IF NOT EXISTS activity_required_criteria (
+  activity_id   INTEGER NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
+  criterion_id  INTEGER NOT NULL REFERENCES aptitude_criteria(id) ON DELETE CASCADE,
+  PRIMARY KEY (activity_id, criterion_id)
+);
+
+-- Un critère non rempli devient le motif structuré d'une restriction, en plus
+-- du texte libre existant (reason reste NOT NULL, pour ne rien casser des
+-- restrictions déjà déclarées) : quand une restriction porte un criterion_id,
+-- Risques du jour (getRisks) calcule automatiquement, pour la date demandée,
+-- quelles activités du jour exigent ce critère — sans que l'agent ait besoin
+-- de connaître à l'avance l'activité concernée ni de la resaisir à chaque
+-- fois qu'une nouvelle activité exige le même critère.
+ALTER TABLE health_restrictions
+  ADD COLUMN IF NOT EXISTS criterion_id INTEGER REFERENCES aptitude_criteria(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_activity_required_criteria_activity ON activity_required_criteria(activity_id);
+CREATE INDEX IF NOT EXISTS idx_health_restrictions_criterion ON health_restrictions(criterion_id);

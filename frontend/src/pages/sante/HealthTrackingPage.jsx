@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ArrowLeft, Search, CheckCircle2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Search, CheckCircle2, Trash2, X } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { listDut1 } from '../../api/dut1Api';
 import { listActivities } from '../../api/activityApi';
+import { listCriteria } from '../../api/aptitudeCriteriaApi';
 import * as healthApi from '../../api/healthApi';
 import Dut1Card from '../../components/dut1/Dut1Card';
 import Input from '../../components/common/Input';
@@ -37,6 +38,7 @@ export default function HealthTrackingPage() {
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
   const [activityId, setActivityId] = useState('');
+  const [criterionId, setCriterionId] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const fetcher = useCallback(
@@ -48,6 +50,7 @@ export default function HealthTrackingPage() {
   const activeFetch = useFetch(healthApi.getActiveRestrictions, []);
   const onTreatmentFetch = useFetch(healthApi.getOnTreatment, []);
   const activitiesFetch = useFetch(listActivities, []);
+  const criteriaFetch = useFetch(listCriteria, []);
   const historyFetch = useFetch(
     () => (selected ? healthApi.getRestrictionsForDut1(selected.id) : Promise.resolve({ restrictions: [] })),
     [selected]
@@ -67,11 +70,25 @@ export default function HealthTrackingPage() {
     setPage(1);
   }
 
+  const hasActiveFilters = !!(filters.search || filters.department || filters.gender);
+  function resetFilters() {
+    updateFilters({ search: '', department: '', gender: '' });
+  }
+
   function resetForm() {
     setStartDate(todayIso());
     setEndDate('');
     setReason('');
     setActivityId('');
+    setCriterionId('');
+  }
+
+  function handleCriterionChange(value) {
+    setCriterionId(value);
+    if (value && !reason.trim()) {
+      const criterion = (criteriaFetch.data?.criteria || []).find((c) => String(c.id) === String(value));
+      if (criterion) setReason(criterion.label);
+    }
   }
 
   function selectRecord(record) {
@@ -88,6 +105,7 @@ export default function HealthTrackingPage() {
         endDate: endDate || null,
         reason,
         activityId: activityId ? Number(activityId) : null,
+        criterionId: criterionId ? Number(criterionId) : null,
       });
       showToast('Restriction déclarée.', 'success');
       resetForm();
@@ -127,6 +145,7 @@ export default function HealthTrackingPage() {
     value: a.id,
     label: `${a.name} (${a.activity_date})`,
   }));
+  const criterionOptions = (criteriaFetch.data?.criteria || []).map((c) => ({ value: c.id, label: c.label }));
 
   return (
     <div>
@@ -152,7 +171,8 @@ export default function HealthTrackingPage() {
                     <span className="text-muted-foreground">({DEPARTMENT_LABELS[r.department] || r.department})</span>
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {r.reason} — {r.activity_name || 'Toutes activités'} — du {r.start_date}
+                    {r.reason} — {r.activity_name || (r.criterion_label ? `Critère : ${r.criterion_label}` : 'Toutes activités')} — du{' '}
+                    {r.start_date}
                     {r.end_date ? ` au ${r.end_date}` : ' (indéfini)'}
                   </p>
                 </div>
@@ -172,28 +192,35 @@ export default function HealthTrackingPage() {
             description="Tous les dossiers sont listés ci-dessous — recherche par nom, prénom, téléphone ou matricule pour affiner, puis sélection d'un DUT1 pour déclarer une restriction ou consulter son historique."
           />
 
-          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Input
-              icon={Search}
-              placeholder="Nom, prénom, téléphone, matricule…"
-              value={filters.search}
-              onChange={(e) => updateFilters({ search: e.target.value })}
-            />
-            <Select
-              placeholder="Tous les départements"
-              value={filters.department}
-              onChange={(e) => updateFilters({ department: e.target.value })}
-              options={DEPARTMENTS.map((d) => ({ value: d, label: DEPARTMENT_LABELS[d] }))}
-            />
-            <Select
-              placeholder="Tous les genres"
-              value={filters.gender}
-              onChange={(e) => updateFilters({ gender: e.target.value })}
-              options={[
-                { value: 'M', label: 'Masculin' },
-                { value: 'F', label: 'Féminin' },
-              ]}
-            />
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
+              <Input
+                icon={Search}
+                placeholder="Nom, prénom, téléphone, matricule…"
+                value={filters.search}
+                onChange={(e) => updateFilters({ search: e.target.value })}
+              />
+              <Select
+                placeholder="Tous les départements"
+                value={filters.department}
+                onChange={(e) => updateFilters({ department: e.target.value })}
+                options={DEPARTMENTS.map((d) => ({ value: d, label: DEPARTMENT_LABELS[d] }))}
+              />
+              <Select
+                placeholder="Tous les genres"
+                value={filters.gender}
+                onChange={(e) => updateFilters({ gender: e.target.value })}
+                options={[
+                  { value: 'M', label: 'Masculin' },
+                  { value: 'F', label: 'Féminin' },
+                ]}
+              />
+            </div>
+            {hasActiveFilters && (
+              <Button variant="secondary" onClick={resetFilters} className="shrink-0">
+                <X className="h-4 w-4" /> Réinitialiser
+              </Button>
+            )}
           </div>
 
           {loading && <CardListSkeleton rows={6} />}
@@ -265,6 +292,7 @@ export default function HealthTrackingPage() {
                       <p className="text-foreground">
                         {r.reason}
                         {r.activity_name ? ` — ${r.activity_name}` : ''}
+                        {r.criterion_label ? ` — critère : ${r.criterion_label}` : ''}
                       </p>
                     </div>
                     <button onClick={() => handleDelete(r.id)} className="text-danger transition-opacity hover:opacity-70">
@@ -294,8 +322,20 @@ export default function HealthTrackingPage() {
                 onChange={(e) => setActivityId(e.target.value)}
                 options={activityOptions}
               />
+              <Select
+                label="Critère d'aptitude non rempli (optionnel)"
+                placeholder="Aucun critère précis"
+                value={criterionId}
+                onChange={(e) => handleCriterionChange(e.target.value)}
+                options={criterionOptions}
+              />
               <Input label="Motif" required value={reason} onChange={(e) => setReason(e.target.value)} />
             </div>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Un critère s'applique automatiquement à toute activité (aujourd'hui ou plus tard) qui l'exige, sans avoir à la
+              choisir explicitement — utile si le DUT1 ne peut par exemple pas participer à tout ce qui demande un effort
+              cardiovasculaire, quelle que soit l'activité.
+            </p>
             <Button type="submit" loading={submitting} className="w-full sm:w-auto">
               Déclarer
             </Button>

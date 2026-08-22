@@ -46,6 +46,10 @@ export const ACTION_LABELS = {
   'medication.entree': 'Entrée de stock',
   'medication.sortie': 'Sortie de stock',
   'medication.ajustement': 'Ajustement de stock (recomptage)',
+  'aptitude_criterion.create': "Création d'un critère d'aptitude",
+  'aptitude_criterion.update': "Modification d'un critère d'aptitude",
+  'aptitude_criterion.delete': "Suppression d'un critère d'aptitude",
+  'activity.set_required_criteria': "Modification des critères exigés pour une activité",
 };
 
 export const RESOURCE_TYPE_LABELS = {
@@ -62,6 +66,7 @@ export const RESOURCE_TYPE_LABELS = {
   allergen: 'Allergène',
   admitted_students: 'Candidats admis',
   medication: 'Médicament',
+  aptitude_criterion: "Critère d'aptitude",
 };
 
 export const COMMISSION_LABELS = {

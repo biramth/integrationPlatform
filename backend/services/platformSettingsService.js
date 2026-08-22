@@ -1,6 +1,6 @@
 const db = require('../db/database');
 
-const VALID_KEYS = ['registration', 'phase2'];
+const VALID_KEYS = ['registration', 'phase2', 'luggage', 'logistics'];
 
 async function getSetting(key) {
   const row = await db.get('SELECT enabled FROM platform_settings WHERE key = $1', [key]);

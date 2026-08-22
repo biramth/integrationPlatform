@@ -22,7 +22,11 @@ import { homePathForRole } from '../utils/roles';
 // la même exception via requireOrgaScope/requireSanteScope({ allowLead }).
 // requireLead : pour les pages "Vue d'ensemble", en plus d'être dans la bonne
 // commission il faut être chef — sans ça la page reste joignable par URL même
-// si le lien de nav est déjà masqué pour les non-chefs.
+// si le lien de nav est déjà masqué pour les non-chefs. Le chef de pôle
+// (isPoleLead, propre à Orga) compte comme chef ICI — contrairement à
+// allowLeads (agents/audit) plus haut, volontairement laissé sur
+// isCommissionLead seul : cf. navConfig.js et requireCommissionLeadStrict côté
+// backend pour la même distinction (délégation opérationnelle, jamais agents/audit).
 // excludeIt : coupe le bypass superutilisateur pour cette route précise —
 // réservé aux pages qui relèvent explicitement d'une autre commission que IT
 // (chambres, création d'activités), là où le backend refuse déjà l'appel API
@@ -37,16 +41,17 @@ export default function RoleRoute({
   leadBypassesScope = false,
 }) {
   const { user } = useAuth();
+  const isLead = user.isCommissionLead || user.isPoleLead;
 
   const allowed = (user.role === 'it' && !excludeIt) || roles.includes(user.role) || (allowLeads && user.isCommissionLead);
   if (!allowed) {
-    return <Navigate to={homePathForRole(user.role, user.subRole, user.isCommissionLead)} replace />;
+    return <Navigate to={homePathForRole(user.role, user.subRole, user.isCommissionLead, user.isPoleLead)} replace />;
   }
-  if (requireLead && user.role !== 'it' && !user.isCommissionLead) {
-    return <Navigate to={homePathForRole(user.role, user.subRole, user.isCommissionLead)} replace />;
+  if (requireLead && user.role !== 'it' && !isLead) {
+    return <Navigate to={homePathForRole(user.role, user.subRole, user.isCommissionLead, user.isPoleLead)} replace />;
   }
-  if (subScope && !(leadBypassesScope && user.isCommissionLead) && (user.isCommissionLead || (user.subRole && user.subRole !== subScope))) {
-    return <Navigate to={homePathForRole(user.role, user.subRole, user.isCommissionLead)} replace />;
+  if (subScope && !(leadBypassesScope && isLead) && (isLead || (user.subRole && user.subRole !== subScope))) {
+    return <Navigate to={homePathForRole(user.role, user.subRole, user.isCommissionLead, user.isPoleLead)} replace />;
   }
 
   return <Outlet />;

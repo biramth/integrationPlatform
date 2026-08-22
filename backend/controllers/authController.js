@@ -22,6 +22,7 @@ async function login(req, res) {
     role: user.role,
     subRole: user.sub_role,
     isCommissionLead: user.is_commission_lead,
+    isPoleLead: user.is_pole_lead,
     canResetPlatform: user.can_reset_platform,
   };
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '12h' });
@@ -31,7 +32,7 @@ async function login(req, res) {
 
 async function me(req, res) {
   const user = await db.get(
-    'SELECT id, full_name, username, role, sub_role, is_commission_lead, can_reset_platform, is_active FROM users WHERE id = $1',
+    'SELECT id, full_name, username, role, sub_role, is_commission_lead, is_pole_lead, can_reset_platform, is_active FROM users WHERE id = $1',
     [req.user.id]
   );
 
@@ -47,6 +48,7 @@ async function me(req, res) {
       role: user.role,
       subRole: user.sub_role,
       isCommissionLead: user.is_commission_lead,
+      isPoleLead: user.is_pole_lead,
       canResetPlatform: user.can_reset_platform,
     },
   });

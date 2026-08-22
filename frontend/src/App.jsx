@@ -13,6 +13,7 @@ import RouteFallback from './routes/RouteFallback';
 const BasicInfoFormPage = lazy(() => import('./pages/registrar/BasicInfoFormPage'));
 const LogisticsListPage = lazy(() => import('./pages/logistics/LogisticsListPage'));
 const RoomDeliveryPage = lazy(() => import('./pages/logistics/RoomDeliveryPage'));
+const OrgaDirectoryPage = lazy(() => import('./pages/logistics/OrgaDirectoryPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminRecordsPage = lazy(() => import('./pages/admin/AdminRecordsPage'));
 const AdminRoomsPage = lazy(() => import('./pages/admin/AdminRoomsPage'));
@@ -27,6 +28,7 @@ const SanteOverviewPage = lazy(() => import('./pages/sante/OverviewPage'));
 const CompleteInfoFormPage = lazy(() => import('./pages/sante/CompleteInfoFormPage'));
 const Phase2QuestionsPage = lazy(() => import('./pages/sante/Phase2QuestionsPage'));
 const MedicationStockPage = lazy(() => import('./pages/sante/MedicationStockPage'));
+const AptitudeCriteriaPage = lazy(() => import('./pages/sante/AptitudeCriteriaPage'));
 const DirectoryPage = lazy(() => import('./pages/communication/DirectoryPage'));
 const PlanningReadOnlyPage = lazy(() => import('./pages/shared/PlanningReadOnlyPage'));
 const OverviewPage = lazy(() => import('./pages/shared/OverviewPage'));
@@ -95,6 +97,7 @@ function App() {
                 le monde en plus des pages opérationnelles. */}
             <Route element={<RoleRoute roles={['orga']} requireLead />}>
               <Route path="/orga/apercu" element={<OverviewPage />} />
+              <Route path="/orga/annuaire" element={<OrgaDirectoryPage />} />
             </Route>
 
             {/* Pas de rôle "admin" séparé : ces pages sont accessibles via le
@@ -163,6 +166,7 @@ function App() {
             <Route element={<RoleRoute roles={['sante']} requireLead />}>
               <Route path="/sante/apercu" element={<SanteOverviewPage />} />
               <Route path="/sante/questions-phase2" element={<Phase2QuestionsPage />} />
+              <Route path="/sante/criteres" element={<AptitudeCriteriaPage />} />
             </Route>
 
             <Route element={<RoleRoute roles={['communication']} />}>

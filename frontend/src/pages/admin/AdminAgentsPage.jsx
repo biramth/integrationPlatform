@@ -18,7 +18,16 @@ import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
 
-const EMPTY_FORM = { fullName: '', username: '', password: '', role: '', subRole: '', isCommissionLead: false, canResetPlatform: false };
+const EMPTY_FORM = {
+  fullName: '',
+  username: '',
+  password: '',
+  role: '',
+  subRole: '',
+  isCommissionLead: false,
+  isPoleLead: false,
+  canResetPlatform: false,
+};
 
 // Options de sous-rôle pour un rôle donné (vide si ce rôle n'a pas de
 // sous-rôles, ex: cuisine, communication...).
@@ -104,6 +113,7 @@ export default function AdminAgentsPage() {
       role: agent.role,
       subRole: agent.sub_role || '',
       isCommissionLead: agent.is_commission_lead,
+      isPoleLead: agent.is_pole_lead,
       canResetPlatform: agent.can_reset_platform,
     });
   }
@@ -213,6 +223,16 @@ export default function AdminAgentsPage() {
               />
               Chef de commission (gère les comptes de sa commission)
             </label>
+            {form.role === 'orga' && (
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={form.isPoleLead}
+                  onChange={(e) => setForm((f) => ({ ...f, isPoleLead: e.target.checked }))}
+                />
+                Chef de pôle (supervision comme le chef, sans agents ni audit)
+              </label>
+            )}
             {form.role === 'it' && (
               <label className="flex items-center gap-2 text-sm text-foreground">
                 <input
@@ -279,6 +299,16 @@ export default function AdminAgentsPage() {
                             />
                             Chef de commission
                           </label>
+                          {editForm.role === 'orga' && (
+                            <label className="flex items-center gap-2 text-sm text-foreground">
+                              <input
+                                type="checkbox"
+                                checked={!!editForm.isPoleLead}
+                                onChange={(e) => setEditForm((f) => ({ ...f, isPoleLead: e.target.checked }))}
+                              />
+                              Chef de pôle
+                            </label>
+                          )}
                           {editForm.role === 'it' && (
                             <label className="flex items-center gap-2 text-sm text-foreground">
                               <input
@@ -315,6 +345,7 @@ export default function AdminAgentsPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant={agent.is_active ? 'success' : 'neutral'}>{agent.is_active ? 'Actif' : 'Désactivé'}</Badge>
                         {agent.is_commission_lead && <Badge variant="info">Chef de commission</Badge>}
+                        {agent.is_pole_lead && <Badge variant="info">Chef de pôle</Badge>}
                         {agent.can_reset_platform && <Badge variant="danger">Habilité reset</Badge>}
                         <Button variant="secondary" onClick={() => startEdit(agent)} className="px-3 py-1.5 text-xs">
                           <Pencil className="h-3.5 w-3.5" /> Modifier
