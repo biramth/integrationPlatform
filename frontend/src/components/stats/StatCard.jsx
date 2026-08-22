@@ -5,7 +5,7 @@ const TONES = {
   blue: { accent: 'bg-info', iconBg: 'bg-gradient-to-br from-info/20 to-info/5', iconText: 'text-info' },
   emerald: { accent: 'bg-success', iconBg: 'bg-gradient-to-br from-success/20 to-success/5', iconText: 'text-success' },
   amber: { accent: 'bg-warning', iconBg: 'bg-gradient-to-br from-warning/20 to-warning/5', iconText: 'text-warning' },
-  violet: { accent: 'bg-violet-600', iconBg: 'bg-gradient-to-br from-violet-500/20 to-violet-500/5', iconText: 'text-violet-600' },
+  violet: { accent: 'bg-role-accent', iconBg: 'bg-gradient-to-br from-role-accent/20 to-role-accent/5', iconText: 'text-role-accent' },
   rose: { accent: 'bg-danger', iconBg: 'bg-gradient-to-br from-danger/20 to-danger/5', iconText: 'text-danger' },
 };
 

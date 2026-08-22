@@ -1,3 +1,5 @@
+import { useTheme } from '../hooks/useTheme';
+
 // Pas de rôle "admin" séparé : la commission IT EST l'administration de la
 // plateforme (super-utilisateur, cf. RoleRoute et middleware/auth.js côté back).
 export const ROLES = {
@@ -25,7 +27,9 @@ export const ROLE_LABELS = {
 // Reprend les couleurs de --role-accent (index.css) pour donner à chaque
 // commission un repère visuel dans les listes de rôles (ex: sélecteur de
 // rôle à la création d'un compte) — sans ça, une liste de libellés très
-// proches ("Commission X") est difficile à scanner d'un coup d'œil.
+// proches ("Commission X") est difficile à scanner d'un coup d'œil. Utilisées
+// en style inline (couleur de texte, puce), donc pas de variante CSS
+// automatique via .dark : useRoleColors() choisit la bonne palette.
 export const ROLE_COLORS = {
   [ROLES.ORGA]: '#2563eb',
   [ROLES.SANTE]: '#dc2626',
@@ -36,6 +40,23 @@ export const ROLE_COLORS = {
   [ROLES.PRESIDENTIELLE]: '#ea580c',
   [ROLES.DREUDJ]: '#65a30d',
 };
+
+// Mêmes teintes, éclaircies pour rester lisibles sur fond sombre.
+const ROLE_COLORS_DARK = {
+  [ROLES.ORGA]: '#5b9bf0',
+  [ROLES.SANTE]: '#f87171',
+  [ROLES.CUISINE]: '#4ade80',
+  [ROLES.IT]: '#a78bfa',
+  [ROLES.COMMUNICATION]: '#22d3ee',
+  [ROLES.CULTURELLE]: '#e879f9',
+  [ROLES.PRESIDENTIELLE]: '#fb923c',
+  [ROLES.DREUDJ]: '#a3e635',
+};
+
+export function useRoleColors() {
+  const { theme } = useTheme();
+  return theme === 'dark' ? ROLE_COLORS_DARK : ROLE_COLORS;
+}
 
 export const ORGA_SUB_ROLES = {
   CHAMBRES: 'chambres',

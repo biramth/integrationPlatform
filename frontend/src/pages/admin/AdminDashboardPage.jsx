@@ -9,7 +9,7 @@ import Card from '../../components/common/Card';
 import PageHeader from '../../components/common/PageHeader';
 import { ErrorState } from '../../components/common/StateViews';
 import { StatCardSkeleton, CardListSkeleton } from '../../components/common/Skeleton';
-import { ROLES, ROLE_LABELS, ROLE_COLORS } from '../../utils/roles';
+import { ROLES, ROLE_LABELS, useRoleColors } from '../../utils/roles';
 import { staggerStyle } from '../../utils/stagger';
 
 const RECENT_LOGS_COUNT = 5;
@@ -19,6 +19,7 @@ const RECENT_LOGS_COUNT = 5;
 // (effectif, chambres, bagages...) qui vivent maintenant sur la Vue
 // d'ensemble de la commission Présidentielle (pages/shared/OverviewPage.jsx).
 export default function AdminDashboardPage() {
+  const roleColors = useRoleColors();
   const agentsFetch = useFetch(agentApi.listAgents, []);
   const logsFetch = useFetch(() => auditApi.listAuditLogs({ pageSize: RECENT_LOGS_COUNT }), []);
 
@@ -98,7 +99,7 @@ export default function AdminDashboardPage() {
                 return (
                   <div key={role} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
                     <div className="flex min-w-0 items-center gap-2">
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: ROLE_COLORS[role] }} />
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: roleColors[role] }} />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-foreground">{ROLE_LABELS[role]}</p>
                         <p className="truncate text-xs text-muted-foreground">

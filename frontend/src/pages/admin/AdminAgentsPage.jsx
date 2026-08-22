@@ -13,14 +13,12 @@ import { confirm } from '../../components/common/confirmService';
 import PageHeader from '../../components/common/PageHeader';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
-import { ROLE_LABELS, ROLES, ROLE_COLORS, SUB_ROLE_LABELS_BY_ROLE } from '../../utils/roles';
+import { ROLE_LABELS, ROLES, useRoleColors, SUB_ROLE_LABELS_BY_ROLE } from '../../utils/roles';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
 
 const EMPTY_FORM = { fullName: '', username: '', password: '', role: '', subRole: '', isCommissionLead: false, canResetPlatform: false };
-
-const ROLE_OPTIONS = Object.values(ROLES).map((value) => ({ value, label: ROLE_LABELS[value], dotColor: ROLE_COLORS[value] }));
 
 // Options de sous-rôle pour un rôle donné (vide si ce rôle n'a pas de
 // sous-rôles, ex: cuisine, communication...).
@@ -33,6 +31,7 @@ export default function AdminAgentsPage() {
   const { user } = useAuth();
   const isPrivileged = user.role === 'it';
   const { showToast } = useToast();
+  const roleColors = useRoleColors();
   const { data, loading, error, reload } = useFetch(agentApi.listAgents, []);
   const [form, setForm] = useState(isPrivileged ? EMPTY_FORM : { ...EMPTY_FORM, role: user.role });
   const [submitting, setSubmitting] = useState(false);
@@ -43,10 +42,11 @@ export default function AdminAgentsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [resetting, setResetting] = useState(false);
 
+  const allRoleOptions = Object.values(ROLES).map((value) => ({ value, label: ROLE_LABELS[value], dotColor: roleColors[value] }));
   // Un chef de commission ne peut créer/éditer des comptes que pour sa propre
   // commission — le backend le vérifie de toute façon, mais autant ne pas
   // proposer un choix qui sera refusé.
-  const roleOptions = isPrivileged ? ROLE_OPTIONS : ROLE_OPTIONS.filter((o) => o.value === user.role);
+  const roleOptions = isPrivileged ? allRoleOptions : allRoleOptions.filter((o) => o.value === user.role);
 
   async function handleCreate(e) {
     e.preventDefault();

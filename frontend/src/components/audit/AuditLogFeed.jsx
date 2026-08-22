@@ -4,7 +4,7 @@ import Badge from '../common/Badge';
 import Avatar from '../common/Avatar';
 import { EmptyState } from '../common/StateViews';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { ROLE_LABELS, ROLE_COLORS } from '../../utils/roles';
+import { ROLE_LABELS, useRoleColors } from '../../utils/roles';
 import { actionLabel, resourceTypeLabel, commissionLabel } from '../../utils/audit';
 import { staggerStyle } from '../../utils/stagger';
 
@@ -31,6 +31,7 @@ function ResultBadge({ log }) {
 }
 
 function ActorLine({ log }) {
+  const roleColors = useRoleColors();
   const actor = log.actor_snapshot || {};
   return (
     <div className="flex items-center gap-2">
@@ -38,7 +39,7 @@ function ActorLine({ log }) {
       <div>
         <p className="font-medium text-foreground">{actor.fullName || 'Compte supprimé'}</p>
         {actor.role && (
-          <p className="text-xs text-muted-foreground" style={{ color: ROLE_COLORS[actor.role] }}>
+          <p className="text-xs" style={{ color: roleColors[actor.role] }}>
             {ROLE_LABELS[actor.role] || actor.role}
           </p>
         )}
