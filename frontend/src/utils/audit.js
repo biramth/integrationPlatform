@@ -47,6 +47,12 @@ export const ACTION_LABELS = {
   'medication.entree': 'Entrée de stock',
   'medication.sortie': 'Sortie de stock',
   'medication.ajustement': 'Ajustement de stock (recomptage)',
+  'treatment.create': "Création d'un traitement",
+  'treatment.update': "Modification d'un traitement",
+  'treatment.end': "Clôture d'un traitement",
+  'treatment.delete': "Suppression d'un traitement",
+  'treatment.intake_mark': 'Prise de traitement marquée comme prise',
+  'treatment.intake_unmark': 'Prise de traitement démarquée',
   'aptitude_criterion.create': "Création d'un critère d'aptitude",
   'aptitude_criterion.update': "Modification d'un critère d'aptitude",
   'aptitude_criterion.delete': "Suppression d'un critère d'aptitude",
@@ -70,6 +76,8 @@ export const RESOURCE_TYPE_LABELS = {
   allergen: 'Allergène',
   admitted_students: 'Candidats admis',
   medication: 'Médicament',
+  dut1_treatment: 'Traitement DUT1',
+  treatment_intake: 'Prise de traitement',
   aptitude_criterion: "Critère d'aptitude",
 };
 

@@ -109,6 +109,8 @@ ALTER TABLE dut1_records ADD CONSTRAINT dut1_records_department_check
 -- Traitement médical en cours, déclaré en phase 2 (question fermée oui/non +
 -- détail libre si oui). on_treatment reste NULL tant que la phase 2 n'a pas
 -- été complétée (distingue "pas encore répondu" de "a répondu non").
+-- Ce flag n'est plus lu par aucun écran de suivi : il sert désormais de source
+-- d'import vers dut1_treatments (plus bas), où vit le vrai suivi des prises.
 ALTER TABLE dut1_records
   ADD COLUMN IF NOT EXISTS on_treatment BOOLEAN,
   ADD COLUMN IF NOT EXISTS treatment_details TEXT;
@@ -492,6 +494,76 @@ CREATE TABLE IF NOT EXISTS medication_movements (
 
 CREATE INDEX IF NOT EXISTS idx_medication_movements_medication ON medication_movements(medication_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_medication_movements_created_at ON medication_movements(created_at DESC);
+
+-- Traitements médicaux suivis par la commission Santé ("suivi") : contrairement
+-- à la simple déclaration phase 2 (dut1_records.on_treatment, texte libre,
+-- jamais bornée dans le temps), un traitement est structuré — médicament du
+-- stock OU personnel (label libre : la plupart des DUT1 se traitent avec leurs
+-- propres médicaments, pas avec le stock de la commission), posologie,
+-- créneaux de prise (matin/midi/soir, combinables) et fenêtre de dates.
+-- Un traitement actif couvre [start_date, end_date] sans clôture anticipée
+-- (ended_at) : dès que sa fenêtre est passée ou qu'il est clôturé, il sort
+-- AUTOMATIQUEMENT des prises du jour et du badge "sous traitement", sans
+-- intervention manuelle — c'est cette condition (reprise dans chaque requête)
+-- qui répond à "traitement fini => enlevé de la liste".
+CREATE TABLE IF NOT EXISTS dut1_treatments (
+  id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  dut1_id          INTEGER NOT NULL REFERENCES dut1_records(id) ON DELETE CASCADE,
+  medication_id    INTEGER REFERENCES medications(id) ON DELETE SET NULL,
+  medication_label TEXT,
+  dosage           TEXT,
+  slot_matin       BOOLEAN NOT NULL DEFAULT FALSE,
+  slot_midi        BOOLEAN NOT NULL DEFAULT FALSE,
+  slot_soir        BOOLEAN NOT NULL DEFAULT FALSE,
+  start_date       DATE NOT NULL DEFAULT CURRENT_DATE,
+  end_date         DATE,
+  notes            TEXT,
+  ended_at         TIMESTAMPTZ,
+  ended_by         INTEGER REFERENCES users(id),
+  created_by       INTEGER REFERENCES users(id),
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (slot_matin OR slot_midi OR slot_soir)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dut1_treatments_dut1 ON dut1_treatments(dut1_id);
+CREATE INDEX IF NOT EXISTS idx_dut1_treatments_dates ON dut1_treatments(start_date, end_date);
+
+-- Prises effectivement marquées : une ligne par traitement/créneau/jour, créée
+-- au moment du cochage par l'agent Santé. C'est ce qui permet de voir d'un coup
+-- d'œil le matin qui a déjà pris son traitement et qui n'est pas encore passé —
+-- et donc de réduire les oubli. UNIQUE garantit l'idempotence du cochage
+-- (re-cliquer ne duplique rien) et sert de clé pour décocher une erreur.
+CREATE TABLE IF NOT EXISTS treatment_intakes (
+  id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  treatment_id INTEGER NOT NULL REFERENCES dut1_treatments(id) ON DELETE CASCADE,
+  intake_date  DATE NOT NULL,
+  slot         TEXT NOT NULL CHECK (slot IN ('matin','midi','soir')),
+  marked_by    INTEGER NOT NULL REFERENCES users(id),
+  marked_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (treatment_id, intake_date, slot)
+);
+
+CREATE INDEX IF NOT EXISTS idx_treatment_intakes_date_slot ON treatment_intakes(intake_date, slot);
+
+-- Migration depuis la déclaration phase 2 : chaque DUT1 déclaré "sous
+-- traitement" (on_treatment = TRUE sans traitement existant) devient un
+-- traitement réel, tous créneaux activés par précaution — mieux vaut proposer
+-- une prise à cocher que rater une prise réelle ; l'agent Santé ajuste ensuite
+-- horaires/posologie depuis la page Traitements. Rejoué à CHAQUE déploiement :
+-- le NOT EXISTS rend le rejeu sans effet, et une NOUVELLE déclaration phase 2
+-- crée bien son traitement ; supprimer un traitement côté app repasse
+-- on_treatment à FALSE (cf. deleteTreatment dans treatmentController.js),
+-- sinon la migration recréerait la ligne au déploiement suivant.
+INSERT INTO dut1_treatments (dut1_id, medication_label, slot_matin, slot_midi, slot_soir, start_date, notes)
+SELECT d.id,
+       COALESCE(NULLIF(btrim(d.treatment_details), ''), 'Médicament non précisé'),
+       TRUE, TRUE, TRUE,
+       CURRENT_DATE,
+       'Importé depuis la déclaration phase 2 — horaires et posologie à préciser.'
+FROM dut1_records d
+WHERE d.on_treatment = TRUE
+  AND NOT EXISTS (SELECT 1 FROM dut1_treatments t WHERE t.dut1_id = d.id);
 
 -- Référentiel des critères d'aptitude physique (commission Santé, chef
 -- uniquement) : mêmes principes que les allergènes. Chaque critère porte sa

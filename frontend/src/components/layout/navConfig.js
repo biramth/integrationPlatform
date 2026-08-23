@@ -18,6 +18,7 @@ import {
   ScrollText,
   Pill,
   HeartPulse,
+  Clock,
 } from 'lucide-react';
 import { ROLES } from '../../utils/roles';
 
@@ -50,6 +51,9 @@ const SANTE_ITEMS = {
   suivi: [
     { to: '/sante/risques', label: 'Risques du jour', icon: AlertTriangle },
     { to: '/sante/suivi', label: 'Suivi santé', icon: Stethoscope },
+    // Suivi des prises de médicaments par créneau (matin/midi/soir) — distinct
+    // de "medoc" (le stock) : ici on coche qui a pris quoi, pas ce qui entre/sort.
+    { to: '/sante/traitements', label: 'Traitements', icon: Clock },
   ],
   phase2: [{ to: '/sante/complementary', label: 'Compléter', icon: ClipboardList }],
   medoc: [{ to: '/sante/medicaments', label: 'Stock médicaments', icon: Pill }],

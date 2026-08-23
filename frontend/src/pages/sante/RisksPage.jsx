@@ -60,7 +60,7 @@ export default function RisksPage() {
         title="Risques du jour"
         description={
           isSante
-            ? 'DUT1 dont une allergie déclarée croise le menu du jour, qui sont déclarés inaptes à participer aux activités de cette date, ou qui suivent un traitement médical.'
+            ? "DUT1 dont une allergie déclarée croise le menu du jour, ou qui sont déclarés inaptes à participer aux activités de cette date. Les traitements en cours se suivent depuis l'onglet Traitements."
             : 'DUT1 signalés à risque par la commission Santé pour cette date — le détail médical reste réservé à Santé.'
         }
       />
@@ -98,9 +98,6 @@ export default function RisksPage() {
                         Inapte — {r.reason} ({r.activityNames.length > 0 ? r.activityNames.join(', ') : 'Toutes activités'})
                       </Badge>
                     ))}
-                    {dut1.treatmentDetails && (
-                      <Badge variant="warning">Traitement — {dut1.treatmentDetails}</Badge>
-                    )}
                   </div>
 
                   <button

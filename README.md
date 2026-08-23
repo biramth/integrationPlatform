@@ -57,7 +57,9 @@ backend (http://localhost:3000).
   enregistrés (phase 1 suffit), optimisé pour mobile.
 - **Commission Santé** (`sante`) : consulte les DUT1 à risque selon le menu du
   jour (croisement allergies × allergènes des plats), déclare/consulte
-  l'historique de maladie des DUT1, et gère la liste des allergènes.
+  l'historique de maladie des DUT1, gère la liste des allergènes et suit les
+  **traitements** : prises par créneau (matin/midi/soir) à cocher pour réduire
+  les oubli — un traitement fini sort automatiquement des listes.
 - **Commission Cuisine** (`cuisine`) : saisit le menu du jour (petit-déjeuner/
   déjeuner/dîner) et les allergènes potentiels de chaque plat.
 - **Admin** (`admin`) : tableau de bord, gestion des dossiers, des chambres et

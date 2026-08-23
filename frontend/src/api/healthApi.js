@@ -29,3 +29,33 @@ export function resolveRestriction(id) {
 export function deleteRestriction(id) {
   return axiosClient.delete(`/health/restrictions/${id}`).then((res) => res.data);
 }
+
+export function getTreatments(status) {
+  return axiosClient.get('/health/treatments', { params: status ? { status } : {} }).then((res) => res.data);
+}
+
+export function createTreatment(payload) {
+  return axiosClient.post('/health/treatments', payload).then((res) => res.data);
+}
+
+export function updateTreatment(id, payload) {
+  return axiosClient.put(`/health/treatments/${id}`, payload).then((res) => res.data);
+}
+
+export function endTreatment(id) {
+  return axiosClient.put(`/health/treatments/${id}/end`).then((res) => res.data);
+}
+
+export function deleteTreatment(id) {
+  return axiosClient.delete(`/health/treatments/${id}`).then((res) => res.data);
+}
+
+export function getTreatmentSchedule(date) {
+  return axiosClient.get('/health/treatments/schedule', { params: { date } }).then((res) => res.data);
+}
+
+export function markTreatmentIntake(treatmentId, { date, slot, taken }) {
+  return axiosClient
+    .put(`/health/treatments/${treatmentId}/intake`, { date, slot, taken })
+    .then((res) => res.data);
+}

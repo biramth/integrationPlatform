@@ -128,16 +128,11 @@ async function getRisks(req, res) {
     }
   }
 
-  // Traitement médical en cours (déclaré en phase 2) : pas de bornes de dates
-  // dans le questionnaire, donc un traitement déclaré est considéré actif tant
-  // qu'il n'est pas mis à jour — signalé sur "risques du jour" comme les
-  // allergies et restrictions.
-  const treatmentRows = await db.all(
-    `SELECT d.id, d.first_name, d.last_name, d.department, d.gender, r.label AS room_label, d.treatment_details
-     FROM dut1_records d
-     LEFT JOIN rooms r ON r.id = d.room_id
-     WHERE d.on_treatment = TRUE`
-  );
+  // Traitement médical : n'apparaît plus ici. Un traitement suivi vit dans
+  // dut1_treatments (cf. treatmentController.js) avec ses propres créneaux de
+  // prise et sa fenêtre de dates — il se gère depuis la page Traitements, pas
+  // comme un "risque du jour" : suivre des prises de médicaments n'a rien à
+  // voir avec signaler un danger ponctuel (allergène au menu, inaptitude).
 
   const byDut1 = new Map();
   function ensure(row) {
@@ -151,7 +146,6 @@ async function getRisks(req, res) {
         roomLabel: row.room_label,
         allergyMatches: [],
         restrictions: [],
-        treatmentDetails: null,
       });
     }
     return byDut1.get(row.id);
@@ -184,20 +178,13 @@ async function getRisks(req, res) {
       endDate: null,
     });
   }
-  for (const row of treatmentRows) {
-    ensure(row).treatmentDetails = row.treatment_details;
-  }
 
   const result = Array.from(byDut1.values()).map((entry) => {
     const maxAllergySeverity = entry.allergyMatches.reduce(
       (max, m) => Math.max(max, SEVERITY_WEIGHT[m.severity] || 0),
       0
     );
-    const sortWeight = Math.max(
-      maxAllergySeverity,
-      entry.restrictions.length > 0 ? 3 : 0,
-      entry.treatmentDetails ? 2 : 0
-    );
+    const sortWeight = Math.max(maxAllergySeverity, entry.restrictions.length > 0 ? 3 : 0);
     return { ...entry, sortWeight };
   });
 
@@ -276,12 +263,20 @@ async function listActiveRestrictions(req, res) {
   res.json({ restrictions: records });
 }
 
+// "Sous traitement" : dérivé des traitements réellement actifs à aujourd'hui
+// (dut1_treatments) et plus du vieux flag phase 2 — dès qu'un traitement est
+// fini (date de fin passée ou clôturé), le DUT1 disparaît de cette liste sans
+// intervention. treatment_details agrège les libellés quand il y en a plusieurs.
 async function listOnTreatment(req, res) {
   const records = await db.all(
-    `SELECT d.id, d.first_name, d.last_name, d.department, d.gender, d.treatment_details, r.label AS room_label
-     FROM dut1_records d
+    `SELECT d.id, d.first_name, d.last_name, d.department, d.gender, r.label AS room_label,
+            STRING_AGG(COALESCE(m.name, t.medication_label, 'Médicament non précisé'), ' + ') AS treatment_details
+     FROM dut1_treatments t
+     JOIN dut1_records d ON d.id = t.dut1_id
      LEFT JOIN rooms r ON r.id = d.room_id
-     WHERE d.on_treatment = TRUE
+     LEFT JOIN medications m ON m.id = t.medication_id
+     WHERE t.ended_at IS NULL AND t.start_date <= CURRENT_DATE AND (t.end_date IS NULL OR t.end_date >= CURRENT_DATE)
+     GROUP BY d.id, d.first_name, d.last_name, d.department, d.gender, r.label
      ORDER BY d.last_name ASC, d.first_name ASC`
   );
   res.json({ dut1: records });

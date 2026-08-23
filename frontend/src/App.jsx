@@ -24,6 +24,7 @@ const PlatformResetPage = lazy(() => import('./pages/admin/PlatformResetPage'));
 const MenuPage = lazy(() => import('./pages/cuisine/MenuPage'));
 const RisksPage = lazy(() => import('./pages/sante/RisksPage'));
 const HealthTrackingPage = lazy(() => import('./pages/sante/HealthTrackingPage'));
+const TreatmentsPage = lazy(() => import('./pages/sante/TreatmentsPage'));
 const SanteOverviewPage = lazy(() => import('./pages/sante/OverviewPage'));
 const CompleteInfoFormPage = lazy(() => import('./pages/sante/CompleteInfoFormPage'));
 const Phase2QuestionsPage = lazy(() => import('./pages/sante/Phase2QuestionsPage'));
@@ -132,14 +133,15 @@ function App() {
               <Route path="/cuisine/menu" element={<MenuPage />} />
             </Route>
 
-            {/* Risques du jour / Suivi santé restent le travail quotidien du
-                chef Santé aussi (leadBypassesScope), contrairement aux tâches
-                de sous-rôle des autres commissions. Le référentiel des
-                allergènes se gère désormais depuis /sante/questions-phase2,
+            {/* Risques du jour, Suivi santé et Traitements restent le travail
+                quotidien du chef Santé aussi (leadBypassesScope), contrairement
+                aux tâches de sous-rôle des autres commissions. Le référentiel
+                des allergènes se gère désormais depuis /sante/questions-phase2,
                 pas une page à part. */}
             <Route element={<RoleRoute roles={['sante']} subScope="suivi" leadBypassesScope />}>
               <Route path="/sante/risques" element={<RisksPage />} />
               <Route path="/sante/suivi" element={<HealthTrackingPage />} />
+              <Route path="/sante/traitements" element={<TreatmentsPage />} />
             </Route>
 
             {/* Phase 2 (complément de dossier) : transféré depuis Orga, ce sont des
