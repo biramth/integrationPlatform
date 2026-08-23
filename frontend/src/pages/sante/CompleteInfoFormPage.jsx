@@ -1,7 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ArrowLeft, Search, Lock, X } from 'lucide-react';
 import { listDut1, completeComplementary } from '../../api/dut1Api';
 import { setDut1Allergies, setDut1AptitudeLevels } from '../../api/dut1AllergyApi';
+import { getTreatments } from '../../api/healthApi';
+import { listMedications } from '../../api/medicationApi';
 import { listAllergens } from '../../api/allergenApi';
 import { listCriteria } from '../../api/aptitudeCriteriaApi';
 import { listPhase2Questions } from '../../api/phase2QuestionsApi';
@@ -24,6 +26,12 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../../utils/departments';
 import { staggerStyle } from '../../utils/stagger';
 import { SEVERITY_LABELS, SEVERITY_BADGE_VARIANT } from '../../utils/severity';
+import {
+  TREATMENT_SLOT_LABELS,
+  emptyTreatment,
+  treatmentFromApi,
+  treatmentSummary,
+} from '../../utils/treatmentForm';
 
 const PAGE_SIZE = 25;
 
@@ -64,9 +72,13 @@ export default function CompleteInfoFormPage() {
   const [hasAllergies, setHasAllergies] = useState(null);
   const [aptitudeLevels, setAptitudeLevels] = useState({});
   const [onTreatment, setOnTreatment] = useState(null);
-  const [treatmentDetails, setTreatmentDetails] = useState('');
+  // Traitements déclarés dans la phase 2 : une LISTE — un DUT1 peut suivre
+  // plusieurs traitements. Chaque entrée est synchronisée dans dut1_treatments
+  // à la confirmation (création/mise à jour), d'où l'id conservé.
+  const [treatments, setTreatments] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
+  const selectTokenRef = useRef(0);
 
   const fetcher = useCallback(
     () => listDut1({ search: debouncedSearch, department: filters.department, gender: filters.gender, page, pageSize: PAGE_SIZE }),
@@ -81,6 +93,10 @@ export default function CompleteInfoFormPage() {
   const questions = questionsFetch.data?.questions || [];
   const settingsFetch = useFetch(getPlatformSettings, []);
   const phase2Enabled = settingsFetch.data?.phase2 !== false;
+  // Noms du stock pour le récap (le libellé retenu côté backend est le nom à
+  // jour du médicament, source de vérité).
+  const medicationsFetch = useFetch(listMedications, []);
+  const medicationNameById = Object.fromEntries((medicationsFetch.data?.medications || []).map((m) => [m.id, m.name]));
 
   const allergenIds = Object.keys(allergies).map(Number);
 
@@ -118,10 +134,11 @@ export default function CompleteInfoFormPage() {
   }
 
   function selectRecord(record) {
+    const token = ++selectTokenRef.current;
     setSelected(record);
     setValues(record.extra_fields || {});
     setOnTreatment(record.on_treatment ?? null);
-    setTreatmentDetails(record.treatment_details || '');
+    setTreatments([]);
     const initial = {};
     for (const a of record.allergens || []) {
       initial[a.id] = a.severity || 'moderee';
@@ -137,6 +154,35 @@ export default function CompleteInfoFormPage() {
       initialLevels[l.criterionId] = l.levelId;
     }
     setAptitudeLevels(initialLevels);
+
+    // Dossier déclaré "sous traitement" : on préremplit la liste avec les
+    // traitements issus de sa déclaration phase 2 encore ouverts. En cas
+    // d'échec ou de changement de dossier entre-temps, on reste sur une liste
+    // vide (un bloc vierge est ajouté à la bascule Oui).
+    if (record.on_treatment === true) {
+      getTreatments('all', record.id)
+        .then((res) => {
+          if (selectTokenRef.current !== token) return;
+          const linked = (res.treatments || []).filter(
+            (t) => t.dut1Id === record.id && !t.endedAt && t.sourcePhase2
+          );
+          if (linked.length > 0) setTreatments(linked.map(treatmentFromApi));
+        })
+        .catch(() => {});
+    }
+  }
+
+  function handleOnTreatmentValueChange(value) {
+    setOnTreatment(value);
+    // Bascule vers Oui sans traitements en cours de préremplissage : au moins
+    // un bloc de saisie doit être présent.
+    if (value && treatments.length === 0) {
+      setTreatments([emptyTreatment()]);
+    }
+  }
+
+  function handleTreatmentsChange(next) {
+    setTreatments(next.length > 0 ? next : [emptyTreatment()]);
   }
 
   function handleChange(key, value) {
@@ -153,9 +199,25 @@ export default function CompleteInfoFormPage() {
       showToast('La question du traitement médical en cours doit être renseignée avant de continuer.', 'error');
       return;
     }
-    if (onTreatment && !treatmentDetails.trim()) {
-      showToast('Le détail des traitements suivis doit être renseigné.', 'error');
+    // Chaque traitement déclaré suit les mêmes règles que la page Traitements.
+    if (onTreatment && treatments.length === 0) {
+      showToast('Décrivez au moins un traitement en cours.', 'error');
       return;
+    }
+    for (const [index, treatment] of treatments.entries()) {
+      const label = treatments.length > 1 ? `Traitement ${index + 1}` : 'Le traitement déclaré';
+      if (!treatment.medicationId && !treatment.medicationLabel.trim()) {
+        showToast(`${label} : précisez un médicament du stock ou un libellé libre.`, 'error');
+        return;
+      }
+      if (!Object.keys(TREATMENT_SLOT_LABELS).some((k) => treatment.slots[k])) {
+        showToast(`${label} : sélectionnez au moins un créneau de prise (matin, midi ou soir).`, 'error');
+        return;
+      }
+      if (!treatment.startDate) {
+        showToast(`${label} : la date de début est requise.`, 'error');
+        return;
+      }
     }
     if (typeof hasAllergies !== 'boolean') {
       showToast('La question des allergies doit être renseignée avant de continuer.', 'error');
@@ -184,7 +246,7 @@ export default function CompleteInfoFormPage() {
         levelId,
       }));
       const [data] = await Promise.all([
-        completeComplementary(selected.id, { extraFields: values, onTreatment, treatmentDetails }),
+        completeComplementary(selected.id, { extraFields: values, onTreatment, treatments }),
         setDut1Allergies(selected.id, allergies),
         setDut1AptitudeLevels(selected.id, levelsPayload),
       ]);
@@ -249,9 +311,9 @@ export default function CompleteInfoFormPage() {
               values={values}
               onChange={handleChange}
               onTreatment={onTreatment}
-              treatmentDetails={treatmentDetails}
-              onTreatmentChange={setOnTreatment}
-              onTreatmentDetailsChange={setTreatmentDetails}
+              treatments={treatments}
+              onTreatmentValueChange={handleOnTreatmentValueChange}
+              onTreatmentsChange={handleTreatmentsChange}
               allergenIds={allergenIds}
               severities={allergies}
               onAllergyChange={setAllergenIds}
@@ -280,10 +342,22 @@ export default function CompleteInfoFormPage() {
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{q.label}</p>
 
                 {q.type === 'traitement_medical' &&
-                  (onTreatment ? (
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{treatmentDetails}</p>
-                  ) : (
+                  (!onTreatment ? (
                     <p className="mt-1 text-sm text-muted-foreground">Aucun traitement déclaré.</p>
+                  ) : (
+                    <div className="mt-1.5 flex flex-col gap-1.5">
+                      {treatments.map((treatment, index) => (
+                        <p key={index} className="text-sm text-foreground">
+                          {treatments.length > 1 && (
+                            <span className="font-semibold text-muted-foreground">Traitement {index + 1} — </span>
+                          )}
+                          {treatmentSummary(treatment, medicationNameById)}
+                        </p>
+                      ))}
+                      <p className="text-xs text-muted-foreground">
+                        Ces traitements seront suivis dans la page Traitements (prises du jour).
+                      </p>
+                    </div>
                   ))}
 
                 {q.type === 'allergies' &&

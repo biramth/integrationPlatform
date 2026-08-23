@@ -3,6 +3,7 @@ const { DEPARTMENTS, DEPARTMENT_LABELS } = require('../constants/departments');
 const { autoAssignRoom, getHistoryForDut1 } = require('../services/roomAssignmentService');
 const auditService = require('../services/auditService');
 const { getSetting } = require('../services/platformSettingsService');
+const { validateTreatmentPayload } = require('./treatmentController');
 
 const ALLERGENS_SUBQUERY = `(
   SELECT COALESCE(json_agg(json_build_object('id', a.id, 'label', a.label, 'severity', da.severity)), '[]'::json)
@@ -639,12 +640,68 @@ async function completeComplementary(req, res) {
   }
 
   const extraFields = req.body.extraFields || {};
-  const { onTreatment, treatmentDetails } = req.body;
+  const { onTreatment } = req.body;
   if (typeof onTreatment !== 'boolean') {
     return res.status(400).json({ error: 'La réponse à la question du traitement médical en cours (oui/non) est requise.' });
   }
-  if (onTreatment && !treatmentDetails?.trim()) {
-    return res.status(400).json({ error: 'Le détail des traitements suivis est requis.' });
+
+  // Lien direct phase 2 => Traitements : répondre "Oui" oblige désormais à
+  // décrire CHAQUE traitement de façon structurée (médicament du stock ou
+  // libellé libre, posologie, créneaux, dates) — un DUT1 peut en suivre
+  // plusieurs. À la confirmation, la liste est synchronisée dans
+  // dut1_treatments : créés/mis à jour immédiatement (prises du jour à jour),
+  // ceux retirés de la déclaration sont clôturés — sans jamais toucher aux
+  // traitements créés à la main depuis la page Traitements.
+  let declaredTreatments = [];
+  if (onTreatment) {
+    const list = Array.isArray(req.body.treatments) ? req.body.treatments : null;
+    if (!list || list.length === 0) {
+      return res.status(400).json({ error: 'Décrivez au moins un traitement en cours.' });
+    }
+
+    const seenIds = new Set();
+    for (const item of list) {
+      if (!item || typeof item !== 'object') {
+        return res.status(400).json({ error: 'Traitement invalide.' });
+      }
+      const payload = {
+        dut1Id: Number(id),
+        medicationId: item.medicationId || null,
+        medicationLabel: (item.medicationLabel || '').trim(),
+        dosage: (item.dosage || '').trim(),
+        slots: {
+          matin: !!(item.slots || {}).matin,
+          midi: !!(item.slots || {}).midi,
+          soir: !!(item.slots || {}).soir,
+        },
+        startDate: item.startDate,
+        endDate: item.endDate || null,
+        notes: (item.notes || '').trim(),
+      };
+      // Mêmes règles que la page Traitements (dates, créneaux, médicament).
+      const treatmentError = await validateTreatmentPayload(payload);
+      if (treatmentError) {
+        return res.status(400).json({ error: treatmentError });
+      }
+      // Un id présent = mise à jour du traitement déclaré correspondant ;
+      // il doit bien exister, appartenir au dossier, être ouvert et être une
+      // déclaration phase 2 (jamais un traitement créé à la main).
+      if (item.id) {
+        payload.id = Number(item.id);
+        const linked = await db.get(
+          'SELECT id FROM dut1_treatments WHERE id = $1 AND dut1_id = $2 AND source_phase2 = TRUE AND ended_at IS NULL',
+          [payload.id, id]
+        );
+        if (!linked) {
+          return res.status(400).json({ error: 'Un des traitements déclarés est introuvable ou déjà clôturé.' });
+        }
+        if (seenIds.has(payload.id)) {
+          return res.status(400).json({ error: 'Chaque traitement déclaré doit être distinct.' });
+        }
+        seenIds.add(payload.id);
+      }
+      declaredTreatments.push(payload);
+    }
   }
 
   // traitement_medical/allergies/aptitude ont leur propre validation (ci-dessus,
@@ -667,20 +724,125 @@ async function completeComplementary(req, res) {
     }
   }
 
-  await db.run(
-    `UPDATE dut1_records
-     SET extra_fields_json = $1,
-         complementary_completed_at = COALESCE(complementary_completed_at, NOW()),
-         complementary_completed_by = COALESCE(complementary_completed_by, $2),
-         updated_by = $2,
-         updated_at = NOW(),
-         on_treatment = $4,
-         treatment_details = $5
-     WHERE id = $3`,
-    [JSON.stringify(extraFields), req.user.id, id, onTreatment, onTreatment ? treatmentDetails.trim() : null]
-  );
+  // Résumés lisibles pour la colonne historique treatment_details
+  // (annuaire/exports), agrégés comme dans le suivi santé : "A + B".
+  for (const payload of declaredTreatments) {
+    let medicationName = null;
+    if (payload.medicationId) {
+      const medication = await db.get('SELECT name FROM medications WHERE id = $1', [payload.medicationId]);
+      medicationName = medication ? medication.name : null;
+    }
+    payload.detailsSummary = [medicationName || payload.medicationLabel, payload.dosage].filter(Boolean).join(' — ');
+  }
+  const detailsSummary = declaredTreatments.map((t) => t.detailsSummary).join(' + ');
 
-  const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
+  // Tout en une transaction : le dossier et ses traitements "déclaration"
+  // doivent rester cohérents entre eux.
+  const { record, treatmentChanges } = await db.transaction(async (client) => {
+    await client.run(
+      `UPDATE dut1_records
+       SET extra_fields_json = $1,
+           complementary_completed_at = COALESCE(complementary_completed_at, NOW()),
+           complementary_completed_by = COALESCE(complementary_completed_by, $2),
+           updated_by = $2,
+           updated_at = NOW(),
+           on_treatment = $4,
+           treatment_details = $5
+       WHERE id = $3`,
+      [JSON.stringify(extraFields), req.user.id, id, onTreatment, onTreatment ? detailsSummary : null]
+    );
+
+    // Correction vers "Non" : plus rien déclaré, on clôture tous les
+    // traitements issus d'une déclaration phase 2 encore ouverts — sinon ils
+    // continueraient d'apparaître dans les prises du jour alors que le
+    // dossier ne déclare plus rien.
+    if (!onTreatment) {
+      await client.run(
+        `UPDATE dut1_treatments SET ended_at = NOW(), ended_by = $1, updated_at = NOW()
+         WHERE dut1_id = $2 AND source_phase2 = TRUE AND ended_at IS NULL`,
+        [req.user.id, Number(id)]
+      );
+    }
+
+    const changes = [];
+    const keptIds = [];
+
+    for (const payload of declaredTreatments) {
+      if (payload.id) {
+        await client.run(
+          `UPDATE dut1_treatments
+           SET medication_id = $1, medication_label = $2, dosage = $3,
+               slot_matin = $4, slot_midi = $5, slot_soir = $6,
+               start_date = $7, end_date = $8, notes = $9, updated_at = NOW()
+           WHERE id = $10`,
+          [
+            payload.medicationId,
+            payload.medicationLabel || null,
+            payload.dosage || null,
+            payload.slots.matin,
+            payload.slots.midi,
+            payload.slots.soir,
+            payload.startDate,
+            payload.endDate,
+            payload.notes || null,
+            payload.id,
+          ]
+        );
+        changes.push({ action: 'update', id: payload.id });
+        keptIds.push(payload.id);
+      } else {
+        const inserted = await client.run(
+          `INSERT INTO dut1_treatments
+             (dut1_id, medication_id, medication_label, dosage,
+              slot_matin, slot_midi, slot_soir, start_date, end_date, notes,
+              created_by, source_phase2)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE)
+           RETURNING id`,
+          [
+            Number(id),
+            payload.medicationId,
+            payload.medicationLabel || null,
+            payload.dosage || null,
+            payload.slots.matin,
+            payload.slots.midi,
+            payload.slots.soir,
+            payload.startDate,
+            payload.endDate,
+            payload.notes || null,
+            req.user.id,
+          ]
+        );
+        changes.push({ action: 'create', id: inserted.rows[0].id });
+        keptIds.push(inserted.rows[0].id);
+      }
+    }
+
+    // Les traitements déclarés qui ne figurent plus dans la liste soumise ont
+    // été retirés de la déclaration par l'agent : clôture. Les traitements
+    // créés à la main (source_phase2 = FALSE) ne sont jamais touchés.
+    if (onTreatment && keptIds.length > 0) {
+      await client.run(
+        `UPDATE dut1_treatments SET ended_at = NOW(), ended_by = $1, updated_at = NOW()
+         WHERE dut1_id = $2 AND source_phase2 = TRUE AND ended_at IS NULL AND id <> ALL($3::int[])`,
+        [req.user.id, Number(id), keptIds]
+      );
+    }
+
+    const updated = await client.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
+    return { record: updated, treatmentChanges: changes };
+  });
+
+  for (const change of treatmentChanges) {
+    const actions = { create: 'treatment.create', update: 'treatment.update' };
+    await auditService.logAction(req, {
+      action: actions[change.action],
+      resourceType: 'dut1_treatment',
+      resourceId: change.id,
+      resourceLabel: `${record.first_name} ${record.last_name}`,
+      commission: 'sante',
+      after: { dut1_id: Number(id), ...change },
+    });
+  }
 
   await auditService.logAction(req, {
     action: isCorrection ? 'dut1.correct_complementary' : 'dut1.complete_complementary',

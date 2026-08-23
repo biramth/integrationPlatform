@@ -30,8 +30,10 @@ export function deleteRestriction(id) {
   return axiosClient.delete(`/health/restrictions/${id}`).then((res) => res.data);
 }
 
-export function getTreatments(status) {
-  return axiosClient.get('/health/treatments', { params: status ? { status } : {} }).then((res) => res.data);
+export function getTreatments(status, dut1Id) {
+  return axiosClient
+    .get('/health/treatments', { params: { ...(status ? { status } : {}), ...(dut1Id ? { dut1Id } : {}) } })
+    .then((res) => res.data);
 }
 
 export function createTreatment(payload) {

@@ -50,9 +50,9 @@ export function listWithoutComplementary() {
   return axiosClient.get('/dut1/without-complementary').then((res) => res.data);
 }
 
-export function completeComplementary(id, { extraFields, onTreatment, treatmentDetails }) {
+export function completeComplementary(id, { extraFields, onTreatment, treatments }) {
   return axiosClient
-    .put(`/dut1/${id}/complementary`, { extraFields, onTreatment, treatmentDetails })
+    .put(`/dut1/${id}/complementary`, { extraFields, onTreatment, treatments })
     .then((res) => res.data);
 }
 

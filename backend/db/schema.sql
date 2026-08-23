@@ -523,8 +523,15 @@ CREATE TABLE IF NOT EXISTS dut1_treatments (
   created_by       INTEGER REFERENCES users(id),
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Marque le traitement "déclaration" né de la phase 2 (question "traitement
+  -- médical en cours ?") : une correction du dossier met CETTE ligne à jour
+  -- (ou la clôture si la réponse passe à Non) sans jamais toucher aux
+  -- traitements créés à la main depuis la page Traitements.
+  source_phase2    BOOLEAN NOT NULL DEFAULT FALSE,
   CHECK (slot_matin OR slot_midi OR slot_soir)
 );
+
+ALTER TABLE dut1_treatments ADD COLUMN IF NOT EXISTS source_phase2 BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE INDEX IF NOT EXISTS idx_dut1_treatments_dut1 ON dut1_treatments(dut1_id);
 CREATE INDEX IF NOT EXISTS idx_dut1_treatments_dates ON dut1_treatments(start_date, end_date);
@@ -555,15 +562,24 @@ CREATE INDEX IF NOT EXISTS idx_treatment_intakes_date_slot ON treatment_intakes(
 -- crée bien son traitement ; supprimer un traitement côté app repasse
 -- on_treatment à FALSE (cf. deleteTreatment dans treatmentController.js),
 -- sinon la migration recréerait la ligne au déploiement suivant.
-INSERT INTO dut1_treatments (dut1_id, medication_label, slot_matin, slot_midi, slot_soir, start_date, notes)
+INSERT INTO dut1_treatments (dut1_id, medication_label, slot_matin, slot_midi, slot_soir, start_date, notes, source_phase2)
 SELECT d.id,
        COALESCE(NULLIF(btrim(d.treatment_details), ''), 'Médicament non précisé'),
        TRUE, TRUE, TRUE,
        CURRENT_DATE,
-       'Importé depuis la déclaration phase 2 — horaires et posologie à préciser.'
+       'Importé depuis la déclaration phase 2 — horaires et posologie à préciser.',
+       TRUE
 FROM dut1_records d
 WHERE d.on_treatment = TRUE
   AND NOT EXISTS (SELECT 1 FROM dut1_treatments t WHERE t.dut1_id = d.id);
+
+-- Les traitements issus de migrations précédentes portent la note exacte
+-- ci-dessus : on les marque source_phase2 pour qu'une correction du dossier
+-- les mette à jour au lieu d'en créer un doublon (cf. completeComplementary).
+UPDATE dut1_treatments
+SET source_phase2 = TRUE
+WHERE notes = 'Importé depuis la déclaration phase 2 — horaires et posologie à préciser.'
+  AND source_phase2 = FALSE;
 
 -- Référentiel des critères d'aptitude physique (commission Santé, chef
 -- uniquement) : mêmes principes que les allergènes. Chaque critère porte sa

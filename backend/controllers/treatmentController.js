@@ -37,8 +37,11 @@ function medicationDisplayName(row) {
 async function listTreatments(req, res) {
   // status=active (défaut) : traitements en cours à aujourd'hui ; status=all :
   // tout l'historique (clôturés et passés inclus), pour consultation.
+  // dut1Id : filtre optionnel — utilisé par le formulaire de complétion pour
+  // préremplir la déclaration phase 2 avec le traitement déjà lié au dossier.
   const showAll = req.query.status === 'all';
   const today = todayIso();
+  const dut1Id = req.query.dut1Id ? Number(req.query.dut1Id) : null;
 
   const rows = await db.all(
     `SELECT t.*, m.name AS medication_name,
@@ -53,8 +56,9 @@ async function listTreatments(req, res) {
      LEFT JOIN medications m ON m.id = t.medication_id
      LEFT JOIN users u ON u.id = t.ended_by
      WHERE ${showAll ? 'TRUE' : ACTIVE_ON}
+       ${dut1Id ? 'AND t.dut1_id = $2' : ''}
      ORDER BY d.last_name ASC, d.first_name ASC, t.start_date DESC`,
-    [today]
+    dut1Id ? [today, dut1Id] : [today]
   );
 
   res.json({
@@ -78,6 +82,7 @@ async function listTreatments(req, res) {
       endedAt: row.ended_at,
       endedByName: row.ended_by_name,
       isActive: row.is_active,
+      sourcePhase2: row.source_phase2,
     })),
   });
 }
@@ -292,10 +297,18 @@ async function deleteTreatment(req, res) {
     // La migration du schéma recrée un traitement pour tout DUT1 encore
     // marqué on_treatment = TRUE en phase 2 : supprimer explicitement un
     // traitement signifie "plus de traitement", on aligne donc le vieux flag
-    // pour qu'il ne réapparaisse pas au prochain déploiement.
-    await client.run('UPDATE dut1_records SET on_treatment = FALSE WHERE id = $1 AND on_treatment = TRUE', [
-      existing.dut1_id,
-    ]);
+    // — mais seulement si c'était le DERNIER traitement encore ouvert du
+    // dossier : un DUT1 peut en suivre plusieurs, et supprimer l'un des
+    // autres ne doit pas le faire sortir de la liste "sous traitement"
+    // (ni faire réapparaître les siens au prochain déploiement).
+    await client.run(
+      `UPDATE dut1_records d SET on_treatment = FALSE
+       WHERE d.id = $1 AND d.on_treatment = TRUE
+         AND NOT EXISTS (
+           SELECT 1 FROM dut1_treatments t WHERE t.dut1_id = d.id AND t.id <> $2 AND t.ended_at IS NULL
+         )`,
+      [existing.dut1_id, Number(id)]
+    );
   });
 
   const dut1 = await db.get('SELECT first_name, last_name FROM dut1_records WHERE id = $1', [existing.dut1_id]);
@@ -463,4 +476,9 @@ module.exports = {
   deleteTreatment,
   getSchedule,
   markIntake,
+  // Réutilisée par completeComplementary (dut1Controller) : la déclaration
+  // phase 2 crée/met à jour son traitement avec EXACTEMENT les mêmes règles
+  // (dates, créneaux, médicament du stock ou libellé libre) que la page
+  // Traitements — une seule source de vérité pour la validation.
+  validateTreatmentPayload: validatePayload,
 };

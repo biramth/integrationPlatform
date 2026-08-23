@@ -17,9 +17,9 @@ export default function Dut1ComplementaryForm({
   values,
   onChange,
   onTreatment,
-  treatmentDetails,
-  onTreatmentChange,
-  onTreatmentDetailsChange,
+  treatments,
+  onTreatmentValueChange,
+  onTreatmentsChange,
   allergenIds,
   severities,
   onAllergyChange,
@@ -43,9 +43,9 @@ export default function Dut1ComplementaryForm({
           {q.type === 'traitement_medical' && (
             <Dut1TreatmentQuestion
               value={onTreatment}
-              details={treatmentDetails}
-              onChangeValue={onTreatmentChange}
-              onChangeDetails={onTreatmentDetailsChange}
+              treatments={treatments}
+              onChangeValue={onTreatmentValueChange}
+              onChangeTreatments={onTreatmentsChange}
               disabled={disabled}
             />
           )}
