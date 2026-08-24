@@ -56,12 +56,19 @@ function RecordDetailModal({ record, onClose }) {
 
           <DetailField label="Adresse" value={record.address} />
 
-          <div className="grid grid-cols-1 gap-3 border-t border-border pt-3 sm:grid-cols-2">
-            <DetailField label="Père" value={record.father_name} />
-            <DetailField label="Tél. père" value={record.father_phone} />
-            <DetailField label="Mère" value={record.mother_name} />
-            <DetailField label="Tél. mère" value={record.mother_phone} />
-          </div>
+          {(record.emergencyContacts?.length > 0 || record.father_name || record.mother_name) && (
+            <div className="grid grid-cols-1 gap-3 border-t border-border pt-3 sm:grid-cols-2">
+              {(record.emergencyContacts || []).map((contact, i) => (
+                <DetailField
+                  key={i}
+                  label={`Contact urgence ${i + 1}`}
+                  value={[contact.name, contact.phone].filter(Boolean).join(' — ')}
+                />
+              ))}
+              {record.father_name && <DetailField label="Père" value={record.father_name} />}
+              {record.mother_name && <DetailField label="Mère" value={record.mother_name} />}
+            </div>
+          )}
         </div>
       )}
     </Modal>
@@ -71,7 +78,7 @@ function RecordDetailModal({ record, onClose }) {
 // Annuaire non-médical, partagé par Communication et Présidentielle : le
 // tableau reste volontairement compact (nom, département, genre, téléphone,
 // chambre), le clic sur une ligne ouvre une fiche détaillée en lecture seule
-// avec le reste des champs non-médicaux (adresse, parents, naissance…). Le
+// avec le reste des champs non-médicaux (adresse, contacts d'urgence, naissance…). Le
 // backend (dut1Controller.listRecords) retire déjà tout ce qui est médical
 // pour ces rôles, donc rien de plus à filtrer ici — et pas de bouton
 // "modifier", ce n'est pas le dossier d'IT/Orga.

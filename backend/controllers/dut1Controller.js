@@ -35,9 +35,32 @@ function serializeRecord(record) {
   return {
     ...record,
     extra_fields: record.extra_fields_json ? JSON.parse(record.extra_fields_json) : null,
+    emergencyContacts: parseEmergencyContacts(record.emergency_contacts_json),
     allergens: 'allergens_json' in record ? record.allergens_json : undefined,
     aptitude_levels: 'aptitude_levels_json' in record ? record.aptitude_levels_json : undefined,
   };
+}
+
+// Contacts d'urgence (remplace père/mère dans le formulaire d'enregistrement) :
+// liste libre [{ name, phone }] stockée en JSON — les lignes vides sont
+// ignorées, jamais bloquantes à la lecture.
+function parseEmergencyContacts(json) {
+  try {
+    const list = json ? JSON.parse(json) : [];
+    if (!Array.isArray(list)) return [];
+    return list
+      .map((c) => ({ name: typeof c?.name === 'string' ? c.name.trim() : '', phone: typeof c?.phone === 'string' ? c.phone.trim() : '' }))
+      .filter((c) => c.name || c.phone);
+  } catch {
+    return [];
+  }
+}
+
+function normalizeEmergencyContacts(input) {
+  if (!Array.isArray(input)) return null;
+  return input
+    .map((c) => ({ name: typeof c?.name === 'string' ? c.name.trim() : '', phone: typeof c?.phone === 'string' ? c.phone.trim() : '' }))
+    .filter((c) => c.name || c.phone);
 }
 
 // Communication et Présidentielle ont accès à l'annuaire (nom, département,
@@ -75,8 +98,9 @@ function validateBasicPayload(body) {
   if (!DEPARTMENTS.includes(body.department)) {
     return `department doit être l'un de : ${DEPARTMENTS.join(', ')}.`;
   }
-  if (!body.fatherPhone && !body.motherPhone) {
-    return 'Au moins un numéro de téléphone parent (fatherPhone ou motherPhone) est requis.';
+  const contacts = normalizeEmergencyContacts(body.emergencyContacts);
+  if (!contacts || !contacts.some((c) => c.phone)) {
+    return 'Au moins un numéro à contacter en cas d\'urgence (emergencyContacts) est requis.';
   }
   return null;
 }
@@ -96,10 +120,7 @@ async function createRecord(req, res) {
     gender,
     phoneNumber,
     department,
-    fatherName,
-    motherName,
-    fatherPhone,
-    motherPhone,
+    emergencyContacts,
     address,
     admittedStudentId,
     confirmDuplicate,
@@ -138,8 +159,8 @@ async function createRecord(req, res) {
     const result = await db.run(
       `INSERT INTO dut1_records
         (student_number, last_name, first_name, birth_date, birth_place, gender, phone_number,
-         department, father_name, mother_name, father_phone, mother_phone, address, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         department, emergency_contacts_json, address, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING id`,
       [
         studentNumber || null,
@@ -150,10 +171,7 @@ async function createRecord(req, res) {
         gender,
         phoneNumber || null,
         department,
-        fatherName || null,
-        motherName || null,
-        fatherPhone || null,
-        motherPhone || null,
+        JSON.stringify(normalizeEmergencyContacts(emergencyContacts)),
         address || null,
         req.user.id,
       ]
@@ -170,7 +188,7 @@ async function createRecord(req, res) {
       );
     }
 
-    const assignedRoomId = await autoAssignRoom(dut1Id, gender, req.user.id);
+    const assignedRoomId = await autoAssignRoom(dut1Id, gender, department, req.user.id);
 
     const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [dut1Id]);
     const room = assignedRoomId ? await db.get('SELECT * FROM rooms WHERE id = $1', [assignedRoomId]) : null;
@@ -225,7 +243,7 @@ function buildRecordsFilter(query) {
   if (search) {
     const p = addParam(`%${search}%`);
     clauses.push(
-      `(d.last_name ILIKE ${p} OR d.first_name ILIKE ${p} OR d.student_number ILIKE ${p} OR d.phone_number ILIKE ${p})`
+      `(d.last_name ILIKE ${p} OR d.first_name ILIKE ${p} OR d.student_number ILIKE ${p} OR d.phone_number ILIKE ${p} OR d.emergency_contacts_json ILIKE ${p})`
     );
   }
 
@@ -266,7 +284,7 @@ async function listRecords(req, res) {
 
 const CSV_HEADER = [
   'ID', 'N° étudiant', 'Nom', 'Prénom', 'Naissance', 'Lieu', 'Genre', 'Téléphone',
-  'Département', 'Père', 'Mère', 'Tél. père', 'Tél. mère', 'Adresse', 'Chambre',
+  'Département', "Contacts d'urgence", 'Adresse', 'Chambre',
   'Bagages déclarés', 'Phase 2',
 ];
 
@@ -274,13 +292,20 @@ function csvEscape(value) {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
 
+function formatEmergencyContacts(json) {
+  return parseEmergencyContacts(json)
+    .map((c) => [c.name, c.phone].filter(Boolean).join(' : '))
+    .filter(Boolean)
+    .join('; ');
+}
+
 async function exportRecordsCsv(req, res) {
   const { whereSql, params } = buildRecordsFilter(req.query);
 
   const records = await db.all(
     `SELECT d.id, d.student_number, d.last_name, d.first_name, d.birth_date, d.birth_place,
-            d.gender, d.phone_number, d.department, d.father_name, d.mother_name,
-            d.father_phone, d.mother_phone, d.address, r.label AS room_label,
+            d.gender, d.phone_number, d.department, d.emergency_contacts_json,
+            d.address, r.label AS room_label,
             d.luggage_count, d.complementary_completed_at
      FROM dut1_records d
      LEFT JOIN rooms r ON r.id = d.room_id
@@ -291,7 +316,7 @@ async function exportRecordsCsv(req, res) {
 
   const csvRows = records.map((r) => [
     r.id, r.student_number, r.last_name, r.first_name, r.birth_date, r.birth_place, r.gender,
-    r.phone_number, r.department, r.father_name, r.mother_name, r.father_phone, r.mother_phone,
+    r.phone_number, r.department, formatEmergencyContacts(r.emergency_contacts_json),
     r.address, r.room_label, r.luggage_count, r.complementary_completed_at ? 'Oui' : 'Non',
   ]);
   const csv = [CSV_HEADER, ...csvRows].map((row) => row.map(csvEscape).join(',')).join('\r\n');
@@ -378,13 +403,12 @@ async function updateRecord(req, res) {
 
   const fields = [
     'student_number', 'last_name', 'first_name', 'birth_date', 'birth_place', 'gender',
-    'phone_number', 'department', 'father_name', 'mother_name', 'father_phone', 'mother_phone', 'address',
+    'phone_number', 'department', 'address',
   ];
   const bodyKeyMap = {
     student_number: 'studentNumber', last_name: 'lastName', first_name: 'firstName',
     birth_date: 'birthDate', birth_place: 'birthPlace', gender: 'gender',
-    phone_number: 'phoneNumber', department: 'department', father_name: 'fatherName',
-    mother_name: 'motherName', father_phone: 'fatherPhone', mother_phone: 'motherPhone', address: 'address',
+    phone_number: 'phoneNumber', department: 'department', address: 'address',
   };
 
   const updated = { ...existing };
@@ -394,6 +418,13 @@ async function updateRecord(req, res) {
       updated[col] = req.body[bodyKey];
     }
   }
+  if (req.body.emergencyContacts !== undefined) {
+    const contacts = normalizeEmergencyContacts(req.body.emergencyContacts);
+    if (!contacts || !contacts.some((c) => c.phone)) {
+      return res.status(400).json({ error: "Au moins un numéro à contacter en cas d'urgence est requis." });
+    }
+    updated.emergency_contacts_json = JSON.stringify(contacts);
+  }
 
   if (updated.gender && !['M', 'F'].includes(updated.gender)) {
     return res.status(400).json({ error: 'gender doit être M ou F.' });
@@ -401,23 +432,28 @@ async function updateRecord(req, res) {
   if (updated.department && !DEPARTMENTS.includes(updated.department)) {
     return res.status(400).json({ error: `department doit être l'un de : ${DEPARTMENTS.join(', ')}.` });
   }
-  if (!updated.father_phone && !updated.mother_phone) {
-    return res.status(400).json({ error: 'Au moins un numéro de téléphone parent est requis.' });
+  const mergedContacts = parseEmergencyContacts(updated.emergency_contacts_json);
+  // Dossiers antérieurs aux contacts d'urgence (père/mère en colonnes) :
+  // grand-fathered tant qu'ils n'ont pas été re-sauvegardés depuis l'écran,
+  // qui pré-remplit les contacts depuis père/mère et impose la saisie.
+  const hasLegacyParentPhone = !!(updated.father_phone || updated.mother_phone);
+  if (!mergedContacts.some((c) => c.phone) && !hasLegacyParentPhone) {
+    return res.status(400).json({ error: "Au moins un numéro à contacter en cas d'urgence est requis." });
   }
 
   await db.run(
     `UPDATE dut1_records SET
       student_number = $1, last_name = $2, first_name = $3,
       birth_date = $4, birth_place = $5, gender = $6,
-      phone_number = $7, department = $8, father_name = $9,
-      mother_name = $10, father_phone = $11, mother_phone = $12,
-      address = $13, updated_by = $14, updated_at = NOW()
-     WHERE id = $15`,
+      phone_number = $7, department = $8,
+      emergency_contacts_json = $9,
+      address = $10, updated_by = $11, updated_at = NOW()
+     WHERE id = $12`,
     [
       updated.student_number, updated.last_name, updated.first_name,
       updated.birth_date, updated.birth_place, updated.gender,
-      updated.phone_number, updated.department, updated.father_name,
-      updated.mother_name, updated.father_phone, updated.mother_phone,
+      updated.phone_number, updated.department,
+      updated.emergency_contacts_json ?? existing.emergency_contacts_json ?? null,
       updated.address, req.user.id, id,
     ]
   );

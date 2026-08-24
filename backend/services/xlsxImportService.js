@@ -1,5 +1,5 @@
 const ExcelJS = require('exceljs');
-const { matchDepartmentAlias } = require('../constants/departments');
+const { matchDepartmentAlias, matchDepartmentOptionAlias } = require('../constants/departments');
 
 function cellValue(cell) {
   const v = cell.value;
@@ -94,6 +94,7 @@ function parseAdmittedStudentsBuffer(buffer) {
   return loadWorkbook(buffer).then((workbook) => {
     const candidates = [];
     let detectedDepartment = null;
+    let detectedOption = null;
     let unrecognizedRowCount = 0;
 
     workbook.eachSheet((worksheet) => {
@@ -112,6 +113,10 @@ function parseAdmittedStudentsBuffer(buffer) {
         if (!detectedDepartment) {
           const found = matchDepartmentAlias(rowText);
           if (found) detectedDepartment = found;
+        }
+        if (!detectedOption) {
+          const foundOption = matchDepartmentOptionAlias(rowText);
+          if (foundOption) detectedOption = foundOption;
         }
 
         if (/LISTE\s+PRINCIPALE/i.test(rowText)) {
@@ -150,7 +155,7 @@ function parseAdmittedStudentsBuffer(buffer) {
       }
     });
 
-    return { detectedDepartment, candidates, unrecognizedRowCount };
+    return { detectedDepartment, detectedOption, candidates, unrecognizedRowCount };
   });
 }
 

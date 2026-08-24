@@ -3,15 +3,34 @@ const { manualAssignRoom, getHistoryForRoom } = require('../services/roomAssignm
 const auditService = require('../services/auditService');
 
 async function listRooms(req, res) {
+  // departments_json : effectif par département dans chaque chambre — le chef
+  // Orga y voit d'un coup d'œil si le mélange voulu par l'auto-assignation est
+  // respecté, et où déplacer quelqu'un pour rééquilibrer.
   const rooms = await db.all(
-    `SELECT r.*, COUNT(d.id) AS occupied
+    `SELECT r.*, COUNT(d.id) AS occupied,
+       COALESCE((
+         SELECT json_agg(json_build_object('department', x.department, 'count', x.n) ORDER BY x.n DESC)
+         FROM (
+           SELECT d2.department AS department, COUNT(*) AS n
+           FROM dut1_records d2
+           WHERE d2.room_id = r.id
+           GROUP BY d2.department
+         ) x
+       ), '[]'::json) AS departments_json
      FROM rooms r
      LEFT JOIN dut1_records d ON d.room_id = r.id
      GROUP BY r.id
      ORDER BY r.label ASC`
   );
 
-  res.json({ rooms: rooms.map((r) => ({ ...r, occupied: Number(r.occupied) })) });
+  res.json({
+    rooms: rooms.map((r) => ({
+      ...r,
+      occupied: Number(r.occupied),
+      departments:
+        typeof r.departments_json === 'string' ? JSON.parse(r.departments_json) : r.departments_json || [],
+    })),
+  });
 }
 
 async function createRoom(req, res) {
@@ -165,7 +184,24 @@ async function reassignDut1Room(req, res) {
     return res.status(400).json({ error: 'roomId requis.' });
   }
 
-  const before = await db.get('SELECT room_id, first_name, last_name FROM dut1_records WHERE id = $1', [id]);
+  const before = await db.get(
+    'SELECT room_id, first_name, last_name, created_by FROM dut1_records WHERE id = $1',
+    [id]
+  );
+  if (!before) {
+    return res.status(404).json({ error: 'Dossier introuvable.' });
+  }
+
+  // Droits fins (la route ne filtre que par rôle) : le chef de commission — et
+  // IT via son bypass — déplace n'importe quel dossier ; un agent Orga ne peut
+  // déplacer que celui qu'il a lui-même enregistré, même règle que la
+  // suppression d'un dossier.
+  const isLead = req.user.role === 'it' || req.user.isCommissionLead;
+  if (!isLead && before.created_by !== req.user.id) {
+    return res.status(403).json({
+      error: 'Vous ne pouvez déplacer que les dossiers que vous avez vous-même enregistrés.',
+    });
+  }
 
   try {
     await manualAssignRoom(Number(id), Number(roomId), req.user.id);
@@ -190,6 +226,48 @@ async function reassignDut1Room(req, res) {
   }
 }
 
+// Chambres compatibles pour un déplacement : même genre, au moins une place
+// libre, avec la répartition par département (même agrégat que listRooms).
+// Endpoint léger dédié à l'UI de déplacement — le chef Orga comme l'agent qui
+// a enregistré le dossier en ont besoin sans accéder à la configuration
+// complète des chambres (création/édition restent derrière roomRoutes.js,
+// réservées au chef).
+async function listAvailableRooms(req, res) {
+  const gender = req.query.gender;
+  if (gender !== 'M' && gender !== 'F') {
+    return res.status(400).json({ error: "Paramètre gender requis ('M' ou 'F')." });
+  }
+
+  const rooms = await db.all(
+    `SELECT r.id, r.label, r.gender, r.building, r.capacity, COUNT(d.id) AS occupied,
+       COALESCE((
+         SELECT json_agg(json_build_object('department', x.department, 'count', x.n) ORDER BY x.n DESC)
+         FROM (
+           SELECT d2.department AS department, COUNT(*) AS n
+           FROM dut1_records d2
+           WHERE d2.room_id = r.id
+           GROUP BY d2.department
+         ) x
+       ), '[]'::json) AS departments_json
+     FROM rooms r
+     LEFT JOIN dut1_records d ON d.room_id = r.id
+     WHERE r.gender = $1
+     GROUP BY r.id
+     HAVING COUNT(d.id) < r.capacity
+     ORDER BY r.label ASC`,
+    [gender]
+  );
+
+  res.json({
+    rooms: rooms.map((r) => ({
+      ...r,
+      occupied: Number(r.occupied),
+      departments:
+        typeof r.departments_json === 'string' ? JSON.parse(r.departments_json) : r.departments_json || [],
+    })),
+  });
+}
+
 async function getRoomHistory(req, res) {
   const history = await getHistoryForRoom(req.params.id);
   res.json({ history });
@@ -202,5 +280,6 @@ module.exports = {
   updateMattressCount,
   deleteRoom,
   reassignDut1Room,
+  listAvailableRooms,
   getRoomHistory,
 };

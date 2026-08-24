@@ -6,7 +6,7 @@ import Select from '../common/Select';
 import { previewAdmittedStudentsFile, confirmAdmittedStudentsImport } from '../../api/importApi';
 import { admittedStudentsProgress } from '../../api/admittedStudentsApi';
 import { useToast } from '../../hooks/useToast';
-import { DEPARTMENTS, DEPARTMENT_LABELS } from '../../utils/departments';
+import { DEPARTMENTS, DEPARTMENT_LABELS, DEPARTMENT_OPTION_LABELS, optionsForDepartment } from '../../utils/departments';
 
 const LIST_LABELS = { principale: 'Liste principale', attente: "Liste d'attente" };
 
@@ -25,6 +25,7 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
   const { showToast } = useToast();
   const [file, setFile] = useState(null);
   const [department, setDepartment] = useState('');
+  const [option, setOption] = useState('');
   const [candidates, setCandidates] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -38,7 +39,10 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
     try {
       const res = await previewAdmittedStudentsFile(file);
       setDepartment(res.detectedDepartment || '');
-      setCandidates(res.candidates.map(withKey));
+      // L'option est suggérée si l'intitulé la mentionne explicitement
+      // (ex : "Option Industrie Alimentaire", "ITR") — sinon vide.
+      setOption(res.detectedOption || '');
+      setCandidates(res.candidates.map((c) => withKey({ ...c, optionCode: res.detectedOption || '' })));
       if (res.candidates.length === 0) {
         showToast("Aucune ligne détectée automatiquement — ajoute les candidats à la main en t'aidant du fichier.", 'info');
       }
@@ -60,14 +64,42 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
   function addRow() {
     setCandidates((rows) => [
       ...(rows || []),
-      withKey({ firstName: '', lastName: '', birthDate: '', birthPlace: '', listType: 'principale', rank: null }),
+      withKey({ firstName: '', lastName: '', birthDate: '', birthPlace: '', listType: 'principale', rank: null, optionCode: option }),
     ]);
+  }
+
+  function handleDepartmentChange(value) {
+    setDepartment(value);
+    // Le changement de département invalide l'option choisie (les options
+    // appartiennent à un seul département).
+    setOption('');
+    setCandidates((rows) => (rows ? rows.map((r) => ({ ...r, optionCode: '' })) : rows));
+  }
+
+  function handleOptionChange(value) {
+    setOption(value);
+    // Le sélecteur de lot pré-remplit tout le tableau — une liste officielle
+    // est publiée par option ; la colonne par ligne permet les corrections.
+    setCandidates((rows) => (rows ? rows.map((r) => ({ ...r, optionCode: value })) : rows));
   }
 
   async function handleConfirm() {
     if (!department) {
       showToast('Département requis avant confirmation.', 'error');
       return;
+    }
+    const optionChoices = optionsForDepartment(department);
+    if (optionChoices.length > 0) {
+      const validValues = optionChoices.map((o) => o.value);
+      if (candidates.some((c) => !validValues.includes(c.optionCode))) {
+        showToast(
+          `Option requise pour chaque ligne — ${DEPARTMENT_LABELS[department]} est publié par option (${optionChoices
+            .map((o) => o.label)
+            .join(', ')}).`,
+          'error'
+        );
+        return;
+      }
     }
     const rows = candidates.map((c) => {
       const clean = { ...c };
@@ -79,7 +111,7 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
       const res = await confirmAdmittedStudentsImport(rows);
       const progress = await admittedStudentsProgress();
       showToast(`${res.createdCount} candidat(s) ajouté(s) au référentiel des admis.`, 'success');
-      setLastImport({ createdCount: res.createdCount, department, progress: progress.progress });
+      setLastImport({ createdCount: res.createdCount, department, option, progress: progress.progress });
       setCandidates(null);
       setFile(null);
       onImported?.();
@@ -127,7 +159,9 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
           <div className="mb-3 flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-success" />
             <p className="text-sm font-semibold text-foreground">
-              {lastImport.createdCount} candidat(s) ajouté(s) au référentiel — {DEPARTMENT_LABELS[lastImport.department] || lastImport.department}
+              {lastImport.createdCount} candidat(s) ajouté(s) au référentiel —{' '}
+              {DEPARTMENT_LABELS[lastImport.department] || lastImport.department}
+              {lastImport.option ? ` · ${DEPARTMENT_OPTION_LABELS[lastImport.option] || lastImport.option}` : ''}
             </p>
           </div>
           <p className="mb-3 text-xs text-muted-foreground">
@@ -167,14 +201,25 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
       {candidates !== null && (
         <Card>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-foreground">2. Vérifier et corriger la liste</p>
-            <Select
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              options={DEPARTMENTS.map((d) => ({ value: d, label: DEPARTMENT_LABELS[d] }))}
-              placeholder="Département…"
-              className="w-56"
-            />
+              <p className="text-sm font-semibold text-foreground">2. Vérifier et corriger la liste</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {optionsForDepartment(department).length > 0 && (
+                  <Select
+                    value={option}
+                    onChange={(e) => handleOptionChange(e.target.value)}
+                    options={optionsForDepartment(department)}
+                    placeholder="Option…"
+                    className="w-56"
+                  />
+                )}
+                <Select
+                  value={department}
+                  onChange={(e) => handleDepartmentChange(e.target.value)}
+                  options={DEPARTMENTS.map((d) => ({ value: d, label: DEPARTMENT_LABELS[d] }))}
+                  placeholder="Département…"
+                  className="w-56"
+                />
+              </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -185,6 +230,7 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
                   <th className="py-2 pr-2">Nom</th>
                   <th className="py-2 pr-2">Naissance</th>
                   <th className="py-2 pr-2">Lieu</th>
+                  {optionsForDepartment(department).length > 0 && <th className="py-2 pr-2">Option</th>}
                   <th className="py-2 pr-2">Liste</th>
                   <th className="py-2" />
                 </tr>
@@ -204,6 +250,20 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
                     <td className="py-1.5 pr-2">
                       <RowInput value={row.birthPlace} onChange={(v) => updateRow(row._key, { birthPlace: v })} />
                     </td>
+                    {optionsForDepartment(department).length > 0 && (
+                      <td className="py-1.5 pr-2">
+                        <select
+                          value={row.optionCode || ''}
+                          onChange={(e) => updateRow(row._key, { optionCode: e.target.value })}
+                          className="h-9 rounded-lg border border-border bg-card px-2 text-sm text-foreground"
+                        >
+                          <option value="">—</option>
+                          {optionsForDepartment(department).map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </td>
+                    )}
                     <td className="py-1.5 pr-2">
                       <select
                         value={row.listType}
@@ -227,7 +287,7 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
                 ))}
                 {candidates.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-4 text-center text-sm text-muted-foreground">
+                    <td colSpan={optionsForDepartment(department).length > 0 ? 7 : 6} className="py-4 text-center text-sm text-muted-foreground">
                       Aucune ligne pour l'instant.
                     </td>
                   </tr>

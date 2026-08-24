@@ -1,5 +1,6 @@
 import Input from '../common/Input';
 import Select from '../common/Select';
+import EmergencyContactsEditor from './EmergencyContactsEditor';
 import { DUT1_BASIC_SECTIONS } from '../../utils/dut1BasicFields';
 
 export default function Dut1BasicForm({ values, errors = {}, onChange }) {
@@ -10,6 +11,18 @@ export default function Dut1BasicForm({ values, errors = {}, onChange }) {
           <legend className="px-1 text-sm font-semibold text-foreground">{section.title}</legend>
           <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {section.fields.map((field) => {
+              if (field.type === 'emergencyContacts') {
+                return (
+                  <div key={field.key} className="sm:col-span-2">
+                    <EmergencyContactsEditor
+                      contacts={values[field.key] ?? []}
+                      errors={errors}
+                      onChange={(list) => onChange(field.key, list)}
+                    />
+                  </div>
+                );
+              }
+
               const commonProps = {
                 label: field.label,
                 required: field.required,
@@ -28,7 +41,7 @@ export default function Dut1BasicForm({ values, errors = {}, onChange }) {
         </fieldset>
       ))}
       <p className="text-xs text-muted-foreground">
-        * Au moins un numéro de téléphone parent (père ou mère) est requis.
+        * Au moins un numéro à contacter en cas d'urgence est requis (pas nécessairement un parent).
       </p>
     </div>
   );

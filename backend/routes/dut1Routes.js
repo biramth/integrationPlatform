@@ -18,6 +18,11 @@ router.get('/without-luggage', requireRole('orga'), requireOrgaScope('bagages'),
 // dépôt — pas de configuration des chambres elles-mêmes (cf. roomRoutes.js).
 router.get('/pending-delivery', requireRole('orga'), requireOrgaScope('chambres'), dut1Controller.listPendingDelivery);
 router.get('/deliveries/mine', requireRole('orga'), requireOrgaScope('chambres'), dut1Controller.listMyDeliveries);
+// Liste légère des chambres compatibles (même genre, places libres) pour
+// l'UI de déplacement : le chef Orga comme l'agent qui a enregistré un dossier
+// en ont besoin sans accéder à la configuration complète des chambres
+// (création/édition/suppression restent au chef, cf. roomRoutes.js).
+router.get('/available-rooms', requireRole('orga'), roomController.listAvailableRooms);
 // Phase 2 (complément de dossier) relève de la commission Santé — traitement
 // médical, allergies — pas d'Orga (qui ne gère plus que
 // l'enregistrement de base, les chambres et les bagages).
@@ -70,11 +75,13 @@ router.put(
   requireSanteScope('phase2', { allowLead: true }),
   dut1Controller.setAptitudeLevels
 );
-// Réassignation de chambre : outil de gestion du chef Orga (regrouper des
-// DUT1, corriger une erreur d'affectation), pas la tâche quotidienne du
-// sous-rôle "chambres" — celui-ci livre les bagages déjà photographiés dans
-// la chambre déjà assignée, il ne réassigne pas (cf. /:id/luggage-delivery).
-router.put('/:id/room', requireRole('orga'), requireCommissionLead, roomController.reassignDut1Room);
+// Réassignation de chambre : le chef Orga regroupe des DUT1 et corrige les
+// erreurs d'affectation ; l'agent qui a enregistré un dossier peut aussi
+// déplacer celui-ci — même logique que la suppression ci-dessus, il ne touche
+// pas aux dossiers des autres. La vérification fine (chef vs créateur du
+// dossier) vit dans reassignDut1Room : un simple middleware ne peut pas la
+// porter (elle dépend du dossier visé).
+router.put('/:id/room', requireRole('orga'), roomController.reassignDut1Room);
 // Comme l'enregistrement et les bagages, la livraison en chambre n'a
 // d'utilité que le premier jour — IT peut la désactiver une fois la
 // logistique terminée (cf. requireFeatureEnabled, refuse même IT).

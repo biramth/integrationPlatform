@@ -12,28 +12,59 @@ async function roomOccupancy(roomId) {
 // place — la chambre se retrouve à 5/4. Le verrou force les transactions
 // concurrentes à s'exécuter l'une après l'autre pour ce genre, chacune relisant
 // une occupation à jour avant de choisir une chambre.
-async function autoAssignRoom(dut1Id, gender, changedBy) {
+//
+// Stratégie de mélange : on ne remplit plus les chambres dans leur ordre de
+// création (les admis d'un même département arrivent par vagues et finiraient
+// entassés ensemble), mais on choisit parmi les chambres non pleines celle où
+// le département du DUT1 est le LEAST représenté — puis, à égalité, la moins
+// remplie (remplissage homogène), puis l'ordre de création (déterministe).
+// Ex : GC arrive dans A ; le GC suivant part en B plutôt que de doubler dans
+// A tant qu'une chambre sans GC existe.
+async function autoAssignRoom(dut1Id, gender, department, changedBy) {
   return db.transaction(async (tx) => {
     const rooms = await tx.all(
       `SELECT id, capacity FROM rooms WHERE gender = $1 ORDER BY id ASC FOR UPDATE`,
       [gender]
     );
 
-    for (const room of rooms) {
-      const occupiedRow = await tx.get('SELECT COUNT(*) AS occupied FROM dut1_records WHERE room_id = $1', [room.id]);
-      if (Number(occupiedRow.occupied) >= room.capacity) continue;
-
-      await tx.run(`UPDATE dut1_records SET room_id = $1, room_assigned_at = NOW() WHERE id = $2`, [room.id, dut1Id]);
-      await tx.run(
-        `INSERT INTO room_assignment_history (dut1_id, old_room_id, new_room_id, changed_by, reason)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [dut1Id, null, room.id, changedBy, 'auto_assignment']
-      );
-
-      return room.id;
+    // Occupation totale + effectif par département, en une seule requête.
+    const rows = await tx.all(
+      `SELECT room_id, department, COUNT(*)::int AS n
+       FROM dut1_records
+       WHERE room_id = ANY($1::int[])
+       GROUP BY room_id, department`,
+      [rooms.map((r) => r.id)]
+    );
+    const occupancyByRoom = new Map();
+    for (const row of rows) {
+      const info = occupancyByRoom.get(row.room_id) || { total: 0, byDepartment: {} };
+      info.total += row.n;
+      info.byDepartment[row.department] = (info.byDepartment[row.department] || 0) + row.n;
+      occupancyByRoom.set(row.room_id, info);
     }
 
-    return null;
+    const candidates = rooms
+      .map((room) => {
+        const { total = 0, byDepartment = {} } = occupancyByRoom.get(room.id) || {};
+        return { ...room, occupied: total, sameDepartment: byDepartment[department] || 0 };
+      })
+      .filter((room) => room.occupied < room.capacity);
+
+    if (candidates.length === 0) return null;
+
+    candidates.sort(
+      (a, b) => a.sameDepartment - b.sameDepartment || a.occupied - b.occupied || a.id - b.id
+    );
+    const chosen = candidates[0];
+
+    await tx.run(`UPDATE dut1_records SET room_id = $1, room_assigned_at = NOW() WHERE id = $2`, [chosen.id, dut1Id]);
+    await tx.run(
+      `INSERT INTO room_assignment_history (dut1_id, old_room_id, new_room_id, changed_by, reason)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [dut1Id, null, chosen.id, changedBy, 'auto_assignment']
+    );
+
+    return chosen.id;
   });
 }
 

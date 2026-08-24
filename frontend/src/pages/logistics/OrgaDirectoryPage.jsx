@@ -2,11 +2,13 @@ import { useCallback, useState } from 'react';
 import { Luggage as LuggageIcon, Search, ShieldAlert } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { listDut1 } from '../../api/dut1Api';
+import { useToast } from '../../hooks/useToast';
+import { listDut1, reassignRoom, listAvailableRooms } from '../../api/dut1Api';
 import * as luggageApi from '../../api/luggageApi';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
+import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import Pagination from '../../components/common/Pagination';
@@ -30,12 +32,12 @@ function DetailField({ label, value }) {
   );
 }
 
-// Fiche détaillée d'un DUT1 pour le chef Orga : mêmes champs que l'annuaire de
-// Communication/Présidentielle (identité, contact, parents) — jamais de champ
-// médical, ce n'est pas la commission Santé — mais en plus, en scrollant, les
-// bagages déjà photographiés par l'agent "bagages" : c'est le travail
-// quotidien de sa propre commission, contrairement à Communication/Présidentielle.
-function RecordDetailModal({ record, items, onClose }) {
+// Fiche détaillée d'un DUT1 pour le chef Orga : identité, contact, contacts
+// d'urgence, bagages — jamais de champ médical, ce n'est pas la commission
+// Santé. Le bloc Chambre permet de déplacer le DUT1 vers une autre chambre du
+// même genre sans repasser par la page de configuration (même endpoint que
+// AdminRoomsPage : PUT /dut1/:id/room).
+function RecordDetailModal({ record, items, onClose, moveTargets = [], moveChoice, onMoveChoice, onMove, moving }) {
   return (
     <Modal open={!!record} onClose={onClose} title={record ? `${record.first_name} ${record.last_name}` : ''}>
       {record && (
@@ -59,12 +61,45 @@ function RecordDetailModal({ record, items, onClose }) {
 
           <DetailField label="Adresse" value={record.address} />
 
-          <div className="grid grid-cols-1 gap-3 border-t border-border pt-3 sm:grid-cols-2">
-            <DetailField label="Père" value={record.father_name} />
-            <DetailField label="Tél. père" value={record.father_phone} />
-            <DetailField label="Mère" value={record.mother_name} />
-            <DetailField label="Tél. mère" value={record.mother_phone} />
+          <div className="border-t border-border pt-3">
+            <p className="mb-2 text-sm font-semibold text-foreground">Chambre</p>
+            {moveTargets.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aucune autre chambre disponible pour ce genre (complète ou inexistante).
+              </p>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <Select
+                  value={moveChoice}
+                  onChange={(e) => onMoveChoice(e.target.value)}
+                  placeholder="Déplacer vers…"
+                  disabled={moving}
+                  className="w-56"
+                  options={moveTargets.map((r) => ({
+                    value: String(r.id),
+                    label: `${r.label} (${r.occupied}/${r.capacity})`,
+                  }))}
+                />
+                <Button onClick={onMove} loading={moving} disabled={!moveChoice}>
+                  Déplacer
+                </Button>
+              </div>
+            )}
           </div>
+
+          {(record.emergencyContacts?.length > 0 || record.father_name || record.mother_name) && (
+            <div className="grid grid-cols-1 gap-3 border-t border-border pt-3 sm:grid-cols-2">
+              {(record.emergencyContacts || []).map((contact, i) => (
+                <DetailField
+                  key={i}
+                  label={`Contact urgence ${i + 1}`}
+                  value={[contact.name, contact.phone].filter(Boolean).join(' — ')}
+                />
+              ))}
+              {record.father_name && <DetailField label="Père" value={record.father_name} />}
+              {record.mother_name && <DetailField label="Mère" value={record.mother_name} />}
+            </div>
+          )}
 
           <div className="border-t border-border pt-3">
             <div className="mb-2 flex items-center justify-between">
@@ -100,11 +135,18 @@ function RecordDetailModal({ record, items, onClose }) {
 // contacts. Toujours en lecture seule : pas de bouton "modifier", ce n'est pas
 // le dossier d'IT.
 export default function OrgaDirectoryPage() {
+  const { showToast } = useToast();
   const [filters, setFilters] = useState({ search: '', department: '' });
   const debouncedSearch = useDebouncedValue(filters.search, 350);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
   const [selectedItems, setSelectedItems] = useState(null);
+  // Déplacement de chambre depuis la fiche : chambres compatibles chargées à
+  // l'ouverture (même genre, places libres), choix + appel au même endpoint
+  // que la page Chambres.
+  const [moveRooms, setMoveRooms] = useState([]);
+  const [moveChoice, setMoveChoice] = useState('');
+  const [moving, setMoving] = useState(false);
 
   const fetcher = useCallback(
     () => listDut1({ search: debouncedSearch, department: filters.department, page, pageSize: PAGE_SIZE }),
@@ -120,13 +162,40 @@ export default function OrgaDirectoryPage() {
   function openRecord(record) {
     setSelected(record);
     setSelectedItems(null);
+    setMoveChoice('');
+    setMoveRooms([]);
     luggageApi.listLuggageItems(record.id).then((res) => setSelectedItems(res.items));
+    listAvailableRooms(record.gender)
+      .then((res) => setMoveRooms(res.rooms))
+      .catch(() => setMoveRooms([]));
   }
 
   function closeRecord() {
     setSelected(null);
     setSelectedItems(null);
+    setMoveChoice('');
   }
+
+  async function handleMoveRoom() {
+    if (!selected || !moveChoice) return;
+    setMoving(true);
+    try {
+      await reassignRoom(selected.id, Number(moveChoice));
+      showToast(`${selected.first_name} ${selected.last_name} a été déplacé(e).`, 'success');
+      closeRecord();
+      reload();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Déplacement impossible.', 'error');
+    } finally {
+      setMoving(false);
+    }
+  }
+
+  // Chambres cibles : même endpoint que la page Chambres, on exclut juste la
+  // chambre actuelle du DUT1 sélectionné.
+  const moveTargets = selected
+    ? moveRooms.filter((r) => r.id !== selected.room_id)
+    : [];
 
   return (
     <div>
@@ -229,7 +298,16 @@ export default function OrgaDirectoryPage() {
         </>
       )}
 
-      <RecordDetailModal record={selected} items={selectedItems} onClose={closeRecord} />
+      <RecordDetailModal
+        record={selected}
+        items={selectedItems}
+        onClose={closeRecord}
+        moveTargets={moveTargets}
+        moveChoice={moveChoice}
+        onMoveChoice={setMoveChoice}
+        onMove={handleMoveRoom}
+        moving={moving}
+      />
     </div>
   );
 }

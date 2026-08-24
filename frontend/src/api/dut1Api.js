@@ -60,6 +60,12 @@ export function reassignRoom(id, roomId) {
   return axiosClient.put(`/dut1/${id}/room`, { roomId }).then((res) => res.data);
 }
 
+// Chambres compatibles pour déplacer un DUT1 (même genre, places libres) —
+// accessible au chef Orga comme à l'agent qui a enregistré le dossier.
+export function listAvailableRooms(gender) {
+  return axiosClient.get('/dut1/available-rooms', { params: { gender } }).then((res) => res.data);
+}
+
 export function getDut1RoomHistory(id) {
   return axiosClient.get(`/dut1/${id}/room-history`).then((res) => res.data);
 }

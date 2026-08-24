@@ -185,9 +185,25 @@ export default function AdminRoomsPage() {
   }
 
   const occ = occupancyFetch.data;
-  const targetRooms = (data?.rooms || []).filter(
-    (r) => movingOccupant && r.id !== movingOccupant.fromRoomId && r.gender === movingOccupant.gender && r.occupied < r.capacity
-  );
+  // Cibles de déplacement triées comme l'auto-assignation : d'abord les chambres
+  // où le département du DUT1 déplacé est le moins représenté (mélange), puis
+  // les plus libres — la première gagne un badge "Recommandé".
+  const decoratedTargets = movingOccupant
+    ? (data?.rooms || [])
+        .filter(
+          (r) =>
+            r.id !== movingOccupant.fromRoomId &&
+            r.gender === movingOccupant.gender &&
+            r.occupied < r.capacity
+        )
+        .map((r) => ({
+          ...r,
+          free: r.capacity - r.occupied,
+          sameDepartment: (r.departments || []).find((d) => d.department === movingOccupant.department)?.count || 0,
+        }))
+        .sort((a, b) => a.sameDepartment - b.sameDepartment || b.free - a.free || a.label.localeCompare(b.label))
+    : [];
+  const recommendedRoom = decoratedTargets[0] || null;
   const fromRoom = movingOccupant ? (data?.rooms || []).find((r) => r.id === movingOccupant.fromRoomId) : null;
 
   return (
@@ -325,6 +341,19 @@ export default function AdminRoomsPage() {
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">{room.gender === 'M' ? 'Masculin' : 'Féminin'} · {room.building || '—'}</p>
+                  {(room.departments?.length > 0) && (
+                    <p className="mt-2 flex flex-wrap gap-1">
+                      {room.departments.map((d) => (
+                        <span
+                          key={d.department}
+                          title={DEPARTMENT_LABELS[d.department] || d.department}
+                          className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-foreground"
+                        >
+                          {d.department} ×{d.count}
+                        </span>
+                      ))}
+                    </p>
+                  )}
                   <div className="mt-2">
                     <Badge variant={mattress.variant}>
                       <BedDouble className="mr-1 inline h-3 w-3" /> {mattress.label}
@@ -479,16 +508,23 @@ export default function AdminRoomsPage() {
             <p className="text-sm text-muted-foreground">
               Chambre actuelle :{' '}
               <span className="font-medium text-foreground">{fromRoom ? fromRoom.label : 'aucune'}</span>
+              {' · '}Département :{' '}
+              <span className="font-medium text-foreground">
+                {DEPARTMENT_LABELS[movingOccupant.department] || movingOccupant.department}
+              </span>
+            </p>
+            <p className="-mt-1 text-xs text-muted-foreground">
+              Les chambres où ce département est le moins représenté apparaissent en premier — même logique que
+              l'attribution automatique.
             </p>
 
             <p className="text-sm font-medium text-foreground">Nouvelle chambre</p>
-            {targetRooms.length === 0 ? (
+            {decoratedTargets.length === 0 ? (
               <p className="text-sm text-muted-foreground">Aucune autre chambre disponible pour ce genre.</p>
             ) : (
               <div className="grid max-h-64 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
-                {targetRooms.map((r) => {
+                {decoratedTargets.map((r) => {
                   const selected = moveTargetRoomId === String(r.id);
-                  const free = r.capacity - r.occupied;
                   return (
                     <button
                       key={r.id}
@@ -501,10 +537,18 @@ export default function AdminRoomsPage() {
                       <span className="min-w-0">
                         <span className="font-medium text-foreground">{r.label}</span>
                         <span className="ml-1.5 truncate text-xs text-muted-foreground">{r.building || '—'}</span>
+                        {r.departments?.length > 0 && (
+                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                            {r.departments.map((d) => `${d.department} ×${d.count}`).join(' · ')}
+                          </span>
+                        )}
                       </span>
-                      <Badge variant={free <= 1 ? 'warning' : 'success'} className="shrink-0">
-                        {r.occupied}/{r.capacity}
-                      </Badge>
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {recommendedRoom && r.id === recommendedRoom.id && (
+                          <Badge variant="success" className="shrink-0">Recommandé</Badge>
+                        )}
+                        <Badge variant={r.free <= 1 ? 'warning' : 'success'}>{r.occupied}/{r.capacity}</Badge>
+                      </span>
                     </button>
                   );
                 })}

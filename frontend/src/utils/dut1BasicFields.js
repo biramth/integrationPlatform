@@ -24,17 +24,17 @@ export const DUT1_BASIC_SECTIONS = [
     ],
   },
   {
-    title: 'Filiation',
+    title: "Contacts d'urgence",
     fields: [
-      { key: 'fatherName', label: 'Nom du père', type: 'text' },
-      { key: 'fatherPhone', label: 'Téléphone du père', type: 'tel' },
-      { key: 'motherName', label: 'Nom de la mère', type: 'text' },
-      { key: 'motherPhone', label: 'Téléphone de la mère', type: 'tel' },
+      // Liste répétable nom + téléphone (autant de contacts que nécessaire),
+      // rendue par EmergencyContactsEditor — pas un champ simple.
+      { key: 'emergencyContacts', type: 'emergencyContacts', required: true },
     ],
   },
 ];
 
 export const DUT1_BASIC_DEFAULTS = {
   studentNumber: '', lastName: '', firstName: '', birthDate: '', birthPlace: '', gender: '',
-  department: '', phoneNumber: '', address: '', fatherName: '', fatherPhone: '', motherName: '', motherPhone: '',
+  department: '', phoneNumber: '', address: '',
+  emergencyContacts: [{ name: '', phone: '' }],
 };

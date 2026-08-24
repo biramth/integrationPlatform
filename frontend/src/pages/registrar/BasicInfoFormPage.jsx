@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Plus, Search, TriangleAlert, Trash2, Lock } from 'lucide-react';
+import { Plus, Search, TriangleAlert, Trash2, Lock, BedDouble } from 'lucide-react';
 import { getPlatformSettings } from '../../api/platformSettingsApi';
 import Dut1BasicForm from '../../components/dut1/Dut1BasicForm';
 import AdmittedStudentLookup from '../../components/dut1/AdmittedStudentLookup';
 import Dut1Card from '../../components/dut1/Dut1Card';
+import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Modal from '../../components/common/Modal';
@@ -11,7 +12,7 @@ import { confirm } from '../../components/common/confirmService';
 import PageHeader from '../../components/common/PageHeader';
 import { EmptyState, ErrorState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
-import { createDut1, deleteDut1, listDut1 } from '../../api/dut1Api';
+import { createDut1, deleteDut1, listAvailableRooms, listDut1, reassignRoom } from '../../api/dut1Api';
 import { DUT1_BASIC_DEFAULTS } from '../../utils/dut1BasicFields';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
 import { useToast } from '../../hooks/useToast';
@@ -30,6 +31,15 @@ export default function BasicInfoFormPage() {
   const [search, setSearch] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  // Déplacement de chambre : l'agent ne touche qu'aux dossiers qu'il a lui-même
+  // enregistrés (c'est aussi la règle backend). Les chambres compatibles
+  // (même genre, places libres) viennent de l'endpoint léger dédié — pas
+  // besoin d'accéder à la configuration complète des chambres.
+  const [movingRecord, setMovingRecord] = useState(null);
+  const [moveRooms, setMoveRooms] = useState([]);
+  const [moveChoice, setMoveChoice] = useState('');
+  const [loadingTargets, setLoadingTargets] = useState(false);
+  const [moving, setMoving] = useState(false);
 
   const { data, loading, error, reload } = useFetch(
     () => listDut1({ createdBy: user.id, search }),
@@ -73,9 +83,9 @@ export default function BasicInfoFormPage() {
     if (!values.birthPlace) newErrors.birthPlace = 'Requis';
     if (!values.gender) newErrors.gender = 'Requis';
     if (!values.department) newErrors.department = 'Requis';
-    if (!values.fatherPhone && !values.motherPhone) {
-      newErrors.fatherPhone = 'Au moins un numéro parent requis';
-      newErrors.motherPhone = 'Au moins un numéro parent requis';
+    const hasEmergencyPhone = (values.emergencyContacts || []).some((c) => (c.phone || '').trim());
+    if (!hasEmergencyPhone) {
+      newErrors.emergencyContacts = "Au moins un numéro à contacter en cas d'urgence est requis";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -137,6 +147,51 @@ export default function BasicInfoFormPage() {
     }
   }
 
+  function openMove(record) {
+    setMovingRecord(record);
+    setMoveChoice('');
+    setMoveRooms([]);
+    setLoadingTargets(true);
+    listAvailableRooms(record.gender)
+      .then((res) => setMoveRooms(res.rooms))
+      .catch(() => setMoveRooms([]))
+      .finally(() => setLoadingTargets(false));
+  }
+
+  // Même tri que l'attribution automatique et que la page Chambres : d'abord
+  // les chambres où le département du DUT1 est le moins représenté (mélange),
+  // puis les plus libres — la première gagne un badge "Recommandé".
+  const decoratedTargets = movingRecord
+    ? moveRooms
+        .filter((r) => r.id !== movingRecord.room_id)
+        .map((r) => ({
+          ...r,
+          free: r.capacity - r.occupied,
+          sameDepartment:
+            (r.departments || []).find((d) => d.department === movingRecord.department)?.count || 0,
+        }))
+        .sort((a, b) => a.sameDepartment - b.sameDepartment || b.free - a.free || a.label.localeCompare(b.label))
+    : [];
+
+  async function handleMove() {
+    if (!movingRecord || !moveChoice) return;
+    const target = decoratedTargets.find((r) => String(r.id) === moveChoice);
+    setMoving(true);
+    try {
+      await reassignRoom(movingRecord.id, Number(moveChoice));
+      showToast(
+        `${movingRecord.first_name} ${movingRecord.last_name} déplacé(e) en chambre ${target ? target.label : 'choisie'}.`,
+        'success'
+      );
+      setMovingRecord(null);
+      reload();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Déplacement impossible.', 'error');
+    } finally {
+      setMoving(false);
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -187,20 +242,30 @@ export default function BasicInfoFormPage() {
               <Dut1Card
                 record={record}
                 actions={
-                  canSelfDelete(record) ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    {canSelfDelete(record) ? (
+                      <Button
+                        variant="danger"
+                        onClick={() => handleDelete(record)}
+                        loading={deletingId === record.id}
+                        className="px-3 py-1.5 text-xs"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Supprimer et recommencer
+                      </Button>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Déjà pris en charge par une autre commission (phase 2, bagages ou allergies) — seule la commission IT peut encore le supprimer.
+                      </p>
+                    )}
                     <Button
-                      variant="danger"
-                      onClick={() => handleDelete(record)}
-                      loading={deletingId === record.id}
+                      variant="secondary"
+                      onClick={() => openMove(record)}
                       className="px-3 py-1.5 text-xs"
                     >
-                      <Trash2 className="h-3.5 w-3.5" /> Supprimer et recommencer
+                      <BedDouble className="h-3.5 w-3.5" />
+                      {record.room_label ? `Déplacer (${record.room_label})` : 'Assigner une chambre'}
                     </Button>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Déjà pris en charge par une autre commission (phase 2, bagages ou allergies) — seule la commission IT peut encore le supprimer.
-                    </p>
-                  )
+                  </div>
                 }
               />
             </div>
@@ -254,6 +319,84 @@ export default function BasicInfoFormPage() {
             )}
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={!!movingRecord}
+        onClose={() => setMovingRecord(null)}
+        title={movingRecord ? `Déplacer ${movingRecord.first_name} ${movingRecord.last_name}` : ''}
+      >
+        {movingRecord && (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="neutral">
+                {DEPARTMENT_LABELS[movingRecord.department] || movingRecord.department}
+              </Badge>
+              {movingRecord.room_label ? (
+                <Badge variant="success">Chambre {movingRecord.room_label}</Badge>
+              ) : (
+                <Badge variant="warning">Aucune chambre</Badge>
+              )}
+            </div>
+
+            {loadingTargets && (
+              <p className="text-sm text-muted-foreground">Chargement des chambres disponibles…</p>
+            )}
+
+            {!loadingTargets && decoratedTargets.length === 0 && (
+              <p className="text-sm text-muted-foreground">Aucune autre chambre disponible pour ce genre.</p>
+            )}
+
+            {!loadingTargets && decoratedTargets.length > 0 && (
+              <>
+                <p className="-mb-2 text-xs text-muted-foreground">
+                  Les chambres où ce département est le moins représenté apparaissent en premier — même logique que
+                  l'attribution automatique.
+                </p>
+                <div className="grid max-h-64 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+                  {decoratedTargets.map((r) => {
+                    const selected = moveChoice === String(r.id);
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => setMoveChoice(String(r.id))}
+                        className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                          selected ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:bg-muted/50'
+                        }`}
+                      >
+                        <span className="min-w-0">
+                          <span className="font-medium text-foreground">{r.label}</span>
+                          <span className="ml-1.5 truncate text-xs text-muted-foreground">{r.building || '—'}</span>
+                          {r.departments?.length > 0 && (
+                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                              {r.departments.map((d) => `${d.department} ×${d.count}`).join(' · ')}
+                            </span>
+                          )}
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1.5">
+                          {r.id === decoratedTargets[0].id && (
+                            <Badge variant="success" className="shrink-0">Recommandé</Badge>
+                          )}
+                          <Badge variant={r.free <= 1 ? 'warning' : 'success'}>{r.occupied}/{r.capacity}</Badge>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            <div className="mt-2 flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setMovingRecord(null)}>
+                Annuler
+              </Button>
+              <Button onClick={handleMove} loading={moving} disabled={!moveChoice}>
+                Déplacer ici
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

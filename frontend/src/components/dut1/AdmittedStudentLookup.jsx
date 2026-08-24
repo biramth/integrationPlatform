@@ -3,7 +3,7 @@ import { Search } from 'lucide-react';
 import Input from '../common/Input';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { searchAdmittedStudents } from '../../api/admittedStudentsApi';
-import { DEPARTMENT_LABELS } from '../../utils/departments';
+import { DEPARTMENT_LABELS, DEPARTMENT_OPTION_LABELS } from '../../utils/departments';
 import { formatBirthDate } from '../../utils/formatDates';
 
 export default function AdmittedStudentLookup({ department, onSelect }) {
@@ -72,8 +72,13 @@ export default function AdmittedStudentLookup({ department, onSelect }) {
                     {s.first_name} {s.last_name}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {DEPARTMENT_LABELS[s.department] || s.department} ·{' '}
-                    {s.list_type === 'principale' ? 'Liste principale' : "Liste d'attente"}
+                    {[
+                      DEPARTMENT_LABELS[s.department] || s.department,
+                      DEPARTMENT_OPTION_LABELS[s.option_code],
+                      s.list_type === 'principale' ? 'Liste principale' : "Liste d'attente",
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </span>
                   {(birthDate || s.birth_place) && (
                     <span className="text-xs text-muted-foreground">

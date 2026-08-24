@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS dut1_records (
   birth_place                 TEXT NOT NULL,
   gender                      TEXT NOT NULL CHECK (gender IN ('M','F')),
   phone_number                TEXT,
-  department                  TEXT NOT NULL CHECK (department IN ('GC','GE','GI','ITR','GM','GCBA','Gestion')),
+  department                  TEXT NOT NULL CHECK (department IN ('GC','GE','GI','GM','GCBA','GB','Gestion')),
   father_name                 TEXT,
   mother_name                 TEXT,
   father_phone                TEXT,
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS admitted_students (
   first_name      TEXT NOT NULL,
   birth_date      TEXT,
   birth_place     TEXT,
-  department      TEXT NOT NULL CHECK (department IN ('GC','GE','GI','ITR','GM','GCBA','Gestion')),
+  department      TEXT NOT NULL CHECK (department IN ('GC','GE','GI','GM','GCBA','GB','Gestion')),
   rank            INTEGER,
   list_type       TEXT NOT NULL CHECK (list_type IN ('principale','attente')),
   matched_dut1_id INTEGER REFERENCES dut1_records(id) ON DELETE SET NULL,
@@ -99,12 +99,25 @@ ALTER TABLE dut1_records
   ADD COLUMN IF NOT EXISTS admission_validated_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS admission_validated_by INTEGER REFERENCES users(id);
 
--- Génie Informatique se scinde en deux départements à part entière : GI (option
--- Informatique) et ITR (option Informatique, Télécommunications et Réseaux). Contraintes
--- redéfinies (drop puis recreate) pour rester ré-exécutables sans erreur à chaque migration.
+-- Les options de Génie Informatique (ex-départements GI/ITR) et de GCBA
+-- (Industrie Alimentaire, Analyse Biologique, Génie Chimique) ne vivent plus
+-- que dans les listes admis (option_code, cf. plus bas) : le dispatch des
+-- chambres les mélange sous leur département « coiffe ». GB = Génie Biomédical.
+-- Les UPDATE précèdent OBLIGATOIREMENT le resserrement : une ligne encore en
+-- 'ITR' violerait la nouvelle contrainte au moment du ADD CONSTRAINT (ce
+-- fichier est ré-exécuté en entier à chaque déploiement).
+UPDATE dut1_records SET department = 'GI' WHERE department = 'ITR';
 ALTER TABLE dut1_records DROP CONSTRAINT IF EXISTS dut1_records_department_check;
 ALTER TABLE dut1_records ADD CONSTRAINT dut1_records_department_check
-  CHECK (department IN ('GC','GE','GI','ITR','GM','GCBA','Gestion'));
+  CHECK (department IN ('GC','GE','GI','GM','GCBA','GB','Gestion'));
+
+-- Remplace la saisie père/mère du formulaire d'enregistrement par des
+-- "numéros à contacter en cas d'urgence" : liste libre de contacts
+-- [{ name, phone }], stockée en JSON comme extra_fields_json. Les colonnes
+-- father_name/mother_name/father_phone/mother_phone restent en base (jamais de
+-- DROP COLUMN dans ce fichier) mais ne sont plus alimentées par aucun écran.
+ALTER TABLE dut1_records
+  ADD COLUMN IF NOT EXISTS emergency_contacts_json TEXT;
 
 -- Traitement médical en cours, déclaré en phase 2 (question fermée oui/non +
 -- détail libre si oui). on_treatment reste NULL tant que la phase 2 n'a pas
@@ -183,9 +196,19 @@ ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check
   CHECK (role IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle','dreudj'));
 
+UPDATE admitted_students SET department = 'GI' WHERE department = 'ITR';
 ALTER TABLE admitted_students DROP CONSTRAINT IF EXISTS admitted_students_department_check;
 ALTER TABLE admitted_students ADD CONSTRAINT admitted_students_department_check
-  CHECK (department IN ('GC','GE','GI','ITR','GM','GCBA','Gestion'));
+  CHECK (department IN ('GC','GE','GI','GM','GCBA','GB','Gestion'));
+
+-- Options officielles des listes admis importées par la commission IT : seuls
+-- Génie Informatique (INFO/ITR) et GCBA (IA/AB/GC) sont publiés par option.
+-- Pas de clé étrangère ni de CHECK croisé département/option : la validité est
+-- contrôlée applicativement à l'import (cf. confirmAdmittedStudents), rester
+-- souple ici évite un resserrrement figé si les options évoluent. Le dispatch
+-- et tous les filtres DUT1 ignorent cette colonne (granularité = département).
+ALTER TABLE admitted_students
+  ADD COLUMN IF NOT EXISTS option_code TEXT;
 
 CREATE TABLE IF NOT EXISTS luggage_items (
   id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
