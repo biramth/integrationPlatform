@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as authApi from '../api/authApi';
 import { setOnUnauthorized } from '../api/axiosClient';
+import { connectRealtime, disconnectRealtime } from '../services/realtime';
 import { AuthContext } from './authContextInstance';
 
 export function AuthProvider({ children }) {
@@ -15,6 +16,18 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     setOnUnauthorized(logout);
   }, [logout]);
+
+  // Temps réel (SSE) : une connexion ouverte tant que l'utilisateur est
+  // connecté, fermée à la déconnexion — y compris après un 401 (logout
+  // ci-dessus remet user à null). Source unique partagée par toutes les pages.
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (user && token) {
+      connectRealtime(token);
+    } else {
+      disconnectRealtime();
+    }
+  }, [user]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');

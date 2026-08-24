@@ -1,4 +1,5 @@
 const db = require('../db/database');
+const realtimeService = require('./realtimeService');
 
 // Écrit une ligne du journal d'audit. Toujours appelé APRÈS que l'opération
 // métier a réussi (elle-même déjà commitée si elle était transactionnelle) —
@@ -54,6 +55,14 @@ async function logAction(req, {
         req.headers?.['user-agent'] || null,
       ]
     );
+
+    // Toute mutation réussie prévient les autres navigateurs connectés (SSE).
+    // Point de diffusion central : le journal d'audit couvre déjà toutes les
+    // actions métier — pas besoin d'appeler broadcast dans chaque contrôleur.
+    // Les échecs ne diffusent rien : rien n'a changé côté données.
+    if (success) {
+      realtimeService.broadcastDataChanged({ action, resourceType, commission });
+    }
   } catch (err) {
     console.error("Échec d'écriture du journal d'audit :", err);
   }

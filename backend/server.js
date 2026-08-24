@@ -21,6 +21,7 @@ const auditRoutes = require('./routes/auditRoutes');
 const phase2QuestionsRoutes = require('./routes/phase2QuestionsRoutes');
 const medicationRoutes = require('./routes/medicationRoutes');
 const aptitudeCriteriaRoutes = require('./routes/aptitudeCriteriaRoutes');
+const eventRoutes = require('./routes/eventRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const { requestId } = require('./middleware/requestId');
 
@@ -72,7 +73,18 @@ app.use(
 // Gzip des réponses JSON : les listes de dossiers/chambres compressent très
 // bien, ce qui compte maintenant que chaque réponse traverse le réseau public
 // au lieu d'être servie depuis le même processus que le frontend.
-app.use(compression());
+// Exception : /api/events (SSE) — la compression bufferise les flux et
+// empêcherait les événements d'arriver en temps réel.
+app.use(
+  compression({
+    filter(req, res) {
+      if (req.path.startsWith('/api/events')) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  })
+);
 app.use(express.json());
 
 // Sonde légère pour le health check de Render (et pour un éventuel ping
@@ -82,6 +94,10 @@ app.get('/healthz', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+// AVANT les montages génériques '/api' (luggage, meal) : eux posent un
+// router.use(verifyToken) qui lit l'en-tête Authorization et renverrait 401
+// avant que la route SSE ne puisse lire son token en query param.
+app.use('/api/events', eventRoutes);
 app.use('/api/dut1', dut1Routes);
 app.use('/api', luggageRoutes);
 app.use('/api/rooms', roomRoutes);
