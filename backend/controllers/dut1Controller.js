@@ -4,6 +4,7 @@ const { autoAssignRoom, getHistoryForDut1 } = require('../services/roomAssignmen
 const auditService = require('../services/auditService');
 const { getSetting } = require('../services/platformSettingsService');
 const { validateTreatmentPayload } = require('./treatmentController');
+const { normalizeName, namesSimilar } = require('../utils/fuzzyNames');
 
 const ALLERGENS_SUBQUERY = `(
   SELECT COALESCE(json_agg(json_build_object('id', a.id, 'label', a.label, 'severity', da.severity)), '[]'::json)
@@ -126,24 +127,43 @@ async function createRecord(req, res) {
     confirmDuplicate,
   } = req.body;
 
-  // Deux agents Orga peuvent enregistrer la même personne en parallèle sans le
-  // savoir (bureau d'accueil à plusieurs postes). On n'empêche jamais la
-  // création — des homonymes existent réellement (cf. décision explicite plus
-  // tôt : ne jamais bloquer sur le seul nom) — mais nom + prénom + date de
-  // naissance identiques est un signal assez fort pour mériter une confirmation
-  // explicite avant de dupliquer le dossier.
+  // Trois cas, un seul traitement — demander une confirmation explicite,
+  // jamais bloquer tout seul (des homonymes existent réellement) :
+  //  - doublon exact : nom + prénom + date de naissance identiques ;
+  //  - doublon flou : même date de naissance mais nom/prénom orthographiés
+  //    presque pareil — typique du même dossier saisi deux fois avec une
+  //    coquille (le référentiel des admis importé contient lui-même des noms
+  //    déformés par le convertisseur PDF→Excel) ;
+  //  - création parallèle par deux agents en même temps.
+  // La table est petite (une édition = quelques centaines de dossiers), le
+  // scoring en JS après un SELECT simple reste négligeable.
   if (!confirmDuplicate) {
-    const existing = await db.get(
-      `SELECT id, first_name, last_name, department, room_id,
+    const candidates = await db.all(
+      `SELECT id, first_name, last_name, birth_date, department,
          (SELECT label FROM rooms WHERE id = dut1_records.room_id) AS room_label
-       FROM dut1_records
-       WHERE LOWER(last_name) = LOWER($1) AND LOWER(first_name) = LOWER($2) AND birth_date = $3
-       LIMIT 1`,
-      [lastName, firstName, birthDate]
+       FROM dut1_records`
     );
+    const exact = candidates.find(
+      (c) =>
+        normalizeName(c.last_name) === normalizeName(lastName) &&
+        normalizeName(c.first_name) === normalizeName(firstName) &&
+        c.birth_date === birthDate
+    );
+    const similar =
+      !exact &&
+      candidates.find(
+        (c) =>
+          birthDate &&
+          c.birth_date === birthDate &&
+          namesSimilar(c.last_name, lastName) &&
+          namesSimilar(c.first_name, firstName)
+      );
+    const existing = exact || similar;
     if (existing) {
       return res.status(409).json({
-        error: 'Un dossier avec ce nom, prénom et cette date de naissance existe déjà.',
+        error: exact
+          ? 'Un dossier avec ce nom, prénom et cette date de naissance existe déjà.'
+          : 'Un dossier très proche existe déjà (même date de naissance, nom orthographié presque pareil) — vérifie qu\u2019il ne s\u2019agit pas de la même personne.',
         duplicate: {
           id: existing.id,
           firstName: existing.first_name,
@@ -179,13 +199,51 @@ async function createRecord(req, res) {
 
     const dut1Id = result.rows[0].id;
 
+    // Auto-réparation du référentiel des admis : le nom tapé par l'agent vient
+    // de la pièce d'identité du DUT1, donc il est plus fiable que la conversion
+    // du fichier officiel. Si les orthographes diffèrent ("Marne" importé vs
+    // "Mame" saisi), on répare la ligne de l'admis avec la saisie humaine —
+    // le référentiel se corrige tout seul au fil des enregistrements.
+    let repaired = null;
     if (admittedStudentId) {
-      // Lien best-effort, jamais bloquant : le dossier existe déjà même si ce
-      // candidat de l'import a entretemps été relié à un autre dossier.
-      await db.run(
-        'UPDATE admitted_students SET matched_dut1_id = $1 WHERE id = $2 AND matched_dut1_id IS NULL',
-        [dut1Id, Number(admittedStudentId)]
+      const admitted = await db.get(
+        'SELECT id, last_name, first_name FROM admitted_students WHERE id = $1',
+        [Number(admittedStudentId)]
       );
+      if (admitted) {
+        // Lien best-effort, jamais bloquant : le dossier existe déjà même si ce
+        // candidat de l'import a entretemps été relié à un autre dossier.
+        await db.run(
+          'UPDATE admitted_students SET matched_dut1_id = $1 WHERE id = $2 AND matched_dut1_id IS NULL',
+          [dut1Id, admitted.id]
+        );
+
+        const cleanFirst = firstName.trim();
+        const cleanLast = lastName.trim();
+        if (
+          normalizeName(cleanFirst) !== normalizeName(admitted.first_name) ||
+          normalizeName(cleanLast) !== normalizeName(admitted.last_name)
+        ) {
+          await db.run('UPDATE admitted_students SET last_name = $1, first_name = $2 WHERE id = $3', [
+            cleanLast,
+            cleanFirst,
+            admitted.id,
+          ]);
+          repaired = {
+            from: { firstName: admitted.first_name, lastName: admitted.last_name },
+            to: { firstName: cleanFirst, lastName: cleanLast },
+          };
+          await auditService.logAction(req, {
+            action: 'admitted_students.name_repair',
+            resourceType: 'admitted_students',
+            resourceId: admitted.id,
+            resourceLabel: `${cleanFirst} ${cleanLast}`,
+            commission: 'orga',
+            before: { last_name: admitted.last_name, first_name: admitted.first_name },
+            after: { last_name: cleanLast, first_name: cleanFirst },
+          });
+        }
+      }
     }
 
     const assignedRoomId = await autoAssignRoom(dut1Id, gender, department, req.user.id);
@@ -206,6 +264,7 @@ async function createRecord(req, res) {
       record: serializeRecord(record),
       roomAssigned: !!assignedRoomId,
       room,
+      repaired,
       warning: assignedRoomId ? null : 'Aucune chambre disponible pour ce genre pour le moment.',
     });
   } catch (err) {

@@ -103,6 +103,14 @@ export default function BasicInfoFormPage() {
       const data = await createDut1({ ...values, admittedStudentId }, { confirmDuplicate });
       const roomText = data.roomAssigned ? `— chambre ${data.room.label}` : `— ${data.warning}`;
       showToast(`${data.record.first_name} ${data.record.last_name} enregistré(e) ${roomText}`, 'success');
+      // L'orthographe saisie a remplacé celle, fautive, du référentiel des
+      // admis (convertisseur PDF→Excel) — le rendre visible pour l'IT.
+      if (data.repaired) {
+        showToast(
+          `Référentiel des admis corrigé : « ${data.repaired.from.firstName} ${data.repaired.from.lastName} » → « ${data.repaired.to.firstName} ${data.repaired.to.lastName} ».`,
+          'info'
+        );
+      }
       setModalOpen(false);
       setDuplicateWarning(null);
       reload();

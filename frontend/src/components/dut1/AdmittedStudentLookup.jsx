@@ -68,8 +68,19 @@ export default function AdmittedStudentLookup({ department, onSelect }) {
                   onClick={() => handleSelect(s)}
                   className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
                 >
-                  <span className="font-medium text-foreground">
-                    {s.first_name} {s.last_name}
+                  <span className="flex w-full items-center justify-between gap-2">
+                    <span className="font-medium text-foreground">
+                      {s.first_name} {s.last_name}
+                    </span>
+                    {/* Résultat trouvé par similarité : l'orthographe du
+                        référentiel diffère de la recherche (nom déformé par la
+                        conversion du fichier officiel ?). L'association
+                        répare ensuite l'orthographe avec ce qui est saisi. */}
+                    {s.matchQuality === 'fuzzy' && (
+                      <span className="shrink-0 rounded bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warning-soft-foreground">
+                        Orthographe à vérifier
+                      </span>
+                    )}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {[
