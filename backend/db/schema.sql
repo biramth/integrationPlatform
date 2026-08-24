@@ -169,8 +169,9 @@ ALTER TABLE users
 -- requireCommissionLeadStrict dans middleware/auth.js et navConfig.js côté
 -- front), mais jamais la gestion des agents ni le journal d'audit : ces deux-là
 -- restent volontairement réservés au vrai chef (requireAgentManagement /
--- requireCommissionLead, non élargis). Seul it peut poser ce drapeau, comme
--- pour is_commission_lead (cf. agentController.js) — pas d'auto-promotion.
+-- requireCommissionLead, non élargis). Le drapeau est posé par it ou par le
+-- chef Orga lui-même sur ses agents (cf. canDelegatePoleLead dans
+-- agentController.js) — pas d'auto-promotion.
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS is_pole_lead BOOLEAN NOT NULL DEFAULT FALSE;
 

@@ -28,6 +28,13 @@ function canManage(requester, targetRole) {
   return !!requester.isCommissionLead && requester.role === targetRole;
 }
 
+// Qui peut nommer/retirer un chef de pôle : it, et le chef Orga au sein de sa
+// propre commission (rôle intermédiaire qu'il délègue à la création/édition de
+// ses agents). Les autres chefs de commission non, ni un simple agent.
+function canDelegatePoleLead(user) {
+  return user.role === 'it' || (!!user.isCommissionLead && user.role === 'orga');
+}
+
 async function listAgents(req, res) {
   const isPrivileged = req.user.role === 'it';
   const agents = isPrivileged
@@ -55,13 +62,16 @@ async function createAgent(req, res) {
   if (subRole && !isValidSubRole(role, subRole)) {
     return res.status(400).json({ error: 'sub_role invalide pour ce rôle.' });
   }
-  // Seul it peut désigner un chef de commission ou de pôle, ou accorder le
-  // droit de réinitialiser la plateforme — un chef de commission ne peut pas
+  // Seul it peut désigner un chef de commission ou accorder le droit de
+  // réinitialiser la plateforme — un chef de commission ne peut pas
   // s'auto-répliquer ni élever les privilèges d'un compte qu'il crée.
+  // Exception : le chef Orga nomme lui-même ses chefs de pôle à la création.
   if (req.user.role !== 'it') {
     isCommissionLead = false;
-    isPoleLead = false;
     canResetPlatform = false;
+    if (!canDelegatePoleLead(req.user)) {
+      isPoleLead = false;
+    }
   }
   // Chef de pôle : rôle intermédiaire propre à Orga (cf. schema.sql) — sans
   // objet pour les autres commissions.
@@ -134,14 +144,17 @@ async function updateAgent(req, res) {
     return res.status(400).json({ error: 'role invalide.' });
   }
   // Un chef de commission ne peut pas changer le rôle d'un agent (ça reviendrait
-  // à le faire changer de commission) ni toucher aux drapeaux de privilège.
+  // à le faire changer de commission). Les drapeaux de privilège restent réservés
+  // à it, sauf is_pole_lead que le chef Orga gère pour ses propres agents.
   if (!isPrivileged) {
     if (role && role !== agent.role) {
       return res.status(403).json({ error: "Seul it peut changer le rôle d'un agent." });
     }
     isCommissionLead = undefined;
-    isPoleLead = undefined;
     canResetPlatform = undefined;
+    if (!canDelegatePoleLead(req.user)) {
+      isPoleLead = undefined;
+    }
   }
 
   const nextRole = role ?? agent.role;

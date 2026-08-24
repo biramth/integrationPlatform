@@ -39,6 +39,10 @@ function subRoleOptions(role) {
 export default function AdminAgentsPage() {
   const { user } = useAuth();
   const isPrivileged = user.role === 'it';
+  // Le chef Orga nomme lui-même ses chefs de pôle à la création/édition de ses
+  // agents ; les autres privilèges (chef de commission, reset plateforme)
+  // restent réservés à it.
+  const canNamePoleLead = isPrivileged || (user.role === ROLES.ORGA && user.isCommissionLead);
   const { showToast } = useToast();
   const roleColors = useRoleColors();
   const { data, loading, error, reload } = useFetch(agentApi.listAgents, []);
@@ -213,17 +217,19 @@ export default function AdminAgentsPage() {
           </div>
         )}
 
-        {isPrivileged && (
+        {(isPrivileged || canNamePoleLead) && (
           <div className="mt-3 flex flex-wrap gap-4">
-            <label className="flex items-center gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={form.isCommissionLead}
-                onChange={(e) => setForm((f) => ({ ...f, isCommissionLead: e.target.checked }))}
-              />
-              Chef de commission (gère les comptes de sa commission)
-            </label>
-            {form.role === 'orga' && (
+            {isPrivileged && (
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={form.isCommissionLead}
+                  onChange={(e) => setForm((f) => ({ ...f, isCommissionLead: e.target.checked }))}
+                />
+                Chef de commission (gère les comptes de sa commission)
+              </label>
+            )}
+            {canNamePoleLead && form.role === 'orga' && (
               <label className="flex items-center gap-2 text-sm text-foreground">
                 <input
                   type="checkbox"
@@ -233,7 +239,7 @@ export default function AdminAgentsPage() {
                 Chef de pôle (supervision comme le chef, sans agents ni audit)
               </label>
             )}
-            {form.role === 'it' && (
+            {isPrivileged && form.role === 'it' && (
               <label className="flex items-center gap-2 text-sm text-foreground">
                 <input
                   type="checkbox"
@@ -289,17 +295,19 @@ export default function AdminAgentsPage() {
                           />
                         )}
                       </div>
-                      {isPrivileged && (
+                      {(isPrivileged || canNamePoleLead) && (
                         <div className="flex flex-wrap gap-4">
-                          <label className="flex items-center gap-2 text-sm text-foreground">
-                            <input
-                              type="checkbox"
-                              checked={!!editForm.isCommissionLead}
-                              onChange={(e) => setEditForm((f) => ({ ...f, isCommissionLead: e.target.checked }))}
-                            />
-                            Chef de commission
-                          </label>
-                          {editForm.role === 'orga' && (
+                          {isPrivileged && (
+                            <label className="flex items-center gap-2 text-sm text-foreground">
+                              <input
+                                type="checkbox"
+                                checked={!!editForm.isCommissionLead}
+                                onChange={(e) => setEditForm((f) => ({ ...f, isCommissionLead: e.target.checked }))}
+                              />
+                              Chef de commission
+                            </label>
+                          )}
+                          {canNamePoleLead && editForm.role === 'orga' && (
                             <label className="flex items-center gap-2 text-sm text-foreground">
                               <input
                                 type="checkbox"
@@ -309,7 +317,7 @@ export default function AdminAgentsPage() {
                               Chef de pôle
                             </label>
                           )}
-                          {editForm.role === 'it' && (
+                          {isPrivileged && editForm.role === 'it' && (
                             <label className="flex items-center gap-2 text-sm text-foreground">
                               <input
                                 type="checkbox"
