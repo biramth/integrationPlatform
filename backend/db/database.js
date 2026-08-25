@@ -14,13 +14,26 @@ types.setTypeParser(20, (val) => parseInt(val, 10));
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.SUPABASE_CA_CERT
-    ? { rejectUnauthorized: true, ca: process.env.SUPABASE_CA_CERT }
-    : { rejectUnauthorized: false },
+  ssl: buildSslConfig(),
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
 });
+
+function buildSslConfig() {
+  const cert = (process.env.SUPABASE_CA_CERT || '').trim();
+  // Accepte le certificat tel quel ou encodé en base64 (utile quand les
+  // retours à la ligne sont corrompus par un gestionnaire d'env vars).
+  if (cert) {
+    const isPem = cert.startsWith('-----BEGIN');
+    const ca = isPem ? cert : Buffer.from(cert, 'base64').toString('utf8');
+    if (ca.startsWith('-----BEGIN')) {
+      return { rejectUnauthorized: true, ca };
+    }
+  }
+  // Pas de certificat ou format inconnu : fallback permissif (comme avant).
+  return { rejectUnauthorized: false };
+}
 
 // pg fait remonter les erreurs des connexions inactives du pool via l'event
 // 'error' — sans handler, Node considère ça comme une exception non gérée et
