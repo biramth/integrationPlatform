@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const db = require('../db/database');
-const { comparePassword } = require('../services/passwordService');
+const { comparePassword, hashPassword } = require('../services/passwordService');
 
 async function login(req, res) {
   const { username, password } = req.body;
@@ -55,4 +55,57 @@ async function me(req, res) {
   });
 }
 
-module.exports = { login, me };
+async function changePassword(req, res) {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Mot de passe actuel et nouveau mot de passe requis.' });
+  }
+
+  // Mêmes règles que agentController : 8+ caractères, au moins une lettre et un chiffre.
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 8 caractères.' });
+  }
+  if (!/[a-zA-Z]/.test(newPassword) || !/\d/.test(newPassword)) {
+    return res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins une lettre et un chiffre.' });
+  }
+  if (currentPassword === newPassword) {
+    return res.status(400).json({ error: 'Le nouveau mot de passe doit être différent de l\'actuel.' });
+  }
+
+  const user = await db.get('SELECT id, password_hash FROM users WHERE id = $1', [req.user.id]);
+  if (!user) {
+    return res.status(404).json({ error: 'Utilisateur introuvable.' });
+  }
+
+  if (!(await comparePassword(currentPassword, user.password_hash))) {
+    return res.status(403).json({ error: 'Le mot de passe actuel est incorrect.' });
+  }
+
+  await db.run(
+    'UPDATE users SET password_hash = $1, token_version = token_version + 1, updated_at = NOW() WHERE id = $2',
+    [await hashPassword(newPassword), req.user.id]
+  );
+
+  // Générer un nouveau token (l'ancien sera rejeté à cause de token_version incrémenté).
+  const fullUser = await db.get(
+    'SELECT * FROM users WHERE id = $1',
+    [req.user.id]
+  );
+  const payload = {
+    id: fullUser.id,
+    fullName: fullUser.full_name,
+    username: fullUser.username,
+    role: fullUser.role,
+    subRole: fullUser.sub_role,
+    isCommissionLead: fullUser.is_commission_lead,
+    isPoleLead: fullUser.is_pole_lead,
+    canResetPlatform: fullUser.can_reset_platform,
+    tokenVersion: fullUser.token_version,
+  };
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '12h' });
+
+  res.json({ token, message: 'Mot de passe modifié avec succès.' });
+}
+
+module.exports = { login, me, changePassword };

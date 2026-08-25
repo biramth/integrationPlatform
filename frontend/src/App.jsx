@@ -35,6 +35,7 @@ const PlanningReadOnlyPage = lazy(() => import('./pages/shared/PlanningReadOnlyP
 const OverviewPage = lazy(() => import('./pages/shared/OverviewPage'));
 const AuditPage = lazy(() => import('./pages/shared/AuditPage'));
 const AdminAuditPage = lazy(() => import('./pages/admin/AuditPage'));
+const AccountPage = lazy(() => import('./pages/AccountPage'));
 
 function App() {
   return (
@@ -184,6 +185,9 @@ function App() {
             <Route element={<RoleRoute roles={['communication']} />}>
               <Route path="/communication/annuaire" element={<DirectoryPage />} />
             </Route>
+
+            {/* Mon compte : accessible à toutes les commissions. */}
+            <Route path="/mon-compte" element={<AccountPage />} />
           </Route>
         </Route>
 

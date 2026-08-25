@@ -19,6 +19,7 @@ import {
   Pill,
   HeartPulse,
   Clock,
+  User,
 } from 'lucide-react';
 import { ROLES } from '../../utils/roles';
 
@@ -102,6 +103,8 @@ const SANTE_CRITERIA_ITEM = { to: '/sante/criteres', label: "Critères d'aptitud
 // chef peut vouloir voir qui a touché à son menu/planning/activités.
 const AUDIT_ITEM = { to: '/audit', label: "Journal d'audit", icon: ScrollText };
 
+const ACCOUNT_ITEM = { to: '/mon-compte', label: 'Mon compte', icon: User };
+
 // settings vient de GET /platform-settings (cf. platformSettingsApi.js) :
 // { registration, phase2, luggage, logistics }, chacun true/false. Absent
 // (page pas encore chargée) = traité comme activé, pour ne pas faire
@@ -150,7 +153,7 @@ export function getNavItems(user, settings) {
           ...(luggageEnabled ? ORGA_ITEMS.bagages : []),
           ...(logisticsEnabled ? ORGA_ITEMS.chambres : []),
         ];
-    return [...scoped, RISKS_ITEM, PLANNING_ITEM, ...leadItems];
+    return [...scoped, RISKS_ITEM, PLANNING_ITEM, ...leadItems, ACCOUNT_ITEM];
   }
   if (user.role === ROLES.SANTE) {
     // Contrairement aux autres commissions, le chef Santé garde ses onglets
@@ -167,9 +170,9 @@ export function getNavItems(user, settings) {
       : user.subRole
       ? (user.subRole === 'phase2' && !phase2Enabled ? [] : SANTE_ITEMS[user.subRole] || [])
       : [...SANTE_ITEMS.suivi, ...(phase2Enabled ? SANTE_ITEMS.phase2 : []), ...SANTE_ITEMS.medoc];
-    return [...scoped, PLANNING_ITEM, ...leadItems];
+    return [...scoped, PLANNING_ITEM, ...leadItems, ACCOUNT_ITEM];
   }
-  return [...(NAV_ITEMS[user.role] || []), ...leadItems];
+  return [...(NAV_ITEMS[user.role] || []), ...leadItems, ACCOUNT_ITEM];
 }
 
 export const NAV_ITEMS = {
