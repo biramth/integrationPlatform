@@ -3,7 +3,9 @@ import axiosClient from './axiosClient';
 export function getOverview() {
   return axiosClient.get('/stats/overview').then((res) => res.data);
 }
-
+export function getHealthOverview() {
+  return axiosClient.get('/stats/health-overview').then((res) => res.data);
+}
 export function getByDepartment() {
   return axiosClient.get('/stats/by-department').then((res) => res.data);
 }

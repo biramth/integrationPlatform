@@ -94,8 +94,50 @@ async function allergyPrevalence(req, res) {
   res.json({ rows: rows.map((r) => ({ ...r, count: Number(r.count) })) });
 }
 
+// Tableau de bord santé : stats exclusivement médicales, séparées des stats
+// générales (overview) réservées à Orga/Présidentielle.
+async function healthOverview(req, res) {
+  const total = Number((await db.get('SELECT COUNT(*) AS n FROM dut1_records')).n);
+  const complementaryDone = Number(
+    (await db.get('SELECT COUNT(*) AS n FROM dut1_records WHERE complementary_completed_at IS NOT NULL')).n
+  );
+  const activeRestrictions = Number(
+    (await db.get('SELECT COUNT(*) AS n FROM health_restrictions WHERE resolved_at IS NULL')).n
+  );
+  const onTreatment = Number(
+    (await db.get('SELECT COUNT(*) AS n FROM dut1_records WHERE on_treatment = TRUE')).n
+  );
+  const withAllergies = Number(
+    (await db.get('SELECT COUNT(DISTINCT dut1_id) AS n FROM dut1_allergens')).n
+  );
+  const totalAllergens = Number(
+    (await db.get('SELECT COUNT(*) AS n FROM allergens')).n
+  );
+  const activeTreatments = Number(
+    (
+      await db.get(
+        `SELECT COUNT(*) AS n FROM dut1_treatments
+         WHERE start_date <= to_char(CURRENT_DATE, 'YYYY-MM-DD')
+           AND (end_date IS NULL OR end_date >= to_char(CURRENT_DATE, 'YYYY-MM-DD'))`
+      )
+    ).n
+  );
+
+  res.json({
+    total,
+    complementaryDone,
+    complementaryPending: total - complementaryDone,
+    activeRestrictions,
+    onTreatment,
+    activeTreatments,
+    withAllergies,
+    totalAllergens,
+  });
+}
+
 module.exports = {
   overview,
+  healthOverview,
   byDepartment,
   byGender,
   roomsOccupancy,

@@ -1,7 +1,6 @@
 import { HeartPulse, Pill, Boxes, ClipboardCheck } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as statsApi from '../../api/statsApi';
-import { getActiveRestrictions, getOnTreatment } from '../../api/healthApi';
 import { listMedications } from '../../api/medicationApi';
 import StatCard from '../../components/stats/StatCard';
 import IllnessTrendChart from '../../components/stats/IllnessTrendChart';
@@ -20,15 +19,13 @@ import { staggerStyle } from '../../utils/stagger';
 // plateforme. On ajoute le taux de complétion des dossiers médicaux pour
 // que Santé voie combien de DUT1 ont encore besoin d'un suivi.
 export default function SanteOverviewPage() {
-  const overview = useFetch(statsApi.getOverview, []);
+  const overview = useFetch(statsApi.getHealthOverview, []);
   const illnessTrend = useFetch(statsApi.getIllnessTrend, []);
   const allergyPrevalence = useFetch(statsApi.getAllergyPrevalence, []);
-  const activeRestrictions = useFetch(getActiveRestrictions, []);
-  const onTreatment = useFetch(getOnTreatment, []);
   const medications = useFetch(listMedications, []);
 
-  const loading = overview.loading || illnessTrend.loading || allergyPrevalence.loading || activeRestrictions.loading || onTreatment.loading;
-  const error = overview.error || illnessTrend.error || allergyPrevalence.error || activeRestrictions.error || onTreatment.error;
+  const loading = overview.loading || illnessTrend.loading || allergyPrevalence.loading;
+  const error = overview.error || illnessTrend.error || allergyPrevalence.error;
 
   if (error) return <ErrorState label={error} onRetry={() => window.location.reload()} />;
 
@@ -58,8 +55,8 @@ export default function SanteOverviewPage() {
             <div className="animate-fade-in-up" style={staggerStyle(1)}>
               <StatCard
                 label="Restrictions actives"
-                value={activeRestrictions.data.restrictions.length}
-                sublabel={activeRestrictions.data.restrictions.length > 0 ? 'à suivre' : 'aucune'}
+                value={o.activeRestrictions}
+                sublabel={o.activeRestrictions > 0 ? 'à suivre' : 'aucune'}
                 icon={HeartPulse}
                 tone="rose"
               />
@@ -67,17 +64,17 @@ export default function SanteOverviewPage() {
             <div className="animate-fade-in-up" style={staggerStyle(2)}>
               <StatCard
                 label="Sous traitement"
-                value={onTreatment.data.dut1.length}
-                sublabel={onTreatment.data.dut1.length > 0 ? 'à suivre' : 'aucun'}
+                value={o.activeTreatments}
+                sublabel={o.activeTreatments > 0 ? 'à suivre' : 'aucun'}
                 icon={Pill}
                 tone="amber"
               />
             </div>
             <div className="animate-fade-in-up" style={staggerStyle(3)}>
               <StatCard
-                label="Total DUT1"
-                value={o.total}
-                sublabel="dossiers suivis"
+                label="Allergies déclarées"
+                value={o.withAllergies}
+                sublabel={`${o.totalAllergens} allergène${o.totalAllergens > 1 ? 's' : ''} configuré${o.totalAllergens > 1 ? 's' : ''}`}
                 icon={HeartPulse}
                 tone="blue"
               />

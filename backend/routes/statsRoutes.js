@@ -12,9 +12,10 @@ router.use(verifyToken);
 // allergy-prevalence) restent réservées à Santé, cf. principe "le médical reste
 // médical". Cuisine, Culturelle et Communication n'ont pas de tableau de bord :
 // rien à y voir.
-const OVERVIEW_ROLES = ['orga', 'presidentielle', 'sante'];
+const OVERVIEW_ROLES = ['orga', 'presidentielle'];
 
 router.get('/overview', requireRole(...OVERVIEW_ROLES), statsController.overview);
+router.get('/health-overview', requireRole('sante'), requireSanteScope('suivi', { allowLead: true }), statsController.healthOverview);
 router.get('/by-department', requireRole(...OVERVIEW_ROLES), statsController.byDepartment);
 router.get('/by-gender', requireRole(...OVERVIEW_ROLES), statsController.byGender);
 // Le sous-rôle Orga "chambres" ne configure plus les chambres (cf.
