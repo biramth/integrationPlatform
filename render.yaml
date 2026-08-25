@@ -41,8 +41,6 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: SUPABASE_CA_CERT
-        sync: false
     # migrate.js (CREATE TABLE IF NOT EXISTS) et seed.js (INSERT ... ON CONFLICT
     # DO NOTHING) sont tous les deux idempotents : les relancer à chaque
     # déploiement est sans danger et ne touche jamais aux données réelles déjà

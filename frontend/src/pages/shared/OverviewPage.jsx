@@ -26,7 +26,7 @@ export default function OverviewPage() {
 
   if (error) return <ErrorState label={error} onRetry={() => window.location.reload()} />;
 
-  const o = overview.data;
+  const o = overview.data || {};
   const medicalRate = o.total > 0 ? ((o.complementaryDone / o.total) * 100).toFixed(0) : 0;
 
   return (
