@@ -117,8 +117,8 @@ async function healthOverview(req, res) {
     (
       await db.get(
         `SELECT COUNT(*) AS n FROM dut1_treatments
-         WHERE start_date <= to_char(CURRENT_DATE, 'YYYY-MM-DD')
-           AND (end_date IS NULL OR end_date >= to_char(CURRENT_DATE, 'YYYY-MM-DD'))`
+         WHERE start_date <= CURRENT_DATE
+           AND (end_date IS NULL OR end_date >= CURRENT_DATE)`
       )
     ).n
   );
