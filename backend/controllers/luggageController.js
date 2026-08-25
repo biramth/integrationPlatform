@@ -1,6 +1,35 @@
+const sharp = require('sharp');
 const db = require('../db/database');
 const storage = require('../services/storageService');
 const auditService = require('../services/auditService');
+
+const MAX_DIMENSION = 1920;
+const JPEG_QUALITY = 80;
+
+async function compressImage(file) {
+  // Si c'est déjà un JPEG petit (< 500 KB) et peu dimensionné, on ne touche à rien.
+  const isSmallJpeg = file.mimetype === 'image/jpeg' && file.buffer.length < 500 * 1024;
+  if (isSmallJpeg) return file;
+
+  const metadata = await sharp(file.buffer).metadata();
+  const needsResize = (metadata.width || 0) > MAX_DIMENSION || (metadata.height || 0) > MAX_DIMENSION;
+
+  let pipeline = sharp(file.buffer);
+  if (needsResize) {
+    pipeline = pipeline.resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true });
+  }
+  const compressed = await pipeline.jpeg({ quality: JPEG_QUALITY, mozjpeg: true }).toBuffer();
+
+  // On garde le buffer original si la compression n'a rien gagné.
+  if (compressed.length >= file.buffer.length) return file;
+
+  return {
+    ...file,
+    buffer: compressed,
+    mimetype: 'image/jpeg',
+    originalname: file.originalname.replace(/\.[^.]+$/, '.jpg'),
+  };
+}
 
 async function createLuggageItem(req, res) {
   const { id } = req.params;
@@ -15,7 +44,8 @@ async function createLuggageItem(req, res) {
   }
 
   const isSensitive = req.body.isSensitive === 'true' || req.body.isSensitive === '1';
-  const objectPath = await storage.uploadLuggagePhoto(id, req.file);
+  const photo = await compressImage(req.file);
+  const objectPath = await storage.uploadLuggagePhoto(id, photo);
 
   const result = await db.run(
     `INSERT INTO luggage_items (dut1_id, file_path, original_name, is_sensitive, sensitive_note, uploaded_by)

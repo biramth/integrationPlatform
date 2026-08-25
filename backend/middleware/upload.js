@@ -7,10 +7,12 @@ function fileFilter(req, file, cb) {
   cb(null, true);
 }
 
+// Limite à 5 MB côté client/multer — la compression sharp en amont
+// (luggageController) réduit typiquement un photo 10 MB en ~300-800 KB JPEG.
 const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
 module.exports = { upload };

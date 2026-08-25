@@ -36,6 +36,7 @@ const OverviewPage = lazy(() => import('./pages/shared/OverviewPage'));
 const AuditPage = lazy(() => import('./pages/shared/AuditPage'));
 const AdminAuditPage = lazy(() => import('./pages/admin/AuditPage'));
 const AccountPage = lazy(() => import('./pages/AccountPage'));
+const PresidentielleOverviewPage = lazy(() => import('./pages/presidentielle/OverviewPage'));
 
 function App() {
   return (
@@ -116,7 +117,7 @@ function App() {
             </Route>
 
             <Route element={<RoleRoute roles={['presidentielle']} />}>
-              <Route path="/presidentielle" element={<OverviewPage />} />
+              <Route path="/presidentielle" element={<PresidentielleOverviewPage />} />
               <Route path="/presidentielle/annuaire" element={<DirectoryPage />} />
             </Route>
 

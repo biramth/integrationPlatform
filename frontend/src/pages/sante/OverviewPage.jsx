@@ -1,4 +1,4 @@
-import { HeartPulse, Pill, Boxes } from 'lucide-react';
+import { HeartPulse, Pill, Boxes, ClipboardCheck } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as statsApi from '../../api/statsApi';
 import { getActiveRestrictions, getOnTreatment } from '../../api/healthApi';
@@ -17,32 +17,45 @@ import { staggerStyle } from '../../utils/stagger';
 // (tendance des maladies, prévalence des allergies, restrictions actives) sont
 // justement ce qui reste hors de portée des autres tableaux de bord — cf. le
 // principe "le médical reste médical" appliqué partout ailleurs sur la
-// plateforme (annuaire Communication/Présidentielle, vue d'ensemble Orga…).
+// plateforme. On ajoute le taux de complétion des dossiers médicaux pour
+// que Santé voie combien de DUT1 ont encore besoin d'un suivi.
 export default function SanteOverviewPage() {
+  const overview = useFetch(statsApi.getOverview, []);
   const illnessTrend = useFetch(statsApi.getIllnessTrend, []);
   const allergyPrevalence = useFetch(statsApi.getAllergyPrevalence, []);
   const activeRestrictions = useFetch(getActiveRestrictions, []);
   const onTreatment = useFetch(getOnTreatment, []);
   const medications = useFetch(listMedications, []);
 
-  const loading = illnessTrend.loading || allergyPrevalence.loading || activeRestrictions.loading || onTreatment.loading;
-  const error = illnessTrend.error || allergyPrevalence.error || activeRestrictions.error || onTreatment.error;
+  const loading = overview.loading || illnessTrend.loading || allergyPrevalence.loading || activeRestrictions.loading || onTreatment.loading;
+  const error = overview.error || illnessTrend.error || allergyPrevalence.error || activeRestrictions.error || onTreatment.error;
 
   if (error) return <ErrorState label={error} onRetry={() => window.location.reload()} />;
+
+  const o = overview.data;
+  const medicalRate = o.total > 0 ? ((o.complementaryDone / o.total) * 100).toFixed(0) : 0;
 
   return (
     <div>
       <PageHeader eyebrow="Vue d'ensemble" title="Tableau de bord" />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {loading ? (
           <>
-            <StatCardSkeleton />
-            <StatCardSkeleton />
+            <StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton />
           </>
         ) : (
           <>
             <div className="animate-fade-in-up" style={staggerStyle(0)}>
+              <StatCard
+                label="Dossier médical"
+                value={`${medicalRate}%`}
+                sublabel={<span className={o.complementaryPending > 0 ? 'font-medium text-warning-soft-foreground' : undefined}>{o.complementaryPending} en attente</span>}
+                icon={ClipboardCheck}
+                tone="violet"
+              />
+            </div>
+            <div className="animate-fade-in-up" style={staggerStyle(1)}>
               <StatCard
                 label="Restrictions actives"
                 value={activeRestrictions.data.restrictions.length}
@@ -51,7 +64,7 @@ export default function SanteOverviewPage() {
                 tone="rose"
               />
             </div>
-            <div className="animate-fade-in-up" style={staggerStyle(1)}>
+            <div className="animate-fade-in-up" style={staggerStyle(2)}>
               <StatCard
                 label="Sous traitement"
                 value={onTreatment.data.dut1.length}
@@ -60,18 +73,27 @@ export default function SanteOverviewPage() {
                 tone="amber"
               />
             </div>
+            <div className="animate-fade-in-up" style={staggerStyle(3)}>
+              <StatCard
+                label="Total DUT1"
+                value={o.total}
+                sublabel="dossiers suivis"
+                icon={HeartPulse}
+                tone="blue"
+              />
+            </div>
           </>
         )}
       </div>
 
       {!loading && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 animate-fade-in-up" style={staggerStyle(2)}>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 animate-fade-in-up" style={staggerStyle(4)}>
           <IllnessTrendChart rows={illnessTrend.data.rows} />
           <AllergyPrevalenceChart rows={allergyPrevalence.data.rows} />
         </div>
       )}
 
-      <div className="mt-4 animate-fade-in-up" style={staggerStyle(3)}>
+      <div className="mt-4 animate-fade-in-up" style={staggerStyle(5)}>
         <Card>
           <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
             <Boxes className="h-4 w-4 text-muted-foreground" /> Stock de médicaments

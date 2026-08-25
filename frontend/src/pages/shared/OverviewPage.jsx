@@ -1,4 +1,4 @@
-import { Users, DoorOpen, Luggage, Home } from 'lucide-react';
+import { Users, DoorOpen, Luggage, Home, ClipboardCheck, HeartPulse } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as statsApi from '../../api/statsApi';
 import StatCard from '../../components/stats/StatCard';
@@ -11,13 +11,10 @@ import { ErrorState } from '../../components/common/StateViews';
 import { StatCardSkeleton } from '../../components/common/Skeleton';
 import { staggerStyle } from '../../utils/stagger';
 
-// Vue d'ensemble non-médicale, partagée par les chefs des commissions Orga et
-// Présidentielle : mêmes chiffres globaux que le tableau de bord IT (total
-// DUT1, chambres, bagages, répartitions), sans les statistiques médicales
-// (tendance des maladies, prévalence des allergies) — celles-ci restent
-// réservées à la commission Santé (voir sante/OverviewPage.jsx), cf. le
-// principe "le médical reste médical". Cuisine, Culturelle et Communication
-// n'ont pas de tableau de bord équivalent : rien de pertinent à y afficher.
+// Vue d'ensemble non-médicale partagée par les chefs des commissions Orga
+// et Présidentielle — statistiques globales (DUT1, chambres, bagages,
+// complétion médicale, restrictions actives) sans les graphiques médicaux
+// détaillés (tendance maladies, prévalence allergies) réservés à Santé.
 export default function OverviewPage() {
   const overview = useFetch(statsApi.getOverview, []);
   const byDepartment = useFetch(statsApi.getByDepartment, []);
@@ -30,17 +27,17 @@ export default function OverviewPage() {
   if (error) return <ErrorState label={error} onRetry={() => window.location.reload()} />;
 
   const o = overview.data;
+  const medicalRate = o.total > 0 ? ((o.complementaryDone / o.total) * 100).toFixed(0) : 0;
 
   return (
     <div>
       <PageHeader eyebrow="Vue d'ensemble" title="Tableau de bord" />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {loading ? (
           <>
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-            <StatCardSkeleton />
+            <StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton />
+            <StatCardSkeleton /><StatCardSkeleton />
           </>
         ) : (
           <>
@@ -73,13 +70,35 @@ export default function OverviewPage() {
                 tone="amber"
               />
             </div>
+            <div className="animate-fade-in-up" style={staggerStyle(3)}>
+              <StatCard
+                label="Dossier médical"
+                value={`${medicalRate}%`}
+                sublabel={
+                  <span className={o.complementaryPending > 0 ? 'font-medium text-warning-soft-foreground' : undefined}>
+                    {o.complementaryPending} en attente
+                  </span>
+                }
+                icon={ClipboardCheck}
+                tone="violet"
+              />
+            </div>
+            <div className="animate-fade-in-up" style={staggerStyle(4)}>
+              <StatCard
+                label="Restrictions actives"
+                value={o.activeRestrictions}
+                sublabel={o.activeRestrictions > 0 ? 'à suivre' : 'aucune'}
+                icon={HeartPulse}
+                tone="rose"
+              />
+            </div>
           </>
         )}
       </div>
 
       {!loading && (
         <>
-          <Card interactive className="mb-6 animate-fade-in-up" style={staggerStyle(3)}>
+          <Card interactive className="mb-6 animate-fade-in-up" style={staggerStyle(5)}>
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="mb-1 text-sm font-semibold text-foreground">Occupation des chambres</p>
@@ -95,7 +114,7 @@ export default function OverviewPage() {
             <Progress value={Math.min(occupancy.data.occupancyRate, 100)} className="mt-3 h-2" />
           </Card>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 animate-fade-in-up" style={staggerStyle(4)}>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 animate-fade-in-up" style={staggerStyle(6)}>
             <DepartmentBarChart rows={byDepartment.data.rows} />
             <GenderPieChart rows={byGender.data.rows} />
           </div>
