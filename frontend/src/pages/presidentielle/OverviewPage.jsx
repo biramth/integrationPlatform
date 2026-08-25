@@ -105,6 +105,11 @@ export default function PresidentielleOverviewPage() {
                 <p className="text-xs text-muted-foreground">
                   {occupancy.data.totalOccupied} / {occupancy.data.totalCapacity} places occupées
                 </p>
+                {occupancy.data.overloadedCount > 0 && (
+                  <p className="mt-1 text-xs font-medium text-rose-600 dark:text-rose-400">
+                    {occupancy.data.overloadedCount} chambre{occupancy.data.overloadedCount > 1 ? 's' : ''} surchargée{occupancy.data.overloadedCount > 1 ? 's' : ''}
+                  </p>
+                )}
               </div>
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-info/20 to-info/5 text-info shadow-soft transition-transform duration-150 group-hover:scale-110">
                 <Home className="h-4.5 w-4.5" size={18} strokeWidth={2} />

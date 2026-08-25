@@ -52,14 +52,20 @@ async function roomsOccupancy(req, res) {
      ORDER BY r.label`
   );
 
-  const normalized = rooms.map((r) => ({ ...r, occupied: Number(r.occupied) }));
+  const normalized = rooms.map((r) => ({
+    ...r,
+    occupied: Number(r.occupied),
+    overloaded: Number(r.occupied) > r.capacity,
+  }));
   const totalCapacity = normalized.reduce((sum, r) => sum + r.capacity, 0);
   const totalOccupied = normalized.reduce((sum, r) => sum + r.occupied, 0);
+  const overloadedCount = normalized.filter((r) => r.overloaded).length;
 
   res.json({
     rooms: normalized,
     totalCapacity,
     totalOccupied,
+    overloadedCount,
     occupancyRate: totalCapacity ? Number(((totalOccupied / totalCapacity) * 100).toFixed(1)) : 0,
   });
 }
