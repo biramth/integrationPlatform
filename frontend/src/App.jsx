@@ -129,11 +129,18 @@ function App() {
               <Route path="/admin/activites" element={<ActivitiesPage />} />
             </Route>
 
-            {/* Menu du jour : tout agent Cuisine peut consulter, seul le chef
-                crée/modifie (canEdit dans MenuPage). Le chef Orga/de pôle y a
-                accès aussi (délégation opérationnelle pour la config plats). */}
-            <Route element={<RoleRoute roles={['cuisine', 'orga']} />}>
+            {/* Menu du jour — cuisine : tout agent cuisine peut consulter,
+                seul le chef crée/modifie (canEdit dans MenuPage). */}
+            <Route element={<RoleRoute roles={['cuisine']} />}>
               <Route path="/cuisine/menu" element={<MenuPage />} />
+            </Route>
+
+            {/* Menu du jour — orga : le chef Orga/de pôle configure les plats
+                (délégation opérationnelle). Route séparée de /cuisine/menu
+                pour une séparation claire des commissions et un audit trail
+                correct. */}
+            <Route element={<RoleRoute roles={['orga']} requireLead />}>
+              <Route path="/orga/menu" element={<MenuPage />} />
             </Route>
 
             {/* Risques du jour, Suivi santé et Traitements restent le travail

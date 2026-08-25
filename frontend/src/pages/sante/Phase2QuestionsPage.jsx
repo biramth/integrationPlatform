@@ -240,7 +240,7 @@ export default function Phase2QuestionsPage() {
   return (
     <div>
       <PageHeader
-        title="Questionnaire phase 2"
+        title="Questionnaire dossier médical"
         description="Le questionnaire complet posé au complément de dossier des DUT1, dans l'ordre où il apparaît aux agents — réordonner, modifier ou ajouter une question ci-dessous."
         action={
           editingId === null && (

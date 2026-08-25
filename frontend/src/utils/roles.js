@@ -83,7 +83,7 @@ export const SANTE_SUB_ROLES = {
 
 export const SANTE_SUB_ROLE_LABELS = {
   [SANTE_SUB_ROLES.SUIVI]: 'Suivi santé',
-  [SANTE_SUB_ROLES.PHASE2]: 'Phase 2 (complément de dossier)',
+  [SANTE_SUB_ROLES.PHASE2]: 'Dossier médical',
   [SANTE_SUB_ROLES.MEDOC]: 'Gestion des médicaments',
 };
 

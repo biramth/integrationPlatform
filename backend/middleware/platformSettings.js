@@ -2,7 +2,7 @@ const { getSetting } = require('../services/platformSettingsService');
 
 const DISABLED_MESSAGES = {
   registration: "L'enregistrement des DUT1 est désactivé pour cette édition.",
-  phase2: 'Le complément de dossier (phase 2) est désactivé pour cette édition.',
+  phase2: 'Le dossier médical est désactivé pour cette édition.',
   luggage: 'La photographie et le comptage des bagages sont désactivés pour cette édition.',
   logistics: 'La livraison des bagages en chambre est désactivée pour cette édition.',
 };

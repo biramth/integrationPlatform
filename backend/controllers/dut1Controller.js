@@ -3,6 +3,7 @@ const { DEPARTMENTS, DEPARTMENT_LABELS } = require('../constants/departments');
 const { autoAssignRoom, getHistoryForDut1 } = require('../services/roomAssignmentService');
 const auditService = require('../services/auditService');
 const { getSetting } = require('../services/platformSettingsService');
+const storage = require('../services/storageService');
 const { validateTreatmentPayload } = require('./treatmentController');
 const { normalizeName, namesSimilar } = require('../utils/fuzzyNames');
 
@@ -93,6 +94,21 @@ function validateBasicPayload(body) {
       return `Le champ ${field} est requis.`;
     }
   }
+  // Longueurs max raisonnables : empêche les payloads géants sans casser
+  // la variabilité réelle des noms, lieux, adresses, etc.
+  const MAX_LEN = 500;
+  for (const field of ['lastName', 'firstName', 'birthPlace', 'address']) {
+    if (body[field] && body[field].length > MAX_LEN) {
+      return `Le champ ${field} ne peut dépasser ${MAX_LEN} caractères.`;
+    }
+  }
+  if (body.phoneNumber && body.phoneNumber.length > 30) {
+    return 'Le numéro de téléphone ne peut dépasser 30 caractères.';
+  }
+  // Format date de naissance : YYYY-MM-DD
+  if (body.birthDate && !/^\d{4}-\d{2}-\d{2}$/.test(body.birthDate)) {
+    return 'birthDate doit être au format YYYY-MM-DD.';
+  }
   if (!['M', 'F'].includes(body.gender)) {
     return 'gender doit être M ou F.';
   }
@@ -102,6 +118,12 @@ function validateBasicPayload(body) {
   const contacts = normalizeEmergencyContacts(body.emergencyContacts);
   if (!contacts || !contacts.some((c) => c.phone)) {
     return 'Au moins un numéro à contacter en cas d\'urgence (emergencyContacts) est requis.';
+  }
+  // Validation format des téléphones d'urgence (si fournis)
+  for (const c of contacts) {
+    if (c.phone && !/^\+?[\d\s\-()]{7,30}$/.test(c.phone)) {
+      return `Numéro de téléphone invalide : "${c.phone}". Format attendu : +XXX XXX XXX.`;
+    }
   }
   return null;
 }
@@ -344,7 +366,7 @@ async function listRecords(req, res) {
 const CSV_HEADER = [
   'ID', 'N° étudiant', 'Nom', 'Prénom', 'Naissance', 'Lieu', 'Genre', 'Téléphone',
   'Département', "Contacts d'urgence", 'Adresse', 'Chambre',
-  'Bagages déclarés', 'Phase 2',
+  'Bagages déclarés', 'Médical',
 ];
 
 function csvEscape(value) {
@@ -384,7 +406,7 @@ async function exportRecordsCsv(req, res) {
     action: 'dut1.export_csv',
     resourceType: 'dut1_record',
     resourceLabel: `${records.length} dossiers exportés`,
-    commission: 'orga',
+    commission: 'it',
     after: { count: records.length, filters: req.query },
   });
 
@@ -415,7 +437,7 @@ async function exportContactsCsv(req, res) {
     action: 'dut1.export_contacts_csv',
     resourceType: 'dut1_record',
     resourceLabel: `${records.length} contacts exportés`,
-    commission: 'orga',
+    commission: 'it',
     after: { count: records.length, filters: req.query },
   });
 
@@ -524,7 +546,7 @@ async function updateRecord(req, res) {
     resourceType: 'dut1_record',
     resourceId: id,
     resourceLabel: `${record.first_name} ${record.last_name}`,
-    commission: 'orga',
+    commission: 'it',
     before: existing,
     after: record,
   });
@@ -569,7 +591,7 @@ async function deleteRecord(req, res) {
     if (hasDependents) {
       return res.status(409).json({
         error:
-          "Ce dossier a déjà été complété par une autre commission (phase 2 Santé, bagages, allergies ou suivi santé) : il ne peut plus être supprimé que par la commission IT.",
+          "Ce dossier a déjà été complété par une autre commission (dossier médical Santé, bagages, allergies ou suivi santé) : il ne peut plus être supprimé que par la commission IT.",
       });
     }
   } else if (hasDependents && req.query.confirm !== 'true') {
@@ -584,6 +606,19 @@ async function deleteRecord(req, res) {
       requiresConfirmation: true,
       impact,
     });
+  }
+
+  // Nettoyage des fichiers Supabase Storage avant la suppression en cascade :
+  // la cascade DB supprime les lignes luggage_items mais pas les fichiers
+  // physiques dans le bucket. On best-effort (une erreur de storage ne doit
+  // pas bloquer la suppression du dossier).
+  const luggageFiles = await db.all('SELECT file_path FROM luggage_items WHERE dut1_id = $1 AND file_path IS NOT NULL', [id]);
+  for (const { file_path } of luggageFiles) {
+    try {
+      await storage.deleteLuggagePhoto(file_path);
+    } catch {
+      // Log mais ne bloque pas — le fichier orphelin sera nettoyé manuellement si besoin.
+    }
   }
 
   await db.run('DELETE FROM dut1_records WHERE id = $1', [id]);
@@ -731,7 +766,7 @@ async function completeComplementary(req, res) {
   // mais une correction par le chef, potentiellement bien après coup, n'a pas
   // à en dépendre : seule la toute première complétion respecte l'interrupteur.
   if (!isCorrection && !(await getSetting('phase2'))) {
-    return res.status(403).json({ error: 'Le complément de dossier (phase 2) est désactivé pour cette édition.' });
+    return res.status(403).json({ error: 'Le dossier médical est désactivé pour cette édition.' });
   }
 
   const extraFields = req.body.extraFields || {};

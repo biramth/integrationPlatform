@@ -53,8 +53,11 @@ async function createAgent(req, res) {
   if (!ROLES.includes(role)) {
     return res.status(400).json({ error: 'role invalide.' });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères.' });
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' });
+  }
+  if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
+    return res.status(400).json({ error: 'Le mot de passe doit contenir au moins une lettre et un chiffre.' });
   }
   if (!canManage(req.user, role)) {
     return res.status(403).json({ error: "La création d'un compte n'est possible que pour sa propre commission." });
@@ -89,7 +92,7 @@ async function createAgent(req, res) {
       [
         fullName,
         username,
-        hashPassword(password),
+        await hashPassword(password),
         role,
         SUB_ROLES_BY_ROLE[role] ? subRole || null : null,
         !!isCommissionLead,
@@ -170,9 +173,19 @@ async function updateAgent(req, res) {
   // objet pour les autres commissions, y compris si le rôle change en cours de route.
   const nextIsPoleLead = nextRole === 'orga' && (isPoleLead !== undefined ? !!isPoleLead : agent.is_pole_lead);
 
+  // Si les privilèges changent (rôle, chef de commission, reset plateforme),
+  // on invalide les tokens existants pour forcer la reconnexion.
+  const privilegesChanged =
+    (role && role !== agent.role) ||
+    (isCommissionLead !== undefined && !!isCommissionLead !== agent.is_commission_lead) ||
+    (canResetPlatform !== undefined && !!canResetPlatform !== agent.can_reset_platform) ||
+    (isPoleLead !== undefined && !!isPoleLead !== agent.is_pole_lead);
+
   await db.run(
     `UPDATE users SET full_name = $1, role = $2, is_active = $3, sub_role = $4,
-       is_commission_lead = $5, is_pole_lead = $6, can_reset_platform = $7, updated_at = NOW() WHERE id = $8`,
+       is_commission_lead = $5, is_pole_lead = $6, can_reset_platform = $7,
+       token_version = ${privilegesChanged ? 'token_version + 1' : 'token_version'},
+       updated_at = NOW() WHERE id = $8`,
     [
       fullName ?? agent.full_name,
       nextRole,
@@ -204,8 +217,11 @@ async function resetPassword(req, res) {
   const { id } = req.params;
   const { password } = req.body;
 
-  if (!password || password.length < 6) {
-    return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères.' });
+  if (!password || password.length < 8) {
+    return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' });
+  }
+  if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
+    return res.status(400).json({ error: 'Le mot de passe doit contenir au moins une lettre et un chiffre.' });
   }
 
   const agent = await db.get('SELECT role, full_name, username FROM users WHERE id = $1', [id]);
@@ -216,7 +232,7 @@ async function resetPassword(req, res) {
     return res.status(403).json({ error: "La gestion des comptes n'est possible que pour sa propre commission." });
   }
 
-  await db.run(`UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [hashPassword(password), id]);
+  await db.run(`UPDATE users SET password_hash = $1, token_version = token_version + 1, updated_at = NOW() WHERE id = $2`, [await hashPassword(password), id]);
 
   // before/after volontairement vides : jamais le secret lui-même dans le journal.
   await auditService.logAction(req, {
@@ -240,7 +256,7 @@ async function deactivateAgent(req, res) {
     return res.status(403).json({ error: "La gestion des comptes n'est possible que pour sa propre commission." });
   }
 
-  await db.run(`UPDATE users SET is_active = FALSE, updated_at = NOW() WHERE id = $1`, [id]);
+  await db.run(`UPDATE users SET is_active = FALSE, token_version = token_version + 1, updated_at = NOW() WHERE id = $1`, [id]);
 
   await auditService.logAction(req, {
     action: 'agent.deactivate',

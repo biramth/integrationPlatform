@@ -89,7 +89,7 @@ const OVERVIEW_ITEM_BY_ROLE = {
 
 // Le chef de la commission Santé configure lui-même les questions posées en
 // phase 2 (complément de dossier) — pas d'utilité pour les autres commissions.
-const SANTE_QUESTIONS_ITEM = { to: '/sante/questions-phase2', label: 'Questions phase 2', icon: ListChecks };
+const SANTE_QUESTIONS_ITEM = { to: '/sante/questions-phase2', label: 'Questions dossier médical', icon: ListChecks };
 
 // Idem pour les critères d'aptitude physique exigés par activité (cf.
 // AptitudeCriteriaPage.jsx) — Risques du jour croise ensuite automatiquement
@@ -125,7 +125,7 @@ export function getNavItems(user, settings) {
     ...(isLead && OVERVIEW_ITEM_BY_ROLE[user.role] ? [OVERVIEW_ITEM_BY_ROLE[user.role]] : []),
     ...(user.isCommissionLead && user.role === ROLES.SANTE ? [SANTE_QUESTIONS_ITEM, SANTE_CRITERIA_ITEM] : []),
     ...(isLead && user.role === ROLES.ORGA ? [ORGA_ROOMS_ADMIN_ITEM, ORGA_DIRECTORY_ITEM] : []),
-    ...(isLead && user.role === ROLES.ORGA ? [{ to: '/cuisine/menu', label: 'Menu du jour', icon: UtensilsCrossed }] : []),
+    ...(isLead && user.role === ROLES.ORGA ? [{ to: '/orga/menu', label: 'Menu du jour', icon: UtensilsCrossed }] : []),
     ...(user.isCommissionLead ? [AUDIT_ITEM] : []),
   ];
   // Le chef de commission (et le chef de pôle, pour Orga) supervise, il

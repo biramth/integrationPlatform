@@ -11,7 +11,7 @@ async function login(req, res) {
 
   const user = await db.get('SELECT * FROM users WHERE username = $1', [username]);
 
-  if (!user || !user.is_active || !comparePassword(password, user.password_hash)) {
+  if (!user || !user.is_active || !(await comparePassword(password, user.password_hash))) {
     return res.status(401).json({ error: 'Identifiants incorrects.' });
   }
 
@@ -24,6 +24,7 @@ async function login(req, res) {
     isCommissionLead: user.is_commission_lead,
     isPoleLead: user.is_pole_lead,
     canResetPlatform: user.can_reset_platform,
+    tokenVersion: user.token_version,
   };
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '12h' });
 

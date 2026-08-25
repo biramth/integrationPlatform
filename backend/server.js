@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/authRoutes');
 const dut1Routes = require('./routes/dut1Routes');
@@ -28,6 +30,12 @@ const { requestId } = require('./middleware/requestId');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Refuse de démarrer avec un JWT secret par défaut / faible — évite les
+// déploiements en production avec un secret devinable.
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)) {
+  throw new Error('JWT_SECRET doit être défini et contenir au moins 32 caractères en production.');
+}
+
 // En tout premier : chaque requête a un id, dispo dans les logs serveur et
 // dans le journal d'audit (colonne request_id) pour corréler les deux.
 app.use(requestId);
@@ -36,6 +44,21 @@ app.use(requestId);
 // et le rate limiter de /api/auth/login mettrait tous les utilisateurs dans le
 // même compteur (10 tentatives pour tout le monde au lieu de 10 par personne).
 app.set('trust proxy', 1);
+
+// Sécurité : helmet ajoute X-Content-Type-Options, X-Frame-Options,
+// Strict-Transport-Security, X-XSS-Protection, Content-Security-Policy, etc.
+app.use(helmet());
+
+// Rate limiting global : protège contre les abus et le DoS sur tous les
+// endpoints. Le login a son propre limiter plus strict (authRoutes.js).
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes, veuillez réessayer plus tard.' },
+});
+app.use('/api', globalLimiter);
 
 // Le frontend est servi par Vercel, l'API par Render : les deux origines sont
 // différentes, il faut donc autoriser explicitement celle du frontend.
@@ -85,7 +108,7 @@ app.use(
     },
   })
 );
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 // Sonde légère pour le health check de Render (et pour un éventuel ping
 // anti-veille sur le plan gratuit) : ne touche pas la base de données.

@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const db = require('../db/database');
 
 function verifyToken(req, res, next) {
   const header = req.headers.authorization || '';
@@ -10,10 +11,26 @@ function verifyToken(req, res, next) {
 
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET);
-    next();
   } catch (err) {
     return res.status(401).json({ error: 'Token invalide ou expiré.' });
   }
+
+  // Vérification du token_version : si le mot de passe a changé ou le compte
+  // a été désactivé depuis l'émission du JWT, le token est révoqué. Requête
+  // simple sur users (indexé par PK) — un seul hit par requête authentifiée.
+  db.get('SELECT token_version, is_active FROM users WHERE id = $1', [req.user.id])
+    .then((user) => {
+      if (!user || !user.is_active) {
+        return res.status(401).json({ error: 'Compte désactivé ou introuvable.' });
+      }
+      if (user.token_version !== req.user.tokenVersion) {
+        return res.status(401).json({ error: 'Token révoqué. Veuillez vous reconnecter.' });
+      }
+      next();
+    })
+    .catch(() => {
+      res.status(500).json({ error: 'Erreur serveur.' });
+    });
 }
 
 // La commission IT est super-utilisateur : elle gère et améliore la plateforme,

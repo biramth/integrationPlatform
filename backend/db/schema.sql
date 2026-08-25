@@ -18,6 +18,9 @@ CREATE TABLE IF NOT EXISTS users (
   -- propre commission (hors it, qui gère déjà tout le monde).
   is_commission_lead  BOOLEAN NOT NULL DEFAULT FALSE,
   can_reset_platform  BOOLEAN NOT NULL DEFAULT FALSE,
+  -- Incrémenté à chaque changement de mot de passe / désactivation : invalide
+  -- tous les JWT existants sans Redis blacklist (cf. middleware/auth.js).
+  token_version      INTEGER NOT NULL DEFAULT 0,
   is_active     BOOLEAN NOT NULL DEFAULT TRUE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -674,3 +677,7 @@ CREATE TABLE IF NOT EXISTS dut1_aptitude_levels (
 );
 
 CREATE INDEX IF NOT EXISTS idx_dut1_aptitude_levels_dut1 ON dut1_aptitude_levels(dut1_id);
+
+-- Token revocation : colonne token_version sur users (incrémentée à chaque
+-- changement de mot de passe ou désactivation, cf. middleware/auth.js).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;

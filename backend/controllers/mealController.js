@@ -3,6 +3,12 @@ const auditService = require('../services/auditService');
 
 const MEAL_TYPES = ['petit-dejeuner', 'dejeuner', 'diner'];
 
+// Commission de l'utilisateur appelant : utilisé dans l'audit trail pour
+// distinguer les actions de cuisine vs orga sur les mêmes ressources.
+function userCommission(req) {
+  return req.user.role === 'orga' ? 'orga' : 'cuisine';
+}
+
 const DISH_ALLERGENS_SUBQUERY = `(
   SELECT COALESCE(json_agg(json_build_object('id', a.id, 'label', a.label)), '[]'::json)
   FROM dish_allergens dga JOIN allergens a ON a.id = dga.allergen_id
@@ -66,7 +72,7 @@ async function createMealService(req, res) {
       resourceType: 'meal_service',
       resourceId: service.id,
       resourceLabel: `${service.service_date} — ${service.meal_type}`,
-      commission: 'cuisine',
+      commission: userCommission(req),
       after: service,
     });
   }
@@ -112,7 +118,7 @@ async function createDish(req, res) {
     resourceType: 'dish',
     resourceId: dishId,
     resourceLabel: dishRow.dish_name,
-    commission: 'cuisine',
+    commission: userCommission(req),
     after: { name: dishRow.dish_name, mealServiceId: dishRow.meal_service_id, allergens: dishRow.dish_allergens_json },
   });
 
@@ -135,7 +141,7 @@ async function deleteDish(req, res) {
     resourceType: 'dish',
     resourceId: id,
     resourceLabel: existing.name,
-    commission: 'cuisine',
+    commission: userCommission(req),
     before: existing,
   });
 

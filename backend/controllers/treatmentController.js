@@ -242,7 +242,7 @@ async function updateTreatment(req, res) {
     resourceId: Number(id),
     resourceLabel: `${treatment.first_name} ${treatment.last_name}`,
     commission: 'sante',
-    before,
+    before: current,
     after: treatment,
   });
 

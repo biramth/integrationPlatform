@@ -284,7 +284,7 @@ export default function CompleteInfoFormPage() {
           <ArrowLeft className="h-4 w-4" /> Retour à la liste
         </button>
         <PageHeader
-          eyebrow="Phase 2 — infos complémentaires"
+          eyebrow="Dossier médical — infos complémentaires"
           title={`${selected.first_name} ${selected.last_name}`}
           description={
             completed && isLead
@@ -292,7 +292,7 @@ export default function CompleteInfoFormPage() {
               : completed
               ? 'Dossier complété — verrouillé. Une correction doit passer par le chef de la commission Santé.'
               : !phase2Enabled
-              ? 'La phase 2 est désactivée pour cette édition — ce dossier ne peut plus être complété.'
+              ? 'Le dossier médical est désactivé pour cette édition — ce dossier ne peut plus être complété.'
               : "Ces informations viennent du questionnaire de la commission Santé."
           }
           action={
@@ -437,7 +437,7 @@ export default function CompleteInfoFormPage() {
         <div className="mb-4 flex items-center gap-3 rounded-lg border border-warning bg-warning-soft px-3 py-2.5">
           <Lock className="h-4 w-4 shrink-0 text-warning" />
           <p className="text-sm text-warning-soft-foreground">
-            La phase 2 est désactivée pour cette édition — les dossiers non encore complétés le restent.
+            Le dossier médical est désactivé pour cette édition — les dossiers non encore complétés le restent.
             {isLead && ' Les dossiers déjà complétés restent corrigibles.'}
           </p>
         </div>

@@ -25,7 +25,7 @@ export default function RecordsTable({ records, onSelect, selectedIds, onToggleS
               <TableHead>Genre</TableHead>
               <TableHead>Chambre</TableHead>
               <TableHead>Bagages</TableHead>
-              <TableHead>Phase 2</TableHead>
+              <TableHead>Médical</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

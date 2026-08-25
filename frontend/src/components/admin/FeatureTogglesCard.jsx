@@ -28,7 +28,7 @@ const FEATURES = [
   },
   {
     key: 'phase2',
-    label: 'Phase 2 — complément de dossier',
+    label: 'Dossier médical',
     description: 'Complément de dossier par la commission Santé.',
     icon: ClipboardList,
   },
@@ -63,7 +63,7 @@ export default function FeatureTogglesCard() {
       <div>
         <p className="text-sm font-semibold text-foreground">Fonctionnalités de la journée d'accueil</p>
         <p className="text-xs text-muted-foreground">
-          Enregistrement, bagages, logistique et phase 2 ne servent que le premier jour — les désactiver les fait
+          Enregistrement, bagages, logistique et dossier médical ne servent que le premier jour — les désactiver les fait
           disparaître du menu des agents et bloque l'action côté serveur, pour éviter toute modification après coup.
         </p>
       </div>

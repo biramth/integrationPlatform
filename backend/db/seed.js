@@ -15,9 +15,9 @@ async function seed() {
     await db.run(
       `INSERT INTO users (full_name, username, password_hash, role, is_commission_lead, can_reset_platform)
        VALUES ($1, $2, $3, 'it', TRUE, TRUE)`,
-      ['Administrateur', adminUsername, hashPassword(adminPassword)]
+      ['Administrateur', adminUsername, await hashPassword(adminPassword)]
     );
-    console.log(`Compte admin (rôle it) créé : ${adminUsername} / ${adminPassword}`);
+    console.log(`Compte admin (rôle it) créé : ${adminUsername}`);
   } else {
     console.log('Compte admin déjà existant, non recréé.');
   }
@@ -55,7 +55,7 @@ async function seed() {
       [
         agent.fullName,
         agent.username,
-        hashPassword('pass123'),
+        await hashPassword('pass123'),
         agent.role,
         agent.subRole || null,
         !!agent.isCommissionLead,
@@ -63,7 +63,7 @@ async function seed() {
       ]
     );
   }
-  console.log('Comptes agents de test vérifiés/créés (mot de passe : pass123).');
+  console.log('Comptes agents de test vérifiés/créés.');
 
   const ALLERGENS = [
     'Gluten (céréales)', 'Crustacés', 'Œufs', 'Poissons', 'Arachides', 'Soja', 'Lait',

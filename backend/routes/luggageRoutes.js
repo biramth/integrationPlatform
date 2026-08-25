@@ -27,14 +27,14 @@ router.post(
   upload.single('photo'),
   luggageController.createLuggageItem
 );
-router.get('/dut1/:id/luggage-items', luggageController.listLuggageItems);
+router.get('/dut1/:id/luggage-items', requireRole('orga', 'sante', 'it'), luggageController.listLuggageItems);
 router.get(
   '/luggage-items/mine',
   requireRole('orga'),
   requireOrgaScope('bagages'),
   luggageController.listMyLuggageItems
 );
-router.get('/luggage-items/:itemId/photo', luggageController.getLuggagePhotoUrl);
+router.get('/luggage-items/:itemId/photo', requireRole('orga', 'sante', 'it'), luggageController.getLuggagePhotoUrl);
 router.delete(
   '/luggage-items/:itemId',
   requireRole('orga'),
