@@ -3,6 +3,7 @@ const { DEPARTMENTS, DEPARTMENT_LABELS } = require('../constants/departments');
 const { autoAssignRoom, getHistoryForDut1 } = require('../services/roomAssignmentService');
 const auditService = require('../services/auditService');
 const { getSetting } = require('../services/platformSettingsService');
+const cache = require('../middleware/cache');
 const storage = require('../services/storageService');
 const { validateTreatmentPayload } = require('./treatmentController');
 const { normalizeName, namesSimilar } = require('../utils/fuzzyNames');
@@ -282,6 +283,8 @@ async function createRecord(req, res) {
       after: record,
     });
 
+    cache.invalidate('/api/stats');
+
     res.status(201).json({
       record: serializeRecord(record),
       roomAssigned: !!assignedRoomId,
@@ -551,6 +554,8 @@ async function updateRecord(req, res) {
     after: record,
   });
 
+  cache.invalidate('/api/stats');
+
   res.json({ record: serializeRecord(record) });
 }
 
@@ -644,6 +649,8 @@ async function deleteRecord(req, res) {
     commission: 'sante',
     before: existing,
   });
+
+  cache.invalidate('/api/stats');
 
   res.status(204).send();
 }

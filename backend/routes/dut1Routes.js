@@ -3,6 +3,7 @@ const dut1Controller = require('../controllers/dut1Controller');
 const roomController = require('../controllers/roomController');
 const { verifyToken, requireRole, requireOrgaScope, requireSanteScope, requireCommissionLead } = require('../middleware/auth');
 const { requireFeatureEnabled } = require('../middleware/platformSettings');
+const { cached } = require('../middleware/cache');
 
 const router = express.Router();
 
@@ -36,7 +37,7 @@ router.get(
 // Présidentielle voient tout sauf le médical (allergènes, traitement, champs
 // de la phase 2) — filtré dans le contrôleur selon req.user.role, pas ici,
 // pour garder une seule requête.
-router.get('/', requireRole('orga', 'sante', 'cuisine', 'communication', 'presidentielle'), dut1Controller.listRecords);
+router.get('/', requireRole('orga', 'sante', 'cuisine', 'communication', 'presidentielle'), cached(15_000), dut1Controller.listRecords);
 router.get('/export', requireRole('it'), dut1Controller.exportRecordsCsv);
 router.get('/export-contacts', requireRole('it'), dut1Controller.exportContactsCsv);
 router.get('/:id', requireRole('orga', 'sante', 'cuisine', 'communication', 'presidentielle'), dut1Controller.getRecord);

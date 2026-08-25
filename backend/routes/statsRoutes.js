@@ -1,6 +1,7 @@
 const express = require('express');
 const statsController = require('../controllers/statsController');
 const { verifyToken, requireRole, requireSanteScope } = require('../middleware/auth');
+const { cached } = require('../middleware/cache');
 
 const router = express.Router();
 
@@ -14,16 +15,18 @@ router.use(verifyToken);
 // rien à y voir.
 const OVERVIEW_ROLES = ['orga', 'presidentielle'];
 
-router.get('/overview', requireRole(...OVERVIEW_ROLES), statsController.overview);
-router.get('/health-overview', requireRole('sante'), requireSanteScope('suivi', { allowLead: true }), statsController.healthOverview);
-router.get('/by-department', requireRole(...OVERVIEW_ROLES), statsController.byDepartment);
-router.get('/by-gender', requireRole(...OVERVIEW_ROLES), statsController.byGender);
+// Cache : 30s pour les stats globales (chambres, dossiers), 60s pour les
+// répartitions (département, genre) qui changent moins souvent.
+router.get('/overview', requireRole(...OVERVIEW_ROLES), cached(30_000), statsController.overview);
+router.get('/health-overview', requireRole('sante'), requireSanteScope('suivi', { allowLead: true }), cached(30_000), statsController.healthOverview);
+router.get('/by-department', requireRole(...OVERVIEW_ROLES), cached(60_000), statsController.byDepartment);
+router.get('/by-gender', requireRole(...OVERVIEW_ROLES), cached(60_000), statsController.byGender);
 // Le sous-rôle Orga "chambres" ne configure plus les chambres (cf.
 // roomRoutes.js) : pas de raison de le scoper spécifiquement ici, cette
 // statistique suit le même accès que les autres compteurs de la Vue
 // d'ensemble (réservée au chef côté front, cf. RoleRoute requireLead).
-router.get('/rooms-occupancy', requireRole(...OVERVIEW_ROLES), statsController.roomsOccupancy);
-router.get('/illness-trend', requireRole('sante'), requireSanteScope('suivi', { allowLead: true }), statsController.illnessTrend);
-router.get('/allergy-prevalence', requireRole('sante'), requireSanteScope('suivi', { allowLead: true }), statsController.allergyPrevalence);
+router.get('/rooms-occupancy', requireRole(...OVERVIEW_ROLES), cached(30_000), statsController.roomsOccupancy);
+router.get('/illness-trend', requireRole('sante'), requireSanteScope('suivi', { allowLead: true }), cached(60_000), statsController.illnessTrend);
+router.get('/allergy-prevalence', requireRole('sante'), requireSanteScope('suivi', { allowLead: true }), cached(60_000), statsController.allergyPrevalence);
 
 module.exports = router;

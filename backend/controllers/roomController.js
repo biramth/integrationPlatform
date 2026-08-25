@@ -1,6 +1,7 @@
 const db = require('../db/database');
 const { manualAssignRoom, getHistoryForRoom } = require('../services/roomAssignmentService');
 const auditService = require('../services/auditService');
+const cache = require('../middleware/cache');
 
 async function listRooms(req, res) {
   // departments_json : effectif par département dans chaque chambre — le chef
@@ -63,6 +64,8 @@ async function createRoom(req, res) {
       after: room,
     });
 
+    cache.invalidate('/api/stats');
+
     res.status(201).json({ room });
   } catch (err) {
     if (err.code === '23505') {
@@ -109,6 +112,8 @@ async function updateRoom(req, res) {
     before: room,
     after: updatedRoom,
   });
+
+  cache.invalidate('/api/stats');
 
   res.json({ room: updatedRoom });
 }
@@ -165,6 +170,8 @@ async function deleteRoom(req, res) {
       before: room,
     });
 
+    cache.invalidate('/api/stats');
+
     res.status(204).send();
   } catch (err) {
     if (err.code === '23503') {
@@ -216,6 +223,8 @@ async function reassignDut1Room(req, res) {
       before: { room_id: before?.room_id ?? null },
       after: { room_id: record.room_id },
     });
+
+    cache.invalidate('/api/stats');
 
     res.json({ dut1Id: record.id, roomId: record.room_id });
   } catch (err) {

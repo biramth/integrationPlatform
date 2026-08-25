@@ -1,5 +1,6 @@
 const db = require('../db/database');
 const auditService = require('../services/auditService');
+const cache = require('../middleware/cache');
 
 const SEVERITY_WEIGHT = { severe: 3, moderee: 2, legere: 1 };
 
@@ -226,6 +227,8 @@ async function declareRestriction(req, res) {
       after: record,
     });
 
+    cache.invalidate('/api/stats');
+
     res.status(201).json({ restriction: record });
   } catch (err) {
     if (err.code === '23503') {
@@ -305,6 +308,8 @@ async function resolveRestriction(req, res) {
     after: restriction,
   });
 
+  cache.invalidate('/api/stats');
+
   res.json({ restriction });
 }
 
@@ -324,6 +329,8 @@ async function deleteRestriction(req, res) {
     commission: 'sante',
     before: existing,
   });
+
+  cache.invalidate('/api/stats');
 
   res.status(204).send();
 }

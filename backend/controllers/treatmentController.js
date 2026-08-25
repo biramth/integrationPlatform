@@ -1,5 +1,6 @@
 const db = require('../db/database');
 const auditService = require('../services/auditService');
+const cache = require('../middleware/cache');
 
 const SLOTS = ['matin', 'midi', 'soir'];
 const SLOT_COLUMNS = { matin: 'slot_matin', midi: 'slot_midi', soir: 'slot_soir' };
@@ -167,6 +168,8 @@ async function createTreatment(req, res) {
       after: treatment,
     });
 
+    cache.invalidate('/api/stats');
+
     res.status(201).json({ treatment });
   } catch (err) {
     if (err.code === '23514') {
@@ -246,6 +249,8 @@ async function updateTreatment(req, res) {
     after: treatment,
   });
 
+  cache.invalidate('/api/stats');
+
   res.json({ treatment });
 }
 
@@ -281,6 +286,8 @@ async function endTreatment(req, res) {
     before: existing,
     after: treatment,
   });
+
+  cache.invalidate('/api/stats');
 
   res.json({ treatment });
 }
@@ -321,6 +328,8 @@ async function deleteTreatment(req, res) {
     commission: 'sante',
     before: existing,
   });
+
+  cache.invalidate('/api/stats');
 
   res.status(204).send();
 }
