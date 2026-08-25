@@ -129,7 +129,10 @@ function App() {
               <Route path="/admin/activites" element={<ActivitiesPage />} />
             </Route>
 
-            <Route element={<RoleRoute roles={['cuisine']} />}>
+            {/* Menu du jour : tout agent Cuisine peut consulter, seul le chef
+                crée/modifie (canEdit dans MenuPage). Le chef Orga/de pôle y a
+                accès aussi (délégation opérationnelle pour la config plats). */}
+            <Route element={<RoleRoute roles={['cuisine', 'orga']} />}>
               <Route path="/cuisine/menu" element={<MenuPage />} />
             </Route>
 

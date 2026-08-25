@@ -105,10 +105,10 @@ function requireAgentManagement(req, res, next) {
 // commission plutôt qu'à tous ses membres — ex: la commission Cuisine peut
 // tous voir le menu du jour, mais seul le chef le crée/modifie.
 function requireCommissionLead(req, res, next) {
-  if (req.user.role === 'it' || req.user.isCommissionLead) {
+  if (req.user.role === 'it' || req.user.isCommissionLead || req.user.isPoleLead) {
     return next();
   }
-  return res.status(403).json({ error: 'Réservé au chef de commission.' });
+  return res.status(403).json({ error: 'Réservé au chef de commission ou de pôle.' });
 }
 
 // Comme requireCommissionLead, mais SANS le bypass superutilisateur d'IT — à

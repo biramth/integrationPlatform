@@ -174,10 +174,16 @@ export default function CompleteInfoFormPage() {
 
   function handleOnTreatmentValueChange(value) {
     setOnTreatment(value);
-    // Bascule vers Oui sans traitements en cours de préremplissage : au moins
-    // un bloc de saisie doit être présent.
-    if (value && treatments.length === 0) {
-      setTreatments([emptyTreatment()]);
+    if (value) {
+      // Bascule vers Oui sans traitements en cours de préremplissage : au moins
+      // un bloc de saisie doit être présent.
+      if (treatments.length === 0) {
+        setTreatments([emptyTreatment()]);
+      }
+    } else {
+      // Bascule vers Non : vider les traitements pour ne pas garder de
+      // données stale qui pourraient poser problème à la validation/soumission.
+      setTreatments([]);
     }
   }
 

@@ -22,7 +22,7 @@ export default function LuggageItemThumb({ item, index, onDelete }) {
   }, [item.id]);
 
   return (
-    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+    <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
       {src ? (
         <img src={src} alt={`Bagage ${index + 1}`} className="h-full w-full object-cover" />
       ) : (

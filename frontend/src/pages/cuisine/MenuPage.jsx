@@ -29,7 +29,7 @@ function shiftDate(iso, days) {
 
 export default function MenuPage() {
   const { user } = useAuth();
-  const canEdit = user.role === 'it' || user.isCommissionLead;
+  const canEdit = user.role === 'it' || user.isCommissionLead || user.isPoleLead;
   const { showToast } = useToast();
   const [date, setDate] = useState(todayIso());
   const [mealType, setMealType] = useState('dejeuner');

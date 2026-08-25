@@ -125,6 +125,7 @@ export function getNavItems(user, settings) {
     ...(isLead && OVERVIEW_ITEM_BY_ROLE[user.role] ? [OVERVIEW_ITEM_BY_ROLE[user.role]] : []),
     ...(user.isCommissionLead && user.role === ROLES.SANTE ? [SANTE_QUESTIONS_ITEM, SANTE_CRITERIA_ITEM] : []),
     ...(isLead && user.role === ROLES.ORGA ? [ORGA_ROOMS_ADMIN_ITEM, ORGA_DIRECTORY_ITEM] : []),
+    ...(isLead && user.role === ROLES.ORGA ? [{ to: '/cuisine/menu', label: 'Menu du jour', icon: UtensilsCrossed }] : []),
     ...(user.isCommissionLead ? [AUDIT_ITEM] : []),
   ];
   // Le chef de commission (et le chef de pôle, pour Orga) supervise, il
