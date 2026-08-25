@@ -147,6 +147,29 @@ app.get('/', (req, res) => {
 
 app.use(errorHandler);
 
+const storageService = require('./services/storageService');
+
+const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
+let cleanupRunning = false;
+
+async function runCleanup() {
+  if (cleanupRunning) return;
+  cleanupRunning = true;
+  try {
+    const result = await storageService.cleanupOrphanedFiles();
+    if (result.deleted > 0) {
+      console.log(`[cleanup] ${result.deleted} fichier(s) orphelin(s) supprimé(s) du Storage.`);
+    }
+  } catch (err) {
+    console.error('[cleanup] Erreur lors du nettoyage des fichiers orphelins :', err.message);
+  } finally {
+    cleanupRunning = false;
+  }
+}
+
+setInterval(runCleanup, CLEANUP_INTERVAL_MS);
+setTimeout(runCleanup, 30_000); // premier nettoyage 30s après le démarrage
+
 app.listen(PORT, () => {
   console.log(`Server is listening on http://localhost:${PORT}`);
 });
