@@ -59,13 +59,13 @@ export function useRoleColors() {
 }
 
 export const ORGA_SUB_ROLES = {
-  CHAMBRES: 'chambres',
+  LOGISTIQUE: 'logistique',
   ENREGISTREMENT: 'enregistrement',
   BAGAGES: 'bagages',
 };
 
 export const ORGA_SUB_ROLE_LABELS = {
-  [ORGA_SUB_ROLES.CHAMBRES]: 'Chambres',
+  [ORGA_SUB_ROLES.LOGISTIQUE]: 'Logistique',
   [ORGA_SUB_ROLES.ENREGISTREMENT]: 'Enregistrement',
   [ORGA_SUB_ROLES.BAGAGES]: 'Bagages',
 };
@@ -113,7 +113,7 @@ export function homePathForRole(role, subRole, isCommissionLead, isPoleLead) {
   switch (role) {
     case ROLES.ORGA:
       if (isCommissionLead || isPoleLead) return '/orga/apercu';
-      if (subRole === ORGA_SUB_ROLES.CHAMBRES) return '/orga/deliveries';
+      if (subRole === ORGA_SUB_ROLES.LOGISTIQUE) return '/orga/deliveries';
       if (subRole === ORGA_SUB_ROLES.BAGAGES) return '/orga/luggage';
       return '/orga/basic';
     case ROLES.IT:

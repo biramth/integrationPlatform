@@ -39,7 +39,7 @@ async function seed() {
 
   const testAgents = [
     { fullName: 'Fatou Ndiaye', username: 'orga1', role: 'orga', subRole: null, isCommissionLead: true },
-    { fullName: 'Moussa Diop', username: 'orga2', role: 'orga', subRole: 'chambres' },
+    { fullName: 'Moussa Diop', username: 'orga2', role: 'orga', subRole: 'logistique' },
     { fullName: 'Aminata Ba', username: 'sante1', role: 'sante' },
     { fullName: 'Ousmane Fall', username: 'cuisine1', role: 'cuisine' },
     { fullName: 'Khadim Sarr', username: 'it1', role: 'it', canResetPlatform: true },

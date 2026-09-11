@@ -23,7 +23,7 @@ const FEATURES = [
   {
     key: 'logistics',
     label: 'Logistique — livraison en chambre',
-    description: 'Livraison des bagages déjà photographiés dans la chambre assignée, par le sous-rôle Chambres (commission Orga).',
+    description: 'Livraison des bagages déjà photographiés dans la chambre assignée, par le sous-rôle Logistique (commission Orga).',
     icon: PackageCheck,
   },
   {

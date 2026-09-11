@@ -669,7 +669,7 @@ async function listWithoutLuggage(req, res) {
   res.json({ records: records.map(serializeRecord) });
 }
 
-// Sous-rôle Orga "chambres" : DUT1 dont la chambre est assignée et les
+// Sous-rôle Orga "logistique" : DUT1 dont la chambre est assignée et les
 // bagages entièrement photographiés (même condition que listWithoutLuggage,
 // inversée) mais pas encore pris en charge par un agent pour le transport.
 // luggage_count > 0 exclut les DUT1 sans bagage déclaré, qui n'ont rien à

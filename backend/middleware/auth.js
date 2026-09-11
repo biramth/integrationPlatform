@@ -63,7 +63,7 @@ function requireRoleStrict(...roles) {
   };
 }
 
-// Restreint un agent Orga à son sous-domaine (chambres / enregistrement / bagages)
+// Restreint un agent Orga à son sous-domaine (logistique / enregistrement / bagages)
 // quand on lui en a assigné un. sub_role NULL = accès aux trois — sauf pour le
 // chef de commission, qui supervise et n'exécute pas les tâches quotidiennes
 // des sous-rôles : il n'a jamais accès à ces routes, quel que soit son
@@ -136,7 +136,7 @@ function requireCommissionLead(req, res, next) {
 // utiliser après requireRoleStrict(...) pour réserver une action au chef d'une
 // commission qui n'admet pas l'admin d'urgence IT. Cas d'usage : configurer
 // les chambres (créer/modifier/supprimer, matelas, import) est un travail de
-// mise en place réservé au chef Orga — le sous-rôle "chambres" ne le fait
+// mise en place réservé au chef Orga — le sous-rôle "logistique" ne le fait
 // plus, son travail quotidien est de livrer les bagages déjà photographiés
 // dans la chambre assignée à chaque DUT1, pas de configurer les chambres.
 // Le "chef de pôle" (is_pole_lead) reçoit la même délégation que le chef de

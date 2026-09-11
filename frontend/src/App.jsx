@@ -75,17 +75,17 @@ function App() {
               <Route path="/orga/luggage" element={<LogisticsListPage />} />
             </Route>
 
-            {/* Sous-rôle Orga "chambres" : livrer, dans la chambre déjà
+            {/* Sous-rôle Orga "logistique" : livrer, dans la chambre déjà
                 assignée à chaque DUT1, les bagages que l'agent "bagages" a
                 photographiés, puis confirmer le dépôt — pas de configuration
                 des chambres elles-mêmes (cf. route /orga/rooms plus bas). */}
-            <Route element={<RoleRoute roles={['orga']} subScope="chambres" />}>
+            <Route element={<RoleRoute roles={['orga']} subScope="logistique" />}>
               <Route path="/orga/deliveries" element={<RoomDeliveryPage />} />
             </Route>
 
             {/* Configurer les chambres (créer/modifier/supprimer, matelas,
                 import, fiches imprimables) est un travail de mise en place
-                réservé au chef Orga — pas au sous-rôle "chambres" (dont le
+                réservé au chef Orga — pas au sous-rôle "logistique" (dont le
                 travail quotidien est de livrer les bagages, cf. route
                 /orga/deliveries ci-dessus), et pas à IT (excludeIt), ni via un
                 lien de nav ni via son bypass superuser habituel (le backend

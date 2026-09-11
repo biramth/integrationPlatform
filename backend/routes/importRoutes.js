@@ -17,7 +17,7 @@ router.post('/admitted-students/confirm', requireRole('it'), importController.co
 
 // L'import de chambres est un travail de mise en place réservé au chef de la
 // commission Orga — pas à n'importe quel agent Orga (le sous-domaine
-// "chambres" ne configure plus les chambres, cf. roomRoutes.js), et pas à IT
+// "logistique" ne configure plus les chambres, cf. roomRoutes.js), et pas à IT
 // même via son bypass superutilisateur habituel.
 router.post(
   '/rooms/preview',

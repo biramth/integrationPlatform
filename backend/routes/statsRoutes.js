@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.use(verifyToken);
 
-// Chaque chef de commission a une vue d'ensemble sur sa sphère : Orga (chambres,
+// Chaque chef de commission a une vue d'ensemble sur sa sphère : Orga (logistique,
 // enregistrement, bagages) et Présidentielle partagent les mêmes statistiques
 // globales non-médicales. Les statistiques médicales (illness-trend,
 // allergy-prevalence) restent réservées à Santé, cf. principe "le médical reste
@@ -21,7 +21,7 @@ router.get('/overview', requireRole(...OVERVIEW_ROLES), cached(30_000), statsCon
 router.get('/health-overview', requireRole('sante'), requireSanteScope('suivi', { allowLead: true }), cached(30_000), statsController.healthOverview);
 router.get('/by-department', requireRole(...OVERVIEW_ROLES), cached(60_000), statsController.byDepartment);
 router.get('/by-gender', requireRole(...OVERVIEW_ROLES), cached(60_000), statsController.byGender);
-// Le sous-rôle Orga "chambres" ne configure plus les chambres (cf.
+// Le sous-rôle Orga "logistique" ne configure plus les chambres (cf.
 // roomRoutes.js) : pas de raison de le scoper spécifiquement ici, cette
 // statistique suit le même accès que les autres compteurs de la Vue
 // d'ensemble (réservée au chef côté front, cf. RoleRoute requireLead).

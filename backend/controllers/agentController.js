@@ -8,7 +8,7 @@ const ROLES = ['orga', 'sante', 'cuisine', 'it', 'communication', 'culturelle', 
 // (complément de dossier, transféré depuis Orga car médical) et "medoc"
 // (gestion du stock de médicaments).
 const SUB_ROLES_BY_ROLE = {
-  orga: ['chambres', 'enregistrement', 'bagages'],
+  orga: ['logistique', 'enregistrement', 'bagages'],
   sante: ['suivi', 'phase2', 'medoc'],
 };
 

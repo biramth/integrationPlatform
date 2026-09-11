@@ -9,7 +9,7 @@ router.use(verifyToken);
 // Configurer les chambres (créer/modifier/supprimer/matelas/historique) est un
 // travail de mise en place, réservé au chef de la commission Orga — pas à
 // n'importe quel agent Orga, et pas à IT même via son bypass superutilisateur
-// habituel (requireRoleStrict, pas requireRole). Le sous-rôle "chambres" ne
+// habituel (requireRoleStrict, pas requireRole). Le sous-rôle "logistique" ne
 // donne PAS ce droit : son travail quotidien est de livrer, dans la chambre
 // déjà assignée à chaque DUT1, les bagages que l'agent "bagages" a
 // photographiés — cf. dut1Controller.listPendingDelivery / confirmLuggageDelivery.

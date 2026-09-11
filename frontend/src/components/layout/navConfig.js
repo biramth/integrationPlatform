@@ -34,21 +34,22 @@ import { ROLES } from '../../utils/roles';
 
 // Orga voit les trois onglets par défaut ; un agent restreint à un sous-rôle
 // (sub_role) n'en voit qu'un — filtré dans AppLayout/Sidebar via getNavItems.
-// "chambres" ne configure pas les chambres (ressort du chef Orga, cf.
+// "logistique" ne configure pas les chambres (ressort du chef Orga, cf.
 // ORGA_ROOMS_ADMIN_ITEM plus bas) : son travail est de livrer, dans la
 // chambre déjà assignée à chaque DUT1, les bagages que l'agent "bagages" a
-// photographiés.
+// photographiés — d'où son nom, plus fidèle à son travail que l'ancien
+// "chambres" (renommé, cf. schema.sql).
 const ORGA_ITEMS = {
   enregistrement: [{ to: '/orga/basic', label: 'Enregistrer', icon: FilePlus2, kind: 'operational' }],
   bagages: [{ to: '/orga/luggage', label: 'Bagages', icon: Luggage, kind: 'operational' }],
-  chambres: [
+  logistique: [
     { to: '/orga/deliveries', label: 'Livraison bagages', shortLabel: 'Livraison', icon: PackageCheck, kind: 'operational' },
   ],
 };
 
 // Configurer les chambres (créer/modifier/supprimer, matelas, import, fiches
 // imprimables) est un travail de mise en place réservé au chef Orga — pas au
-// sous-rôle "chambres", qui ne s'en occupe plus (cf. ORGA_ITEMS ci-dessus).
+// sous-rôle "logistique", qui ne s'en occupe plus (cf. ORGA_ITEMS ci-dessus).
 const ORGA_ROOMS_ADMIN_ITEM = { to: '/orga/rooms', label: 'Config. chambres', shortLabel: 'Chambres', icon: DoorOpen, kind: 'admin' };
 
 // Annuaire du chef Orga : comme celui de Communication/Présidentielle
@@ -164,11 +165,11 @@ export function getNavItems(user, settings) {
     const subRoleDisabled =
       (user.subRole === 'enregistrement' && !registrationEnabled) ||
       (user.subRole === 'bagages' && !luggageEnabled) ||
-      (user.subRole === 'chambres' && !logisticsEnabled);
+      (user.subRole === 'logistique' && !logisticsEnabled);
     const allSubRoleItems = [
       ...(registrationEnabled ? ORGA_ITEMS.enregistrement : []),
       ...(luggageEnabled ? ORGA_ITEMS.bagages : []),
-      ...(logisticsEnabled ? ORGA_ITEMS.chambres : []),
+      ...(logisticsEnabled ? ORGA_ITEMS.logistique : []),
     ];
     const scoped = user.isPoleLead
       ? allSubRoleItems

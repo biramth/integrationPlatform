@@ -236,7 +236,7 @@ export default function AdminAgentsPage() {
                   checked={form.isPoleLead}
                   onChange={(e) => setForm((f) => ({ ...f, isPoleLead: e.target.checked }))}
                 />
-                Chef de pôle (supervision comme le chef, sans agents ni audit)
+                Chef de pôle (mêmes fonctionnalités que le chef, joue aussi tous les sous-rôles)
               </label>
             )}
             {isPrivileged && form.role === 'it' && (

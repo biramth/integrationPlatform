@@ -10,7 +10,7 @@ import { homePathForRole } from '../utils/roles';
 // subScope : pour les pages à sous-rôles (Orga, Santé), redirige un agent
 // restreint à un autre sous-rôle vers sa page — le backend refuse déjà les
 // appels API, ceci évite juste d'afficher une page dont il ne peut rien faire.
-// Les valeurs de sub_role sont propres à chaque commission (ex: "chambres"
+// Les valeurs de sub_role sont propres à chaque commission (ex: "logistique"
 // n'existe que pour Orga), donc comparer juste user.subRole suffit sans avoir
 // à revérifier le rôle ici. Le chef de commission (isCommissionLead) est
 // exclu d'une page à subScope par défaut, même avec sub_role NULL : il
@@ -28,10 +28,10 @@ import { homePathForRole } from '../utils/roles';
 // requireLead : pour les pages "Vue d'ensemble", en plus d'être dans la bonne
 // commission il faut être chef — sans ça la page reste joignable par URL même
 // si le lien de nav est déjà masqué pour les non-chefs. Le chef de pôle
-// (isPoleLead, propre à Orga) compte comme chef ICI — contrairement à
-// allowLeads (agents/audit) plus haut, volontairement laissé sur
-// isCommissionLead seul : cf. navConfig.js et requireCommissionLeadStrict côté
-// backend pour la même distinction (délégation opérationnelle, jamais agents/audit).
+// (isPoleLead, propre à Orga) compte comme chef ICI, comme pour allowLeads
+// (agents/audit) plus haut : parité complète voulue entre les deux postes,
+// cf. navConfig.js et requireCommissionLeadStrict/requireAgentManagement côté
+// backend pour la même logique.
 // excludeIt : coupe le bypass superutilisateur pour cette route précise —
 // réservé aux pages qui relèvent explicitement d'une autre commission que IT
 // (chambres, création d'activités), là où le backend refuse déjà l'appel API

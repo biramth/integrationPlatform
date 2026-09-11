@@ -695,3 +695,19 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAUL
 ALTER TABLE dut1_records
   ADD COLUMN IF NOT EXISTS luggage_picked_up_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS luggage_picked_up_by INTEGER REFERENCES users(id);
+
+-- Renommage du sous-rôle Orga "chambres" en "logistique" : le nom reflète
+-- mieux le travail réel (livrer, dans la chambre déjà assignée, les bagages
+-- que l'agent "bagages" a photographiés — jamais configurer les chambres
+-- elles-mêmes, cf. requireOrgaScope dans middleware/auth.js). Élargir
+-- d'abord pour accepter les deux valeurs, migrer les lignes existantes, puis
+-- resserrer : même prudence que pour users_role_check plus haut, on ne peut
+-- pas resserrer une contrainte avant d'avoir migré les données qui
+-- violeraient la nouvelle version.
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_sub_role_check;
+ALTER TABLE users ADD CONSTRAINT users_sub_role_check
+  CHECK (sub_role IN ('chambres','logistique','enregistrement','bagages','suivi','phase2','medoc'));
+UPDATE users SET sub_role = 'logistique' WHERE sub_role = 'chambres';
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_sub_role_check;
+ALTER TABLE users ADD CONSTRAINT users_sub_role_check
+  CHECK (sub_role IN ('logistique','enregistrement','bagages','suivi','phase2','medoc'));
