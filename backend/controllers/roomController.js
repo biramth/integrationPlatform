@@ -199,11 +199,11 @@ async function reassignDut1Room(req, res) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
 
-  // Droits fins (la route ne filtre que par rôle) : le chef de commission — et
-  // IT via son bypass — déplace n'importe quel dossier ; un agent Orga ne peut
-  // déplacer que celui qu'il a lui-même enregistré, même règle que la
-  // suppression d'un dossier.
-  const isLead = req.user.role === 'it' || req.user.isCommissionLead;
+  // Droits fins (la route ne filtre que par rôle) : le chef de commission, le
+  // chef de pôle — et IT via son bypass — déplacent n'importe quel dossier ;
+  // un agent Orga ne peut déplacer que celui qu'il a lui-même enregistré,
+  // même règle que la suppression d'un dossier.
+  const isLead = req.user.role === 'it' || req.user.isCommissionLead || req.user.isPoleLead;
   if (!isLead && before.created_by !== req.user.id) {
     return res.status(403).json({
       error: 'Vous ne pouvez déplacer que les dossiers que vous avez vous-même enregistrés.',

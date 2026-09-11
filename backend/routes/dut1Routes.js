@@ -15,9 +15,12 @@ router.use(verifyToken);
 router.post('/', requireRole('orga'), requireOrgaScope('enregistrement'), requireFeatureEnabled('registration'), dut1Controller.createRecord);
 router.get('/without-luggage', requireRole('orga'), requireOrgaScope('bagages'), dut1Controller.listWithoutLuggage);
 // Sous-rôle Orga "chambres" : livrer, dans la chambre déjà assignée à chaque
-// DUT1, les bagages que l'agent "bagages" a photographiés, puis confirmer le
-// dépôt — pas de configuration des chambres elles-mêmes (cf. roomRoutes.js).
+// DUT1, les bagages que l'agent "bagages" a photographiés. Trois étapes :
+// à transporter (pending-delivery) -> pris en charge (picked-up) -> livré
+// (confirmé via /:id/luggage-delivery, historique sur deliveries/mine) — pas
+// de configuration des chambres elles-mêmes (cf. roomRoutes.js).
 router.get('/pending-delivery', requireRole('orga'), requireOrgaScope('chambres'), dut1Controller.listPendingDelivery);
+router.get('/picked-up', requireRole('orga'), requireOrgaScope('chambres'), dut1Controller.listPickedUpPendingDelivery);
 router.get('/deliveries/mine', requireRole('orga'), requireOrgaScope('chambres'), dut1Controller.listMyDeliveries);
 // Liste légère des chambres compatibles (même genre, places libres) pour
 // l'UI de déplacement : le chef Orga comme l'agent qui a enregistré un dossier
@@ -83,9 +86,16 @@ router.put(
 // dossier) vit dans reassignDut1Room : un simple middleware ne peut pas la
 // porter (elle dépend du dossier visé).
 router.put('/:id/room', requireRole('orga'), roomController.reassignDut1Room);
-// Comme l'enregistrement et les bagages, la livraison en chambre n'a
-// d'utilité que le premier jour — IT peut la désactiver une fois la
-// logistique terminée (cf. requireFeatureEnabled, refuse même IT).
+// Comme l'enregistrement et les bagages, la prise en charge et la livraison
+// en chambre n'ont d'utilité que le premier jour — IT peut les désactiver
+// une fois la logistique terminée (cf. requireFeatureEnabled, refuse même IT).
+router.put(
+  '/:id/luggage-pickup',
+  requireRole('orga'),
+  requireOrgaScope('chambres'),
+  requireFeatureEnabled('logistics'),
+  dut1Controller.confirmLuggagePickup
+);
 router.put(
   '/:id/luggage-delivery',
   requireRole('orga'),

@@ -167,13 +167,15 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS is_commission_lead BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Chef de pôle : rôle intermédiaire propre à Orga, entre agent de sous-rôle et
--- chef de commission. Reçoit la même supervision opérationnelle que le chef
--- (Vue d'ensemble, configuration des chambres, annuaire — cf.
--- requireCommissionLeadStrict dans middleware/auth.js et navConfig.js côté
--- front), mais jamais la gestion des agents ni le journal d'audit : ces deux-là
--- restent volontairement réservés au vrai chef (requireAgentManagement /
--- requireCommissionLead, non élargis). Le drapeau est posé par it ou par le
--- chef Orga lui-même sur ses agents (cf. canDelegatePoleLead dans
+-- chef de commission. Reçoit la parité complète avec le chef de commission —
+-- toutes les fonctionnalités (Vue d'ensemble, configuration des chambres,
+-- annuaire, gestion des agents, journal d'audit — cf.
+-- requireCommissionLeadStrict / requireCommissionLead / requireAgentManagement
+-- dans middleware/auth.js et navConfig.js côté front) — et peut en plus jouer
+-- tous les sous-rôles de la commission (enregistrement / bagages / chambres,
+-- cf. requireOrgaScope), ce que le chef de commission ne fait pas lui-même
+-- (il supervise, il n'exécute pas). Le drapeau est posé par it ou par le chef
+-- Orga lui-même sur ses agents (cf. canDelegatePoleLead dans
 -- agentController.js) — pas d'auto-promotion.
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS is_pole_lead BOOLEAN NOT NULL DEFAULT FALSE;
@@ -681,3 +683,15 @@ CREATE INDEX IF NOT EXISTS idx_dut1_aptitude_levels_dut1 ON dut1_aptitude_levels
 -- Token revocation : colonne token_version sur users (incrémentée à chaque
 -- changement de mot de passe ou désactivation, cf. middleware/auth.js).
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+
+-- Prise en charge des bagages : étape intermédiaire entre "bagages
+-- photographiés" (luggage_items) et "livrés en chambre"
+-- (luggage_delivered_at) — l'agent qui vient récupérer les bagages pour les
+-- transporter les marque d'abord "pris en charge" (ce DUT1 disparaît alors de
+-- la liste "à transporter", cf. listPendingDelivery dans dut1Controller.js),
+-- puis "livré" une fois arrivé en chambre (confirmLuggageDelivery, qui exige
+-- désormais que la prise en charge ait déjà eu lieu). Même pattern que
+-- luggage_delivered_at/by ci-dessus : NULL tant que non confirmé.
+ALTER TABLE dut1_records
+  ADD COLUMN IF NOT EXISTS luggage_picked_up_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS luggage_picked_up_by INTEGER REFERENCES users(id);

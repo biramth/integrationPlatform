@@ -671,8 +671,11 @@ async function listWithoutLuggage(req, res) {
 
 // Sous-rôle Orga "chambres" : DUT1 dont la chambre est assignée et les
 // bagages entièrement photographiés (même condition que listWithoutLuggage,
-// inversée) mais pas encore livrés en chambre. luggage_count > 0 exclut les
-// DUT1 sans bagage déclaré, qui n'ont rien à livrer.
+// inversée) mais pas encore pris en charge par un agent pour le transport.
+// luggage_count > 0 exclut les DUT1 sans bagage déclaré, qui n'ont rien à
+// transporter. Dès qu'un agent prend ce DUT1 en charge (confirmLuggagePickup),
+// il disparaît de cette liste — cf. listPickedUpPendingDelivery pour la suite
+// du parcours (transport en cours, avant livraison).
 async function listPendingDelivery(req, res) {
   const records = await db.all(
     `SELECT d.*, r.label AS room_label,
@@ -681,13 +684,73 @@ async function listPendingDelivery(req, res) {
      FROM dut1_records d
      LEFT JOIN rooms r ON r.id = d.room_id
      WHERE d.room_id IS NOT NULL
-       AND d.luggage_delivered_at IS NULL
+       AND d.luggage_picked_up_at IS NULL
        AND d.luggage_count IS NOT NULL
        AND d.luggage_count > 0
        AND (SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id) >= d.luggage_count
      ORDER BY r.label ASC, d.last_name ASC`
   );
   res.json({ records: records.map(serializeRecord) });
+}
+
+// DUT1 déjà pris en charge par un agent (parti vers la chambre) mais pas
+// encore livré : c'est la liste de travail de l'agent en cours de transport,
+// distincte de listPendingDelivery (pas encore pris en charge par personne).
+async function listPickedUpPendingDelivery(req, res) {
+  const records = await db.all(
+    `SELECT d.*, r.label AS room_label, u.full_name AS luggage_picked_up_by_name,
+       ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
+       ${LUGGAGE_SENSITIVE_SUBQUERY}
+     FROM dut1_records d
+     LEFT JOIN rooms r ON r.id = d.room_id
+     LEFT JOIN users u ON u.id = d.luggage_picked_up_by
+     WHERE d.luggage_picked_up_at IS NOT NULL
+       AND d.luggage_delivered_at IS NULL
+     ORDER BY d.luggage_picked_up_at ASC`
+  );
+  res.json({ records: records.map(serializeRecord) });
+}
+
+async function confirmLuggagePickup(req, res) {
+  const { id } = req.params;
+  const existing = await db.get('SELECT * FROM dut1_records WHERE id = $1', [id]);
+  if (!existing) {
+    return res.status(404).json({ error: 'Dossier introuvable.' });
+  }
+  if (!existing.room_id) {
+    return res.status(409).json({ error: "Ce DUT1 n'a pas encore de chambre assignée." });
+  }
+  if (existing.luggage_picked_up_at) {
+    return res.status(409).json({ error: 'La prise en charge des bagages a déjà été confirmée pour ce DUT1.' });
+  }
+  const itemsCount = Number(
+    (await db.get('SELECT COUNT(*) AS n FROM luggage_items WHERE dut1_id = $1', [id])).n
+  );
+  if (itemsCount === 0) {
+    return res.status(409).json({ error: 'Aucun bagage enregistré pour ce DUT1.' });
+  }
+
+  await db.run(
+    `UPDATE dut1_records SET luggage_picked_up_at = NOW(), luggage_picked_up_by = $1, updated_at = NOW() WHERE id = $2`,
+    [req.user.id, id]
+  );
+
+  const record = await db.get(
+    `SELECT d.*, r.label AS room_label FROM dut1_records d LEFT JOIN rooms r ON r.id = d.room_id WHERE d.id = $1`,
+    [id]
+  );
+
+  await auditService.logAction(req, {
+    action: 'dut1.confirm_luggage_pickup',
+    resourceType: 'dut1_record',
+    resourceId: id,
+    resourceLabel: `${existing.first_name} ${existing.last_name}`,
+    commission: 'orga',
+    before: { luggage_picked_up_at: null },
+    after: { luggage_picked_up_at: record.luggage_picked_up_at, room_label: record.room_label },
+  });
+
+  res.json({ record: serializeRecord(record) });
 }
 
 async function confirmLuggageDelivery(req, res) {
@@ -699,14 +762,11 @@ async function confirmLuggageDelivery(req, res) {
   if (!existing.room_id) {
     return res.status(409).json({ error: "Ce DUT1 n'a pas encore de chambre assignée." });
   }
+  if (!existing.luggage_picked_up_at) {
+    return res.status(409).json({ error: "Les bagages de ce DUT1 doivent d'abord être marqués pris en charge." });
+  }
   if (existing.luggage_delivered_at) {
     return res.status(409).json({ error: 'Le dépôt des bagages a déjà été confirmé pour ce DUT1.' });
-  }
-  const itemsCount = Number(
-    (await db.get('SELECT COUNT(*) AS n FROM luggage_items WHERE dut1_id = $1', [id])).n
-  );
-  if (itemsCount === 0) {
-    return res.status(409).json({ error: 'Aucun bagage enregistré pour ce DUT1.' });
   }
 
   await db.run(
@@ -1102,6 +1162,8 @@ module.exports = {
   deleteRecord,
   listWithoutLuggage,
   listPendingDelivery,
+  listPickedUpPendingDelivery,
+  confirmLuggagePickup,
   confirmLuggageDelivery,
   listMyDeliveries,
   listWithoutComplementary,

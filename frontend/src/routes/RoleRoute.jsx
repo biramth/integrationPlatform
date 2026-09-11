@@ -4,8 +4,9 @@ import { homePathForRole } from '../utils/roles';
 
 // La commission IT est super-utilisateur côté front aussi : elle a accès à
 // toutes les pages, comme côté backend (cf. requireRole dans middleware/auth.js).
-// allowLeads : ouvre la route à tout chef de commission (is_commission_lead),
-// quel que soit son rôle — utilisé pour /admin/agents, géré aussi par les chefs.
+// allowLeads : ouvre la route à tout chef de commission (is_commission_lead)
+// ou chef de pôle (is_pole_lead, parité complète voulue) — utilisé pour
+// /admin/agents, /audit, géré aussi par les chefs.
 // subScope : pour les pages à sous-rôles (Orga, Santé), redirige un agent
 // restreint à un autre sous-rôle vers sa page — le backend refuse déjà les
 // appels API, ceci évite juste d'afficher une page dont il ne peut rien faire.
@@ -20,6 +21,10 @@ import { homePathForRole } from '../utils/roles';
 // Suivi santé restent son travail au quotidien, contrairement à la saisie de
 // phase 1/2 dans les autres commissions) — le backend applique
 // la même exception via requireOrgaScope/requireSanteScope({ allowLead }).
+// Le chef de pôle (isPoleLead, propre à Orga) est toujours exclu de cette
+// exclusion, indépendamment de leadBypassesScope : il peut jouer tous les
+// sous-rôles de la commission Orga (cf. requireOrgaScope côté backend), donc
+// une page à subScope ne le redirige jamais.
 // requireLead : pour les pages "Vue d'ensemble", en plus d'être dans la bonne
 // commission il faut être chef — sans ça la page reste joignable par URL même
 // si le lien de nav est déjà masqué pour les non-chefs. Le chef de pôle
@@ -43,14 +48,19 @@ export default function RoleRoute({
   const { user } = useAuth();
   const isLead = user.isCommissionLead || user.isPoleLead;
 
-  const allowed = (user.role === 'it' && !excludeIt) || roles.includes(user.role) || (allowLeads && user.isCommissionLead);
+  const allowed = (user.role === 'it' && !excludeIt) || roles.includes(user.role) || (allowLeads && isLead);
   if (!allowed) {
     return <Navigate to={homePathForRole(user.role, user.subRole, user.isCommissionLead, user.isPoleLead)} replace />;
   }
   if (requireLead && user.role !== 'it' && !isLead) {
     return <Navigate to={homePathForRole(user.role, user.subRole, user.isCommissionLead, user.isPoleLead)} replace />;
   }
-  if (subScope && !(leadBypassesScope && isLead) && (isLead || (user.subRole && user.subRole !== subScope))) {
+  if (
+    subScope &&
+    !user.isPoleLead &&
+    !(leadBypassesScope && isLead) &&
+    (user.isCommissionLead || (user.subRole && user.subRole !== subScope))
+  ) {
     return <Navigate to={homePathForRole(user.role, user.subRole, user.isCommissionLead, user.isPoleLead)} replace />;
   }
 

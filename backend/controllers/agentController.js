@@ -21,18 +21,19 @@ function serialize(user) {
   return rest;
 }
 
-// it gère tout le monde. Un chef de commission ne gère que les comptes de sa
-// propre commission (jamais it, jamais lui-même en promotion).
+// it gère tout le monde. Un chef de commission (ou un chef de pôle, parité
+// complète voulue pour Orga) ne gère que les comptes de sa propre commission
+// (jamais it, jamais lui-même en promotion).
 function canManage(requester, targetRole) {
   if (requester.role === 'it') return true;
-  return !!requester.isCommissionLead && requester.role === targetRole;
+  return !!(requester.isCommissionLead || requester.isPoleLead) && requester.role === targetRole;
 }
 
-// Qui peut nommer/retirer un chef de pôle : it, et le chef Orga au sein de sa
-// propre commission (rôle intermédiaire qu'il délègue à la création/édition de
-// ses agents). Les autres chefs de commission non, ni un simple agent.
+// Qui peut nommer/retirer un chef de pôle : it, et le chef Orga (ou un autre
+// chef de pôle, même parité) au sein de sa propre commission. Les autres
+// chefs de commission non, ni un simple agent.
 function canDelegatePoleLead(user) {
-  return user.role === 'it' || (!!user.isCommissionLead && user.role === 'orga');
+  return user.role === 'it' || (!!(user.isCommissionLead || user.isPoleLead) && user.role === 'orga');
 }
 
 async function listAgents(req, res) {

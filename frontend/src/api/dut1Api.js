@@ -38,6 +38,14 @@ export function listPendingDelivery() {
   return axiosClient.get('/dut1/pending-delivery').then((res) => res.data);
 }
 
+export function listPickedUpPendingDelivery() {
+  return axiosClient.get('/dut1/picked-up').then((res) => res.data);
+}
+
+export function confirmLuggagePickup(id) {
+  return axiosClient.put(`/dut1/${id}/luggage-pickup`).then((res) => res.data);
+}
+
 export function confirmLuggageDelivery(id) {
   return axiosClient.put(`/dut1/${id}/luggage-delivery`).then((res) => res.data);
 }

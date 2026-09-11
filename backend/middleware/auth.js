@@ -67,12 +67,14 @@ function requireRoleStrict(...roles) {
 // quand on lui en a assigné un. sub_role NULL = accès aux trois — sauf pour le
 // chef de commission, qui supervise et n'exécute pas les tâches quotidiennes
 // des sous-rôles : il n'a jamais accès à ces routes, quel que soit son
-// sub_role. Ne s'applique qu'au rôle "orga" : les autres rôles autorisés par
-// requireRole (it via le bypass ci-dessus) ne sont jamais restreints par un
-// sous-rôle.
+// sub_role. Le chef de pôle (isPoleLead), lui, peut jouer tous les sous-rôles
+// de la commission Orga : c'est la différence délibérée entre les deux
+// postes — le chef supervise, le chef de pôle peut aussi exécuter. Ne
+// s'applique qu'au rôle "orga" : les autres rôles autorisés par requireRole
+// (it via le bypass ci-dessus) ne sont jamais restreints par un sous-rôle.
 function requireOrgaScope(scope) {
   return (req, res, next) => {
-    if (req.user.role === 'orga') {
+    if (req.user.role === 'orga' && !req.user.isPoleLead) {
       if (req.user.isCommissionLead) {
         return res.status(403).json({ error: 'Réservé aux agents Orga — le chef de commission supervise, il n\'exécute pas les tâches de sous-rôle.' });
       }
@@ -110,9 +112,11 @@ function requireSanteScope(scope, { allowLead = false } = {}) {
 // Gestion des comptes agents : it gère tout le monde ; un chef de commission
 // (is_commission_lead) peut gérer les comptes de sa propre commission (la
 // portée exacte — même commission, pas de promotion de privilèges — est
-// vérifiée dans agentController.js).
+// vérifiée dans agentController.js). Le chef de pôle (isPoleLead) a la même
+// délégation que le chef de commission : parité complète voulue entre les
+// deux postes.
 function requireAgentManagement(req, res, next) {
-  if (req.user && (req.user.role === 'it' || req.user.isCommissionLead)) {
+  if (req.user && (req.user.role === 'it' || req.user.isCommissionLead || req.user.isPoleLead)) {
     return next();
   }
   return res.status(403).json({ error: 'Accès refusé pour ce rôle.' });
@@ -136,10 +140,9 @@ function requireCommissionLead(req, res, next) {
 // plus, son travail quotidien est de livrer les bagages déjà photographiés
 // dans la chambre assignée à chaque DUT1, pas de configurer les chambres.
 // Le "chef de pôle" (is_pole_lead) reçoit la même délégation que le chef de
-// commission ici : c'est justement le genre de supervision opérationnelle
-// qu'il partage avec lui — contrairement à la gestion des agents
-// (requireAgentManagement) et au journal d'audit (requireCommissionLead), qui
-// restent volontairement réservés au vrai chef et ne vérifient jamais isPoleLead.
+// commission ici, comme partout ailleurs sur Orga (requireAgentManagement,
+// requireCommissionLead, requireOrgaScope) : parité complète voulue entre les
+// deux postes, en plus de pouvoir jouer les sous-rôles (cf. requireOrgaScope).
 function requireCommissionLeadStrict(req, res, next) {
   if (req.user && (req.user.isCommissionLead || req.user.isPoleLead)) {
     return next();

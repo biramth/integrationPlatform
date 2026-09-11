@@ -118,24 +118,26 @@ export function getNavItems(user, settings) {
   // partie, cf. requireFeatureEnabled('luggage'|'logistics') côté backend.
   const luggageEnabled = settings?.luggage !== false;
   const logisticsEnabled = settings?.logistics !== false;
-  // Chef de pôle (isPoleLead, propre à Orga) : même supervision opérationnelle
-  // que le chef de commission (Vue d'ensemble, config chambres, annuaire), sauf
-  // la gestion des agents et le journal d'audit — AGENTS_ITEM/AUDIT_ITEM restent
-  // volontairement sur isCommissionLead seul, jamais isLead.
+  // Chef de pôle (isPoleLead, propre à Orga) : parité complète avec le chef de
+  // commission — y compris la gestion des agents et le journal d'audit,
+  // AGENTS_ITEM/AUDIT_ITEM sont donc sur isLead comme le reste — et peut en
+  // plus jouer tous les sous-rôles (cf. `scoped` plus bas), contrairement au
+  // chef de commission qui supervise seulement.
   const isLead = user.isCommissionLead || user.isPoleLead;
   const leadItems = [
-    ...(user.isCommissionLead && !NO_AGENTS_ROLES.includes(user.role) ? [AGENTS_ITEM] : []),
+    ...(isLead && !NO_AGENTS_ROLES.includes(user.role) ? [AGENTS_ITEM] : []),
     ...(isLead && OVERVIEW_ITEM_BY_ROLE[user.role] ? [OVERVIEW_ITEM_BY_ROLE[user.role]] : []),
     ...(user.isCommissionLead && user.role === ROLES.SANTE ? [SANTE_QUESTIONS_ITEM, SANTE_CRITERIA_ITEM] : []),
     ...(isLead && user.role === ROLES.ORGA ? [ORGA_ROOMS_ADMIN_ITEM, ORGA_DIRECTORY_ITEM] : []),
     ...(isLead && user.role === ROLES.ORGA ? [{ to: '/orga/menu', label: 'Menu du jour', icon: UtensilsCrossed }] : []),
-    ...(user.isCommissionLead ? [AUDIT_ITEM] : []),
+    ...(isLead ? [AUDIT_ITEM] : []),
   ];
-  // Le chef de commission (et le chef de pôle, pour Orga) supervise, il
-  // n'exécute pas les tâches de sous-rôle : il ne voit aucun des onglets
-  // opérationnels ci-dessus, quel que soit son sub_role — seulement leadItems
-  // (Vue d'ensemble, config, agents, audit) et Planning. Exception pour Santé,
-  // cf. plus bas (pas de chef de pôle pour cette commission).
+  // Le chef de commission supervise, il n'exécute pas les tâches de sous-rôle :
+  // il ne voit aucun des onglets opérationnels ci-dessous, quel que soit son
+  // sub_role — seulement leadItems (Vue d'ensemble, config, agents, audit) et
+  // Planning. Le chef de pôle (Orga uniquement), lui, peut jouer tous les
+  // sous-rôles : il voit les trois onglets opérationnels en plus de leadItems.
+  // Exception Santé, cf. plus bas (pas de chef de pôle pour cette commission).
   if (user.role === ROLES.ORGA) {
     // Chaque sous-domaine Orga a son propre interrupteur "journée d'accueil" :
     // enregistrement, bagages (photo/comptage) et logistique (livraison en
@@ -144,15 +146,18 @@ export function getNavItems(user, settings) {
       (user.subRole === 'enregistrement' && !registrationEnabled) ||
       (user.subRole === 'bagages' && !luggageEnabled) ||
       (user.subRole === 'chambres' && !logisticsEnabled);
-    const scoped = isLead
+    const allSubRoleItems = [
+      ...(registrationEnabled ? ORGA_ITEMS.enregistrement : []),
+      ...(luggageEnabled ? ORGA_ITEMS.bagages : []),
+      ...(logisticsEnabled ? ORGA_ITEMS.chambres : []),
+    ];
+    const scoped = user.isPoleLead
+      ? allSubRoleItems
+      : user.isCommissionLead
       ? []
       : user.subRole
       ? (subRoleDisabled ? [] : ORGA_ITEMS[user.subRole] || [])
-      : [
-          ...(registrationEnabled ? ORGA_ITEMS.enregistrement : []),
-          ...(luggageEnabled ? ORGA_ITEMS.bagages : []),
-          ...(logisticsEnabled ? ORGA_ITEMS.chambres : []),
-        ];
+      : allSubRoleItems;
     return [...scoped, RISKS_ITEM, PLANNING_ITEM, ...leadItems, ACCOUNT_ITEM];
   }
   if (user.role === ROLES.SANTE) {
