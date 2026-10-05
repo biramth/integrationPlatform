@@ -1,84 +1,52 @@
-// Départements « coiffe » : la seule granularité utilisée par les dossiers
-// DUT1, le dispatch des chambres et tous les filtres/exports. Les options
-// officielles (Génie Informatique et GCBA sont publiés par option au concours)
-// ne vivent QUE dans les listes admis importées par la commission IT
-// (admitted_students.option_code) — le dispatch mélange volontairement toutes
-// les options d'un même département dans les mêmes chambres.
-const DEPARTMENTS = ['GC', 'GE', 'GI', 'GM', 'GCBA', 'GB', 'Gestion'];
+// Les 10 départements officiels, chacun à part entière : dossiers DUT1,
+// listes admis, dispatch des chambres (qui sépare donc aussi les options de
+// Génie Informatique et de GCBA) et tous les filtres/exports.
+const DEPARTMENTS = ['GC', 'GE', 'INFO', 'ITR', 'GM', 'IA', 'BA', 'GCH', 'GB', 'Gestion'];
 
 const DEPARTMENT_LABELS = {
   GC: 'Génie Civil',
   GE: 'Génie Électrique',
-  GI: 'Génie Informatique',
+  INFO: 'Génie Informatique option Informatique',
+  ITR: 'Génie Informatique option Télécommunication Réseaux',
   GM: 'Génie Mécanique',
-  GCBA: 'Génie Chimique et Biologie Appliquée',
-  GB: 'Génie Biomédical',
+  IA: 'GCBA option Industrie Alimentaire',
+  BA: 'GCBA option Biologie Appliquée',
+  GCH: 'GCBA option Génie Chimique',
+  GB: 'Licence Biomédical',
   Gestion: 'Gestion',
 };
 
-// Options par département (listes admis uniquement). Vide = département sans option.
-const DEPARTMENT_OPTIONS = {
-  GI: [
-    { value: 'INFO', label: 'Informatique' },
-    { value: 'ITR', label: 'Informatique, Télécommunications et Réseaux' },
-  ],
-  GCBA: [
-    { value: 'IA', label: 'Industrie Alimentaire' },
-    { value: 'AB', label: 'Analyse Biologique' },
-    { value: 'GC', label: 'Génie Chimique' },
-  ],
-};
-
-function optionsForDepartment(department) {
-  return DEPARTMENT_OPTIONS[department] || [];
-}
-
-// Une ligne importée est valide sans option (départements non optionnalisés,
-// ou liste mixte saisie à la main) ; si une option est fournie, elle doit
-// exister ET appartenir au département déclaré.
-function validOptionFor(department, optionCode) {
-  if (!optionCode) return true;
-  return optionsForDepartment(department).some((o) => o.value === optionCode);
-}
-
-const DEPARTMENT_OPTION_LABELS = Object.fromEntries(
-  Object.values(DEPARTMENT_OPTIONS).flat().map((o) => [o.value, o.label])
-);
-
-// Un même département officiel apparaît sous plusieurs intitulés selon les documents
-// (concours, filières...) — utilisé pour la détection automatique du département à
-// l'import (Excel) ; l'admin confirme toujours le choix avant de valider l'import,
-// ceci ne fait que pré-remplir une suggestion. L'ex-ITR est détecté ici comme GI :
-// ce n'est plus qu'une option de Génie Informatique.
-const DEPARTMENT_ALIASES = {
+// Détection automatique à l'import (Excel) — l'admin confirme toujours le
+// choix avant de valider, ceci ne fait que pré-remplir une suggestion. Deux
+// tables parce que le fichier officiel annonce souvent la filière et l'option
+// sur des lignes différentes : FAMILY_ALIASES reconnaît la filière (GI et
+// GCBA sont des filières, pas des départements), OPTION_ALIASES l'option, qui
+// l'emporte quand elle est trouvée.
+const FAMILY_ALIASES = {
   GC: ['genie civil'],
   GE: ['genie electrique', 'electrotechnique'],
   GM: ['genie mecanique'],
-  GCBA: ['genie chimique et biologie appliquee', 'biologie appliquee'],
-  GI: [
-    'informatique, telecommunications et reseaux',
-    'informatique telecommunications et reseaux',
-    'genie informatique',
-    'informatique',
-  ],
-  GB: ['genie biomedical', 'biomedical'],
+  GCBA: ['genie chimique et biologie appliquee'],
+  GI: ['genie informatique'],
+  GB: ['genie biomedical', 'licence biomedical', 'biomedical'],
   Gestion: ['gestion'],
 };
 
-// Détection de l'option dans le texte du fichier. Volontairement conservateur :
-// seuls les intitulés non ambigus suggèrent une option ('option genie chimique'
-// plutôt que 'genie chimique', qui matcherait déjà le NOM du département GCBA).
-const DEPARTMENT_OPTION_ALIASES = {
+// Volontairement conservateur : seuls les intitulés non ambigus suggèrent une
+// option ('option genie chimique' plutôt que 'genie chimique', qui matcherait
+// déjà le nom de la filière GCBA).
+const OPTION_ALIASES = {
   ITR: [
     'informatique, telecommunications et reseaux',
     'informatique telecommunications et reseaux',
+    'telecommunication',
     'inf tr',
     'itr',
   ],
   INFO: ['option informatique'],
   IA: ['industrie alimentaire'],
-  AB: ['analyse biologique'],
-  GC: ['option genie chimique'],
+  BA: ['option biologie appliquee', 'analyse biologique'],
+  GCH: ['option genie chimique'],
 };
 
 function normalizeText(text) {
@@ -99,23 +67,26 @@ function matchAliasTable(text, table) {
   return null;
 }
 
-function matchDepartmentAlias(text) {
-  return matchAliasTable(text, DEPARTMENT_ALIASES);
+function matchFamilyAlias(text) {
+  return matchAliasTable(text, FAMILY_ALIASES);
 }
 
-function matchDepartmentOptionAlias(text) {
-  return matchAliasTable(text, DEPARTMENT_OPTION_ALIASES);
+function matchOptionAlias(text) {
+  return matchAliasTable(text, OPTION_ALIASES);
+}
+
+// Filière + option détectées → département. GI / GCBA sans option reconnue
+// restent sans suggestion : l'admin choisit l'option à la main.
+function resolveDetectedDepartment(family, option) {
+  if (option) return option;
+  if (family && DEPARTMENTS.includes(family)) return family;
+  return null;
 }
 
 module.exports = {
   DEPARTMENTS,
   DEPARTMENT_LABELS,
-  DEPARTMENT_OPTIONS,
-  DEPARTMENT_OPTION_LABELS,
-  DEPARTMENT_ALIASES,
-  DEPARTMENT_OPTION_ALIASES,
-  optionsForDepartment,
-  validOptionFor,
-  matchDepartmentAlias,
-  matchDepartmentOptionAlias,
+  matchFamilyAlias,
+  matchOptionAlias,
+  resolveDetectedDepartment,
 };

@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS dut1_records (
   birth_place                 TEXT NOT NULL,
   gender                      TEXT NOT NULL CHECK (gender IN ('M','F')),
   phone_number                TEXT,
-  department                  TEXT NOT NULL CHECK (department IN ('GC','GE','GI','GM','GCBA','GB','Gestion')),
+  department                  TEXT NOT NULL CHECK (department IN ('GC','GE','INFO','ITR','GM','IA','BA','GCH','GB','Gestion')),
   father_name                 TEXT,
   mother_name                 TEXT,
   father_phone                TEXT,
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS admitted_students (
   first_name      TEXT NOT NULL,
   birth_date      TEXT,
   birth_place     TEXT,
-  department      TEXT NOT NULL CHECK (department IN ('GC','GE','GI','GM','GCBA','GB','Gestion')),
+  department      TEXT NOT NULL CHECK (department IN ('GC','GE','INFO','ITR','GM','IA','BA','GCH','GB','Gestion')),
   rank            INTEGER,
   list_type       TEXT NOT NULL CHECK (list_type IN ('principale','attente')),
   matched_dut1_id INTEGER REFERENCES dut1_records(id) ON DELETE SET NULL,
@@ -102,17 +102,15 @@ ALTER TABLE dut1_records
   ADD COLUMN IF NOT EXISTS admission_validated_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS admission_validated_by INTEGER REFERENCES users(id);
 
--- Les options de Génie Informatique (ex-départements GI/ITR) et de GCBA
--- (Industrie Alimentaire, Analyse Biologique, Génie Chimique) ne vivent plus
--- que dans les listes admis (option_code, cf. plus bas) : le dispatch des
--- chambres les mélange sous leur département « coiffe ». GB = Génie Biomédical.
--- Les UPDATE précèdent OBLIGATOIREMENT le resserrement : une ligne encore en
--- 'ITR' violerait la nouvelle contrainte au moment du ADD CONSTRAINT (ce
--- fichier est ré-exécuté en entier à chaque déploiement).
-UPDATE dut1_records SET department = 'GI' WHERE department = 'ITR';
+-- Historique : les options de GI et GCBA ont un temps vécu dans
+-- admitted_students.option_code sous des départements « coiffe » GI/GCBA
+-- (ITR était alors replié dans GI). Elles sont redevenues des départements à
+-- part entière (cf. fin de fichier). Ce bloc, rejoué à chaque déploiement,
+-- n'élargit plus qu'à l'union ancien + nouveau référentiel — surtout plus
+-- d'UPDATE ITR -> GI, ITR étant de nouveau un département valide.
 ALTER TABLE dut1_records DROP CONSTRAINT IF EXISTS dut1_records_department_check;
 ALTER TABLE dut1_records ADD CONSTRAINT dut1_records_department_check
-  CHECK (department IN ('GC','GE','GI','GM','GCBA','GB','Gestion'));
+  CHECK (department IN ('GC','GE','GI','GM','GCBA','GB','Gestion','INFO','ITR','IA','BA','GCH'));
 
 -- Remplace la saisie père/mère du formulaire d'enregistrement par des
 -- "numéros à contacter en cas d'urgence" : liste libre de contacts
@@ -205,17 +203,13 @@ ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check
   CHECK (role IN ('orga','sante','cuisine','it','communication','culturelle','presidentielle','dreudj'));
 
-UPDATE admitted_students SET department = 'GI' WHERE department = 'ITR';
 ALTER TABLE admitted_students DROP CONSTRAINT IF EXISTS admitted_students_department_check;
 ALTER TABLE admitted_students ADD CONSTRAINT admitted_students_department_check
-  CHECK (department IN ('GC','GE','GI','GM','GCBA','GB','Gestion'));
+  CHECK (department IN ('GC','GE','GI','GM','GCBA','GB','Gestion','INFO','ITR','IA','BA','GCH'));
 
--- Options officielles des listes admis importées par la commission IT : seuls
--- Génie Informatique (INFO/ITR) et GCBA (IA/AB/GC) sont publiés par option.
--- Pas de clé étrangère ni de CHECK croisé département/option : la validité est
--- contrôlée applicativement à l'import (cf. confirmAdmittedStudents), rester
--- souple ici évite un resserrrement figé si les options évoluent. Le dispatch
--- et tous les filtres DUT1 ignorent cette colonne (granularité = département).
+-- Colonne dépréciée (plus renseignée ni lue) : l'option de GI / GCBA est
+-- désormais portée par department lui-même (cf. fin de fichier). Conservée,
+-- jamais de DROP COLUMN ; elle sert encore à migrer les anciennes lignes.
 ALTER TABLE admitted_students
   ADD COLUMN IF NOT EXISTS option_code TEXT;
 
@@ -714,3 +708,40 @@ UPDATE users SET sub_role = 'logistique' WHERE sub_role = 'chambres';
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_sub_role_check;
 ALTER TABLE users ADD CONSTRAINT users_sub_role_check
   CHECK (sub_role IN ('logistique','enregistrement','bagages','suivi','phase2','medoc'));
+
+-- 10 départements à part entière : les options de Génie Informatique et de
+-- GCBA deviennent des départements (dispatch des chambres, filtres et stats
+-- les séparent). Correspondance : GI+INFO -> INFO, GI+ITR -> ITR,
+-- GCBA+IA -> IA, GCBA+AB -> BA, GCBA+GC -> GCH (GC reste Génie Civil).
+-- Les contraintes ont été élargies à l'union plus haut ; on migre puis on
+-- resserre. GI sans option -> INFO (l'ancien import GI d'avant les options
+-- était la liste Informatique) ; GCBA sans option -> GCH faute de mieux, pour
+-- qu'un rejeu ne bloque jamais le déploiement. Les dossiers DUT1 n'ont jamais
+-- porté l'option : on la reprend de l'admis associé.
+UPDATE dut1_records d SET department = CASE
+    WHEN d.department = 'GI' AND a.option_code = 'ITR' THEN 'ITR'
+    WHEN d.department = 'GI' THEN 'INFO'
+    WHEN a.option_code = 'IA' THEN 'IA'
+    WHEN a.option_code = 'AB' THEN 'BA'
+    ELSE 'GCH'
+  END
+FROM (SELECT d2.id, MAX(a2.option_code) AS option_code
+      FROM dut1_records d2
+      LEFT JOIN admitted_students a2 ON a2.matched_dut1_id = d2.id
+      WHERE d2.department IN ('GI','GCBA')
+      GROUP BY d2.id) a
+WHERE d.id = a.id;
+UPDATE admitted_students SET department = CASE
+    WHEN department = 'GI' AND option_code = 'ITR' THEN 'ITR'
+    WHEN department = 'GI' THEN 'INFO'
+    WHEN option_code = 'IA' THEN 'IA'
+    WHEN option_code = 'AB' THEN 'BA'
+    ELSE 'GCH'
+  END
+WHERE department IN ('GI','GCBA');
+ALTER TABLE dut1_records DROP CONSTRAINT IF EXISTS dut1_records_department_check;
+ALTER TABLE dut1_records ADD CONSTRAINT dut1_records_department_check
+  CHECK (department IN ('GC','GE','INFO','ITR','GM','IA','BA','GCH','GB','Gestion'));
+ALTER TABLE admitted_students DROP CONSTRAINT IF EXISTS admitted_students_department_check;
+ALTER TABLE admitted_students ADD CONSTRAINT admitted_students_department_check
+  CHECK (department IN ('GC','GE','INFO','ITR','GM','IA','BA','GCH','GB','Gestion'));

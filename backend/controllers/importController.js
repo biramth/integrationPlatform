@@ -1,5 +1,5 @@
 const db = require('../db/database');
-const { DEPARTMENTS, validOptionFor } = require('../constants/departments');
+const { DEPARTMENTS } = require('../constants/departments');
 const { parseAdmittedStudentsBuffer, parseRoomsBuffer } = require('../services/xlsxImportService');
 const auditService = require('../services/auditService');
 
@@ -28,22 +28,18 @@ async function confirmAdmittedStudents(req, res) {
     for (const row of rows) {
       if (!row.lastName || !row.firstName || !row.department || !row.listType) continue;
       if (!DEPARTMENTS.includes(row.department)) continue;
-      // Option facultative, mais si fournie elle doit exister et appartenir au
-      // département déclaré (INFO/ITR pour GI, IA/AB/GC pour GCBA).
-      if (!validOptionFor(row.department, row.optionCode)) continue;
       if (!['principale', 'attente'].includes(row.listType)) continue;
 
       await tx.run(
         `INSERT INTO admitted_students
-          (last_name, first_name, birth_date, birth_place, department, option_code, rank, list_type, imported_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          (last_name, first_name, birth_date, birth_place, department, rank, list_type, imported_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           row.lastName,
           row.firstName,
           row.birthDate || null,
           row.birthPlace || null,
           row.department,
-          row.optionCode || null,
           row.rank || null,
           row.listType,
           req.user.id,

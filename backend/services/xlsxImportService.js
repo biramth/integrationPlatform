@@ -1,5 +1,5 @@
 const ExcelJS = require('exceljs');
-const { matchDepartmentAlias, matchDepartmentOptionAlias } = require('../constants/departments');
+const { matchFamilyAlias, matchOptionAlias, resolveDetectedDepartment } = require('../constants/departments');
 
 function cellValue(cell) {
   const v = cell.value;
@@ -93,7 +93,7 @@ const DEFAULT_STUDENT_COLS = { rank: 0, firstName: 1, lastName: 2, birthDate: 3,
 function parseAdmittedStudentsBuffer(buffer) {
   return loadWorkbook(buffer).then((workbook) => {
     const candidates = [];
-    let detectedDepartment = null;
+    let detectedFamily = null;
     let detectedOption = null;
     let unrecognizedRowCount = 0;
 
@@ -110,12 +110,12 @@ function parseAdmittedStudentsBuffer(buffer) {
         const rowText = cells.map((c) => cellToText(c)).join(' ').trim();
         if (!rowText) continue;
 
-        if (!detectedDepartment) {
-          const found = matchDepartmentAlias(rowText);
-          if (found) detectedDepartment = found;
+        if (!detectedFamily) {
+          const found = matchFamilyAlias(rowText);
+          if (found) detectedFamily = found;
         }
         if (!detectedOption) {
-          const foundOption = matchDepartmentOptionAlias(rowText);
+          const foundOption = matchOptionAlias(rowText);
           if (foundOption) detectedOption = foundOption;
         }
 
@@ -155,7 +155,11 @@ function parseAdmittedStudentsBuffer(buffer) {
       }
     });
 
-    return { detectedDepartment, detectedOption, candidates, unrecognizedRowCount };
+    return {
+      detectedDepartment: resolveDetectedDepartment(detectedFamily, detectedOption),
+      candidates,
+      unrecognizedRowCount,
+    };
   });
 }
 
