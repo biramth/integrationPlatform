@@ -69,6 +69,34 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* Timeline des activités (J0 … J7) : vert profond pour l'incontournable,
+   vert pâle pour l'important, gris pour le secondaire, pointillés pour
+   l'optionnel, terre cuite pour le temps fort. */
+:root {
+  --tl-header: #24481f;
+  --tl-deep: #2f5d2a;
+  --tl-deep-border: #1f3f1b;
+  --tl-mid: #d5e9cf;
+  --tl-mid-border: #5f9b55;
+  --tl-mid-foreground: #1d3519;
+  --tl-low: #f1f3f0;
+  --tl-low-border: #c4cbc1;
+  --tl-highlight: #a43c25;
+  --tl-highlight-border: #7d2b19;
+}
+.dark {
+  --tl-header: #2c5626;
+  --tl-deep: #376b31;
+  --tl-deep-border: #4f8a47;
+  --tl-mid: #1d2f1b;
+  --tl-mid-border: #5f9b55;
+  --tl-mid-foreground: #d4ead0;
+  --tl-low: #232622;
+  --tl-low-border: #3d433b;
+  --tl-highlight: #b2492f;
+  --tl-highlight-border: #d0664b;
+}
+
 [data-role="orga"]          { --role-accent: #2563eb; --role-accent-soft: #eff6ff; }
 [data-role="sante"]         { --role-accent: #dc2626; --role-accent-soft: #fef2f2; }
 [data-role="cuisine"]        { --role-accent: #16a34a; --role-accent-soft: #ecfdf3; }
@@ -136,6 +164,16 @@ body {
 .animate-spin-slow { animation: spin 0.7s linear infinite; }
 
 @theme inline {
+  --color-tl-header: var(--tl-header);
+  --color-tl-deep: var(--tl-deep);
+  --color-tl-deep-border: var(--tl-deep-border);
+  --color-tl-mid: var(--tl-mid);
+  --color-tl-mid-border: var(--tl-mid-border);
+  --color-tl-mid-foreground: var(--tl-mid-foreground);
+  --color-tl-low: var(--tl-low);
+  --color-tl-low-border: var(--tl-low-border);
+  --color-tl-highlight: var(--tl-highlight);
+  --color-tl-highlight-border: var(--tl-highlight-border);
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);

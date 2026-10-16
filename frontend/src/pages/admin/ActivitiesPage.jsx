@@ -1,20 +1,73 @@
 import { useState } from 'react';
-import { Trash2, Plus, Pencil, CalendarDays } from 'lucide-react';
+import { Trash2, Plus, CalendarDays } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as activityApi from '../../api/activityApi';
 import Input from '../../components/common/Input';
+import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
-import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import { confirm } from '../../components/common/confirmService';
 import PageHeader from '../../components/common/PageHeader';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
-import { staggerStyle } from '../../utils/stagger';
-import { formatDateLong, formatDateShort, formatTime, isToday, groupActivitiesByDate } from '../../utils/activityDates';
+import ActivityTimeline, { ActivityTimelineLegend } from '../../components/activities/ActivityTimeline';
+import { IMPORTANCE_OPTIONS } from '../../components/activities/importance';
 
-const EMPTY_FORM = { name: '', activityDate: '', startTime: '', endDate: '', description: '' };
+const EMPTY_FORM = {
+  name: '',
+  activityDate: '',
+  startTime: '',
+  timeLabel: '',
+  endDate: '',
+  description: '',
+  importance: 2,
+  highlight: false,
+};
+
+// Champs communs au formulaire d'ajout et à la fenêtre de modification.
+function ActivityFields({ value, onChange, idPrefix }) {
+  const set = (key) => (e) => onChange({ ...value, [key]: e.target.value });
+  return (
+    <>
+      <Input id={`${idPrefix}-name`} label="Nom" required value={value.name} onChange={set('name')} />
+      <Input id={`${idPrefix}-date`} label="Date" type="date" required value={value.activityDate} onChange={set('activityDate')} />
+      <Input id={`${idPrefix}-time`} label="Heure (optionnel)" type="time" value={value.startTime} onChange={set('startTime')} />
+      <Input
+        id={`${idPrefix}-time-label`}
+        label="Libellé à la place de l'heure"
+        placeholder="journée, libre, dates…"
+        value={value.timeLabel}
+        onChange={set('timeLabel')}
+      />
+      <Select
+        id={`${idPrefix}-importance`}
+        label="Importance"
+        value={value.importance}
+        onChange={(e) => onChange({ ...value, importance: Number(e.target.value) })}
+        options={IMPORTANCE_OPTIONS}
+      />
+      <Input id={`${idPrefix}-end`} label="Date de fin (optionnel)" type="date" value={value.endDate} onChange={set('endDate')} />
+      <Input
+        id={`${idPrefix}-description`}
+        label="Détails (optionnel)"
+        placeholder="lieu, consignes, plans à filmer…"
+        value={value.description}
+        onChange={set('description')}
+      />
+      <label htmlFor={`${idPrefix}-highlight`} className="flex min-h-[44px] items-center gap-2 self-end text-sm font-medium text-foreground">
+        <input
+          id={`${idPrefix}-highlight`}
+          type="checkbox"
+          checked={value.highlight}
+          onChange={(e) => onChange({ ...value, highlight: e.target.checked })}
+          className="h-4 w-4 accent-tl-highlight"
+        />
+        Temps fort (carte mise en avant)
+      </label>
+    </>
+  );
+}
 
 export default function ActivitiesPage() {
   const { showToast } = useToast();
@@ -31,7 +84,9 @@ export default function ActivitiesPage() {
     setSubmitting(true);
     try {
       await activityApi.createActivity(form);
-      setForm(EMPTY_FORM);
+      // On garde la date et l'importance : on saisit souvent plusieurs
+      // activités d'affilée pour le même jour.
+      setForm((f) => ({ ...EMPTY_FORM, activityDate: f.activityDate, importance: f.importance }));
       showToast('Activité ajoutée.', 'success');
       reload();
     } catch (err) {
@@ -41,25 +96,17 @@ export default function ActivitiesPage() {
     }
   }
 
-  async function handleDelete(activity) {
-    if (!(await confirm({ message: `Supprimer l'activité "${activity.name}" ?`, danger: true }))) return;
-    try {
-      await activityApi.deleteActivity(activity.id);
-      showToast('Activité supprimée.', 'success');
-      reload();
-    } catch (err) {
-      showToast(err.response?.data?.error || 'Suppression impossible.', 'error');
-    }
-  }
-
   function openEdit(activity) {
     setEditingActivity(activity);
     setEditForm({
       name: activity.name,
       activityDate: activity.activity_date,
       startTime: activity.start_time || '',
+      timeLabel: activity.time_label || '',
       endDate: activity.end_date || '',
       description: activity.description || '',
+      importance: activity.importance ?? 2,
+      highlight: Boolean(activity.highlight),
     });
   }
 
@@ -81,46 +128,32 @@ export default function ActivitiesPage() {
     }
   }
 
+  async function handleDelete() {
+    const activity = editingActivity;
+    if (!(await confirm({ message: `Supprimer l'activité "${activity.name}" ?`, danger: true }))) return;
+    try {
+      await activityApi.deleteActivity(activity.id);
+      showToast('Activité supprimée.', 'success');
+      closeEdit();
+      reload();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Suppression impossible.', 'error');
+    }
+  }
+
+  const activities = data?.activities || [];
+
   return (
     <div>
       <PageHeader
         title="Activités"
-        description="Programme de la semaine d'intégration, activité par activité."
+        description="Programme de la semaine d'intégration, jour par jour. Cliquez sur une activité pour la modifier."
       />
 
       <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-border bg-card p-4 shadow-soft">
         <p className="mb-3 text-sm font-semibold text-foreground">Ajouter une activité</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-          <Input
-            label="Nom"
-            required
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          />
-          <Input
-            label="Date"
-            type="date"
-            required
-            value={form.activityDate}
-            onChange={(e) => setForm((f) => ({ ...f, activityDate: e.target.value }))}
-          />
-          <Input
-            label="Heure (optionnel)"
-            type="time"
-            value={form.startTime}
-            onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
-          />
-          <Input
-            label="Date de fin (optionnel)"
-            type="date"
-            value={form.endDate}
-            onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
-          />
-          <Input
-            label="Description (optionnel)"
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <ActivityFields value={form} onChange={setForm} idPrefix="new-activity" />
         </div>
         <div className="mt-3 flex justify-end">
           <Button type="submit" loading={submitting}>
@@ -131,103 +164,34 @@ export default function ActivitiesPage() {
 
       {loading && <CardListSkeleton />}
       {error && <ErrorState label={error} onRetry={reload} />}
-      {!loading && !error && data.activities.length === 0 && (
+      {!loading && !error && activities.length === 0 && (
         <EmptyState label="Aucune activité configurée." icon={CalendarDays} />
       )}
 
-      {!loading && !error && data.activities.length > 0 && (
-        <div className="flex flex-col">
-          {groupActivitiesByDate(data.activities).map((group, groupIndex) => (
-            <div key={group.date} className="animate-fade-in-up" style={staggerStyle(groupIndex, 60)}>
-              <div className="sticky top-0 z-10 -mx-1 flex items-center gap-2 bg-background/95 px-1 py-2 backdrop-blur-sm">
-                <h2 className="text-sm font-semibold capitalize text-foreground">{formatDateLong(group.date)}</h2>
-                {isToday(group.date) && <Badge variant="info">Aujourd'hui</Badge>}
-              </div>
-
-              <ul className="relative ml-2.5 flex flex-col gap-3 border-l-2 border-border pb-2 pl-6">
-                {group.items.map((activity) => (
-                  <li key={activity.id} className="relative">
-                    <span className="absolute -left-[1.85rem] top-1.5 h-3 w-3 rounded-full border-2 border-card bg-role-accent" />
-                    <div className="rounded-xl border border-border bg-card p-3.5 shadow-soft">
-                      <div className="flex items-baseline gap-2">
-                        {activity.start_time && (
-                          <span className="shrink-0 text-xs font-semibold tabular-nums text-role-accent">
-                            {formatTime(activity.start_time)}
-                          </span>
-                        )}
-                        <p className="font-medium text-foreground">{activity.name}</p>
-                      </div>
-                      {activity.end_date && activity.end_date !== activity.activity_date && (
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          Jusqu'au {formatDateShort(activity.end_date)}
-                        </p>
-                      )}
-                      {activity.description && (
-                        <p className="mt-1.5 text-sm text-muted-foreground">{activity.description}</p>
-                      )}
-
-                      <div className="mt-3 flex items-center gap-3">
-                        <button
-                          onClick={() => openEdit(activity)}
-                          className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline"
-                        >
-                          <Pencil className="h-3.5 w-3.5" /> Modifier
-                        </button>
-                        <button
-                          onClick={() => handleDelete(activity)}
-                          className="flex items-center gap-1 text-xs text-danger transition-colors hover:opacity-80 hover:underline"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" /> Supprimer
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+      {!loading && !error && activities.length > 0 && (
+        <>
+          <ActivityTimelineLegend />
+          <ActivityTimeline activities={activities} onSelect={openEdit} />
+        </>
       )}
 
       <Modal open={!!editingActivity} onClose={closeEdit} title={editingActivity ? `Modifier ${editingActivity.name}` : ''}>
         {editingActivity && (
           <div className="flex flex-col gap-3">
-            <Input
-              label="Nom"
-              value={editForm.name}
-              onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-            />
-            <Input
-              label="Date"
-              type="date"
-              value={editForm.activityDate}
-              onChange={(e) => setEditForm((f) => ({ ...f, activityDate: e.target.value }))}
-            />
-            <Input
-              label="Heure (optionnel)"
-              type="time"
-              value={editForm.startTime}
-              onChange={(e) => setEditForm((f) => ({ ...f, startTime: e.target.value }))}
-            />
-            <Input
-              label="Date de fin (optionnel)"
-              type="date"
-              value={editForm.endDate}
-              onChange={(e) => setEditForm((f) => ({ ...f, endDate: e.target.value }))}
-            />
-            <Input
-              label="Description (optionnel)"
-              value={editForm.description}
-              onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
-            />
+            <ActivityFields value={editForm} onChange={setEditForm} idPrefix="edit-activity" />
 
-            <div className="mt-2 flex justify-end gap-2">
-              <Button variant="secondary" onClick={closeEdit}>
-                Annuler
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <Button variant="ghost" onClick={handleDelete} className="text-danger hover:text-danger">
+                <Trash2 className="h-4 w-4" /> Supprimer
               </Button>
-              <Button onClick={handleSaveEdit} loading={saving}>
-                Enregistrer
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={closeEdit}>
+                  Annuler
+                </Button>
+                <Button onClick={handleSaveEdit} loading={saving}>
+                  Enregistrer
+                </Button>
+              </div>
             </div>
           </div>
         )}

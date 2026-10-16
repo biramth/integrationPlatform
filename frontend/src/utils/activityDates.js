@@ -51,3 +51,49 @@ export function groupActivitiesByDate(activities) {
   }
   return [...groups.entries()].map(([date, items]) => ({ date, items }));
 }
+
+function toIso(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function weekdayName(iso) {
+  return WEEKDAYS[parseLocalDate(iso).getDay()];
+}
+
+// "2026-10-18" -> "18/10"
+export function formatDayMonth(iso) {
+  const date = parseLocalDate(iso);
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Colonnes de la timeline "J0 … Jn" : un jour par colonne, du premier au
+// dernier jour programmé. Les jours sans activité restent affichés (colonne
+// « Repos ») pour que la semaine se lise d'un bloc, sauf si l'écart entre deux
+// dates dépasse MAX_GAP_DAYS : on n'affiche alors que les jours programmés,
+// pour ne pas étaler des dizaines de colonnes vides.
+const MAX_GAP_DAYS = 6;
+
+export function buildTimelineDays(activities) {
+  const groups = groupActivitiesByDate(activities);
+  if (groups.length === 0) return [];
+
+  const byDate = new Map(groups.map((g) => [g.date, g.items]));
+  const days = [];
+  for (let i = 0; i < groups.length; i++) {
+    days.push(groups[i].date);
+    if (i === groups.length - 1) break;
+    const cursor = parseLocalDate(groups[i].date);
+    const next = parseLocalDate(groups[i + 1].date);
+    const gap = Math.round((next - cursor) / 86400000) - 1;
+    if (gap > 0 && gap <= MAX_GAP_DAYS) {
+      for (let k = 1; k <= gap; k++) {
+        days.push(toIso(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + k)));
+      }
+    }
+  }
+
+  return days.map((date, index) => ({ index, date, items: byDate.get(date) || [] }));
+}
