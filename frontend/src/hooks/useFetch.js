@@ -7,6 +7,12 @@ import { isConnected as isRealtimeConnected, onDataChanged, onStatusChange } fro
 // s'arrête — le push reprend la main.
 const FALLBACK_POLL_MS = 30000;
 
+// Un événement temps réel arrive au même instant dans tous les navigateurs
+// ouverts : sans étalement, chacun recharge toutes ses listes à la même
+// milliseconde et l'API (une petite instance) reçoit tout d'un bloc. On
+// répartit les rechargements sur une fenêtre courte, invisible à l'œil.
+const REALTIME_JITTER_MS = 1500;
+
 function subscribeConnected(listener) {
   return onStatusChange(listener);
 }
@@ -59,12 +65,42 @@ export function useFetch(fetcher, deps = [], options = {}) {
   const rtConnected = useSyncExternalStore(subscribeConnected, isRealtimeConnected);
 
   // 1) Push temps réel : chaque lot « data_changed » du serveur déclenche un
-  // rafraîchissement silencieux (déjà coalescé côté service realtime).
+  // rafraîchissement silencieux (déjà coalescé côté service realtime), étalé
+  // de quelques centaines de ms. Onglet en arrière-plan : on ne recharge pas
+  // tout de suite, mais on retient qu'il y a du nouveau et on recharge dès que
+  // l'onglet redevient visible (sinon il afficherait des données périmées
+  // jusqu'au prochain événement).
   useEffect(() => {
     if (!enableRealtime) return undefined;
-    return onDataChanged(() => {
-      if (document.visibilityState === 'visible') silentReload();
+    let timer = null;
+    let staleWhileHidden = false;
+
+    const scheduleReload = () => {
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
+        silentReload();
+      }, Math.random() * REALTIME_JITTER_MS);
+    };
+
+    const unsubscribe = onDataChanged(() => {
+      if (document.visibilityState === 'visible') scheduleReload();
+      else staleWhileHidden = true;
     });
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && staleWhileHidden) {
+        staleWhileHidden = false;
+        scheduleReload();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      unsubscribe();
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (timer) clearTimeout(timer);
+    };
   }, [enableRealtime, silentReload]);
 
   // 2) Polling : soit explicite via options.pollMs (fréquence imposée),

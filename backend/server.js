@@ -3,7 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
+const jwt = require('jsonwebtoken');
 
 const authRoutes = require('./routes/authRoutes');
 const dut1Routes = require('./routes/dut1Routes');
@@ -51,9 +52,36 @@ app.use(helmet());
 
 // Rate limiting global : protège contre les abus et le DoS sur tous les
 // endpoints. Le login a son propre limiter plus strict (authRoutes.js).
+//
+// Compté PAR COMPTE pour les requêtes authentifiées, pas par IP : pendant les
+// intégrations, des dizaines d'agents partagent la même IP publique (Wi-Fi de
+// l'école, partage de connexion, NAT des opérateurs mobiles). Un quota par IP
+// de 200 requêtes / 15 min se retrouvait épuisé en quelques secondes pour tout
+// le groupe — chaque événement temps réel fait recharger toutes les pages
+// ouvertes — et bloquait tout le monde pendant 15 minutes.
+// La signature du JWT est vérifiée (sans requête SQL) pour qu'un jeton forgé
+// ne puisse pas se créer son propre quota.
+const USER_LIMIT_PER_15_MIN = 5000;
+const ANONYMOUS_LIMIT_PER_15_MIN = 300;
+
+function rateLimitIdentity(req) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : req.query?.token;
+  if (token) {
+    try {
+      const payload = jwt.verify(token, process.env.JWT_SECRET);
+      if (payload?.id) return `user:${payload.id}`;
+    } catch {
+      // Jeton invalide : compté avec les requêtes anonymes de cette IP.
+    }
+  }
+  return `ip:${ipKeyGenerator(req.ip)}`;
+}
+
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 200,
+  limit: (req) => (rateLimitIdentity(req).startsWith('user:') ? USER_LIMIT_PER_15_MIN : ANONYMOUS_LIMIT_PER_15_MIN),
+  keyGenerator: rateLimitIdentity,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de requêtes, veuillez réessayer plus tard.' },

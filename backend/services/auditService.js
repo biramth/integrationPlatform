@@ -1,5 +1,6 @@
 const db = require('../db/database');
 const realtimeService = require('./realtimeService');
+const cache = require('../middleware/cache');
 
 // Écrit une ligne du journal d'audit. Toujours appelé APRÈS que l'opération
 // métier a réussi (elle-même déjà commitée si elle était transactionnelle) —
@@ -60,7 +61,10 @@ async function logAction(req, {
     // Point de diffusion central : le journal d'audit couvre déjà toutes les
     // actions métier — pas besoin d'appeler broadcast dans chaque contrôleur.
     // Les échecs ne diffusent rien : rien n'a changé côté données.
+    // Le cache des listes est vidé au même endroit, AVANT le signal : les
+    // navigateurs qui rechargent en réaction obtiennent la donnée à jour.
     if (success) {
+      cache.invalidateAll();
       realtimeService.broadcastDataChanged({ action, resourceType, commission });
     }
   } catch (err) {

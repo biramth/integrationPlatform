@@ -24,6 +24,10 @@ let reconnectTimer = null;
 let backoffMs = BACKOFF_INITIAL_MS;
 
 let connected = false;
+// Vrai dès qu'une première connexion a abouti : une ouverture suivante est une
+// REconnexion, après une coupure pendant laquelle des événements ont pu être
+// perdus (le serveur ne les rejoue pas).
+let hasConnectedOnce = false;
 const pendingChanges = [];
 let flushTimer = null;
 
@@ -101,6 +105,14 @@ function openConnection() {
   source.onopen = () => {
     backoffMs = BACKOFF_INITIAL_MS;
     setStatus(true);
+    // Après une coupure (réseau, redémarrage/redéploiement de l'API, veille du
+    // téléphone…), on demande un rafraîchissement : sans ça, une modification
+    // faite pendant la coupure resterait invisible jusqu'au prochain événement.
+    if (hasConnectedOnce) {
+      pendingChanges.push({ action: 'realtime.resync', resourceType: null, commission: null });
+      if (!flushTimer) flushTimer = setTimeout(flushPendingChanges, FLUSH_INTERVAL_MS);
+    }
+    hasConnectedOnce = true;
   };
 
   source.addEventListener('data_changed', handleEvent);
@@ -136,6 +148,7 @@ export function disconnectRealtime() {
     flushTimer = null;
   }
   pendingChanges.length = 0;
+  hasConnectedOnce = false;
   source?.close();
   source = null;
   setStatus(false);

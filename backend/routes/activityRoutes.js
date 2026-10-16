@@ -1,6 +1,7 @@
 const express = require('express');
 const activityController = require('../controllers/activityController');
 const { verifyToken, requireRoleStrict } = require('../middleware/auth');
+const { cached } = require('../middleware/cache');
 
 const router = express.Router();
 
@@ -9,7 +10,9 @@ router.use(verifyToken);
 // Le planning est un simple calendrier d'activités, sans donnée sensible :
 // accessible en lecture à toutes les commissions, pas seulement à celles qui
 // l'utilisent explicitement dans leur propre page.
-router.get('/', activityController.listActivities);
+// Mis en cache 30 s (vidé à chaque modification) : c'est la liste que toutes
+// les commissions rechargent en même temps à chaque événement temps réel.
+router.get('/', cached(30_000), activityController.listActivities);
 // Fixer le programme est le ressort exclusif de la commission Présidentielle
 // — pas d'IT, même via son bypass superutilisateur habituel (requireRoleStrict).
 router.post('/', requireRoleStrict('presidentielle'), activityController.createActivity);
