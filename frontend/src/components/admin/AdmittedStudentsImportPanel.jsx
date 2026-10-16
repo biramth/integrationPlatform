@@ -1,11 +1,14 @@
 import { useRef, useState } from 'react';
-import { Plus, Trash2, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, CheckCircle2, AlertTriangle } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import Select from '../common/Select';
 import { previewAdmittedStudentsFile, confirmAdmittedStudentsImport } from '../../api/importApi';
 import { admittedStudentsProgress } from '../../api/admittedStudentsApi';
 import { useToast } from '../../hooks/useToast';
+import { useFetch } from '../../hooks/useFetch';
+import AdmittedImportStatus from './AdmittedImportStatus';
+import { summarizeImportProgress, formatImportDate } from '../../utils/admittedImport';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../../utils/departments';
 
 const LIST_LABELS = { principale: 'Liste principale', attente: "Liste d'attente" };
@@ -30,6 +33,10 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
   const [confirming, setConfirming] = useState(false);
   const [lastImport, setLastImport] = useState(null);
   const nextKeyRef = useRef(0);
+  // Indicateur des départements déjà importés (rafraîchi en temps réel).
+  const progressFetch = useFetch(admittedStudentsProgress, []);
+  const importSummary = summarizeImportProgress(progressFetch.data?.progress);
+  const alreadyImported = department ? importSummary[department] : null;
   const withKey = (row) => ({ ...row, _key: nextKeyRef.current++ });
 
   async function handleAnalyze() {
@@ -78,6 +85,7 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
     try {
       const res = await confirmAdmittedStudentsImport(rows);
       const progress = await admittedStudentsProgress();
+      progressFetch.reload();
       showToast(`${res.createdCount} candidat(s) ajouté(s) au référentiel des admis.`, 'success');
       setLastImport({ createdCount: res.createdCount, department, progress: progress.progress });
       setCandidates(null);
@@ -96,6 +104,8 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
 
   return (
     <div className="mb-4 flex flex-col gap-4">
+      <AdmittedImportStatus progress={progressFetch.data?.progress} loading={progressFetch.loading} />
+
       <Card>
         <p className="mb-3 text-sm font-semibold text-foreground">1. Choisir le fichier Excel (.xlsx) de la liste des admis</p>
         <p className="mb-1 text-xs text-muted-foreground">
@@ -173,12 +183,30 @@ export default function AdmittedStudentsImportPanel({ onImported }) {
                 <Select
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  options={DEPARTMENTS.map((d) => ({ value: d, label: DEPARTMENT_LABELS[d] }))}
+                  options={DEPARTMENTS.map((d) => ({
+                    value: d,
+                    label: importSummary[d]?.total > 0 ? `${DEPARTMENT_LABELS[d]} · déjà importé` : DEPARTMENT_LABELS[d],
+                  }))}
                   placeholder="Département…"
                   className="w-56"
                 />
               </div>
           </div>
+
+          {alreadyImported?.total > 0 && (
+            <div
+              role="alert"
+              className="mb-3 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                <strong>{DEPARTMENT_LABELS[department] || department}</strong> est déjà importé :{' '}
+                {alreadyImported.total} admis ({alreadyImported.principale} principale, {alreadyImported.attente} attente)
+                {alreadyImported.lastImportedAt && <>, le {formatImportDate(alreadyImported.lastImportedAt)}</>}. Confirmer
+                ajoutera ces lignes en plus, au risque de créer des doublons.
+              </p>
+            </div>
+          )}
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

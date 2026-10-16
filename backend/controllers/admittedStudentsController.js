@@ -64,7 +64,8 @@ async function progress(req, res) {
   const rows = await db.all(
     `SELECT department, list_type,
        COUNT(*) AS total,
-       COUNT(matched_dut1_id) AS matched
+       COUNT(matched_dut1_id) AS matched,
+       MAX(imported_at) AS last_imported_at
      FROM admitted_students
      GROUP BY department, list_type
      ORDER BY department, list_type`
