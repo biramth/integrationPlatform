@@ -746,12 +746,9 @@ ALTER TABLE admitted_students DROP CONSTRAINT IF EXISTS admitted_students_depart
 ALTER TABLE admitted_students ADD CONSTRAINT admitted_students_department_check
   CHECK (department IN ('GC','GE','INFO','ITR','GM','IA','BA','GCH','GB','Gestion'));
 
--- Timeline des activités (format "J0 … J7") : importance de l'activité
--- (0 = optionnelle « + », 1 à 3 = ★ à ★★★), temps fort mis en avant (carte
--- rouge, ex. la révélation du nom de la promo) et libellé horaire libre qui
--- remplace l'heure quand elle n'a pas de sens ("journée", "libre", "dates").
-ALTER TABLE activities ADD COLUMN IF NOT EXISTS importance INTEGER NOT NULL DEFAULT 2;
-ALTER TABLE activities ADD COLUMN IF NOT EXISTS highlight BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE activities ADD COLUMN IF NOT EXISTS time_label TEXT;
+-- Les colonnes importance / highlight / time_label ajoutées un temps pour la
+-- timeline ne servent plus : on les retire pour garder le schéma propre.
 ALTER TABLE activities DROP CONSTRAINT IF EXISTS activities_importance_check;
-ALTER TABLE activities ADD CONSTRAINT activities_importance_check CHECK (importance BETWEEN 0 AND 3);
+ALTER TABLE activities DROP COLUMN IF EXISTS importance;
+ALTER TABLE activities DROP COLUMN IF EXISTS highlight;
+ALTER TABLE activities DROP COLUMN IF EXISTS time_label;

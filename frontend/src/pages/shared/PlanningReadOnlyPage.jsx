@@ -4,7 +4,7 @@ import * as activityApi from '../../api/activityApi';
 import PageHeader from '../../components/common/PageHeader';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
-import ActivityTimeline, { ActivityTimelineLegend } from '../../components/activities/ActivityTimeline';
+import ActivityTimeline from '../../components/activities/ActivityTimeline';
 
 // Vue planning en lecture seule, partagée par toutes les commissions : même
 // timeline "J0 … Jn" que /admin/activites, sans les actions de
@@ -24,10 +24,7 @@ export default function PlanningReadOnlyPage() {
       )}
 
       {!loading && !error && activities.length > 0 && (
-        <>
-          <ActivityTimelineLegend />
-          <ActivityTimeline activities={activities} />
-        </>
+        <ActivityTimeline activities={activities} />
       )}
     </div>
   );

@@ -3,7 +3,6 @@ import { Trash2, Plus, CalendarDays } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as activityApi from '../../api/activityApi';
 import Input from '../../components/common/Input';
-import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import { confirm } from '../../components/common/confirmService';
@@ -11,19 +10,9 @@ import PageHeader from '../../components/common/PageHeader';
 import { ErrorState, EmptyState } from '../../components/common/StateViews';
 import { CardListSkeleton } from '../../components/common/Skeleton';
 import { useToast } from '../../hooks/useToast';
-import ActivityTimeline, { ActivityTimelineLegend } from '../../components/activities/ActivityTimeline';
-import { IMPORTANCE_OPTIONS } from '../../components/activities/importance';
+import ActivityTimeline from '../../components/activities/ActivityTimeline';
 
-const EMPTY_FORM = {
-  name: '',
-  activityDate: '',
-  startTime: '',
-  timeLabel: '',
-  endDate: '',
-  description: '',
-  importance: 2,
-  highlight: false,
-};
+const EMPTY_FORM = { name: '', activityDate: '', startTime: '', endDate: '', description: '' };
 
 // Champs communs au formulaire d'ajout et à la fenêtre de modification.
 function ActivityFields({ value, onChange, idPrefix }) {
@@ -33,38 +22,13 @@ function ActivityFields({ value, onChange, idPrefix }) {
       <Input id={`${idPrefix}-name`} label="Nom" required value={value.name} onChange={set('name')} />
       <Input id={`${idPrefix}-date`} label="Date" type="date" required value={value.activityDate} onChange={set('activityDate')} />
       <Input id={`${idPrefix}-time`} label="Heure (optionnel)" type="time" value={value.startTime} onChange={set('startTime')} />
-      <Input
-        id={`${idPrefix}-time-label`}
-        label="Libellé à la place de l'heure"
-        placeholder="journée, libre, dates…"
-        value={value.timeLabel}
-        onChange={set('timeLabel')}
-      />
-      <Select
-        id={`${idPrefix}-importance`}
-        label="Importance"
-        value={value.importance}
-        onChange={(e) => onChange({ ...value, importance: Number(e.target.value) })}
-        options={IMPORTANCE_OPTIONS}
-      />
       <Input id={`${idPrefix}-end`} label="Date de fin (optionnel)" type="date" value={value.endDate} onChange={set('endDate')} />
       <Input
         id={`${idPrefix}-description`}
-        label="Détails (optionnel)"
-        placeholder="lieu, consignes, plans à filmer…"
+        label="Description (optionnel)"
         value={value.description}
         onChange={set('description')}
       />
-      <label htmlFor={`${idPrefix}-highlight`} className="flex min-h-[44px] items-center gap-2 self-end text-sm font-medium text-foreground">
-        <input
-          id={`${idPrefix}-highlight`}
-          type="checkbox"
-          checked={value.highlight}
-          onChange={(e) => onChange({ ...value, highlight: e.target.checked })}
-          className="h-4 w-4 accent-tl-highlight"
-        />
-        Temps fort (carte mise en avant)
-      </label>
     </>
   );
 }
@@ -84,9 +48,9 @@ export default function ActivitiesPage() {
     setSubmitting(true);
     try {
       await activityApi.createActivity(form);
-      // On garde la date et l'importance : on saisit souvent plusieurs
-      // activités d'affilée pour le même jour.
-      setForm((f) => ({ ...EMPTY_FORM, activityDate: f.activityDate, importance: f.importance }));
+      // On garde la date : on saisit souvent plusieurs activités d'affilée
+      // pour le même jour.
+      setForm((f) => ({ ...EMPTY_FORM, activityDate: f.activityDate }));
       showToast('Activité ajoutée.', 'success');
       reload();
     } catch (err) {
@@ -102,11 +66,8 @@ export default function ActivitiesPage() {
       name: activity.name,
       activityDate: activity.activity_date,
       startTime: activity.start_time || '',
-      timeLabel: activity.time_label || '',
       endDate: activity.end_date || '',
       description: activity.description || '',
-      importance: activity.importance ?? 2,
-      highlight: Boolean(activity.highlight),
     });
   }
 
@@ -152,7 +113,7 @@ export default function ActivitiesPage() {
 
       <form onSubmit={handleCreate} className="mb-6 rounded-xl border border-border bg-card p-4 shadow-soft">
         <p className="mb-3 text-sm font-semibold text-foreground">Ajouter une activité</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <ActivityFields value={form} onChange={setForm} idPrefix="new-activity" />
         </div>
         <div className="mt-3 flex justify-end">
@@ -169,10 +130,7 @@ export default function ActivitiesPage() {
       )}
 
       {!loading && !error && activities.length > 0 && (
-        <>
-          <ActivityTimelineLegend />
-          <ActivityTimeline activities={activities} onSelect={openEdit} />
-        </>
+        <ActivityTimeline activities={activities} onSelect={openEdit} />
       )}
 
       <Modal open={!!editingActivity} onClose={closeEdit} title={editingActivity ? `Modifier ${editingActivity.name}` : ''}>
