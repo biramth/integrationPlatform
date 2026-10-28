@@ -5,8 +5,10 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { listDut1 } from '../../api/dut1Api';
 import { listActivities } from '../../api/activityApi';
 import { listCriteria } from '../../api/aptitudeCriteriaApi';
+import { listPhase2Questions } from '../../api/phase2QuestionsApi';
 import * as healthApi from '../../api/healthApi';
 import Dut1Card from '../../components/dut1/Dut1Card';
+import Dut1ComplementaryAnswers from '../../components/dut1/Dut1ComplementaryAnswers';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
@@ -51,6 +53,8 @@ export default function HealthTrackingPage() {
   const onTreatmentFetch = useFetch(healthApi.getOnTreatment, []);
   const activitiesFetch = useFetch(listActivities, []);
   const criteriaFetch = useFetch(listCriteria, []);
+  const questionsFetch = useFetch(listPhase2Questions, []);
+  const questions = questionsFetch.data?.questions || [];
   const historyFetch = useFetch(
     () => (selected ? healthApi.getRestrictionsForDut1(selected.id) : Promise.resolve({ restrictions: [] })),
     [selected]
@@ -264,6 +268,38 @@ export default function HealthTrackingPage() {
           <h2 className="text-h2 mb-3 text-foreground">
             {selected.first_name} {selected.last_name}
           </h2>
+
+          <Card className="mb-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-foreground">Réponses au questionnaire</p>
+              {selected.complementary_completed_at ? (
+                <Badge variant="success">Dossier complété</Badge>
+              ) : (
+                <Badge variant="warning">Dossier non complété</Badge>
+              )}
+            </div>
+
+            {!selected.complementary_completed_at && (
+              <p className="mb-3 text-xs text-muted-foreground">
+                Ce DUT1 n'a pas encore répondu au questionnaire de phase 2 : les réponses affichées peuvent être partielles.
+              </p>
+            )}
+
+            {questionsFetch.loading && <LoadingState />}
+            {questionsFetch.error && <ErrorState label={questionsFetch.error} onRetry={questionsFetch.reload} />}
+            {questionsFetch.data && questions.length === 0 && <EmptyState label="Aucune question configurée." />}
+            {questionsFetch.data && questions.length > 0 && (
+              <Dut1ComplementaryAnswers
+                questions={questions}
+                values={selected.extra_fields || {}}
+                allergens={selected.allergens || []}
+                aptitudeLevels={selected.aptitude_levels || []}
+                onTreatment={selected.on_treatment}
+                treatmentDetails={selected.treatment_details}
+                completed={!!selected.complementary_completed_at}
+              />
+            )}
+          </Card>
 
           <Card className="mb-4">
             <p className="mb-2 text-sm font-semibold text-foreground">Historique</p>

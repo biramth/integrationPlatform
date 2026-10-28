@@ -26,6 +26,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { DEPARTMENTS, DEPARTMENT_LABELS } from '../../utils/departments';
 import { staggerStyle } from '../../utils/stagger';
 import { SEVERITY_LABELS, SEVERITY_BADGE_VARIANT } from '../../utils/severity';
+import { formatQuestionAnswer, isQuestionAnswerEmpty } from '../../utils/phase2Answers';
 import {
   TREATMENT_SLOT_LABELS,
   emptyTreatment,
@@ -34,30 +35,6 @@ import {
 } from '../../utils/treatmentForm';
 
 const PAGE_SIZE = 25;
-
-function formatQuestionAnswer(question, value) {
-  if (question.type === 'oui_non') {
-    if (value === true) return 'Oui';
-    if (value === false) return 'Non';
-    return null;
-  }
-  if (question.type === 'choix_multiple') {
-    return Array.isArray(value) && value.length > 0 ? value.join(', ') : null;
-  }
-  if (typeof value === 'string') {
-    return value.trim() ? value : null;
-  }
-  return value || null;
-}
-
-function isQuestionAnswerEmpty(value) {
-  return (
-    value === undefined ||
-    value === null ||
-    (typeof value === 'string' && !value.trim()) ||
-    (Array.isArray(value) && value.length === 0)
-  );
-}
 
 export default function CompleteInfoFormPage() {
   const { showToast } = useToast();

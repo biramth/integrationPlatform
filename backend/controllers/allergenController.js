@@ -13,7 +13,7 @@ async function listAllergens(req, res) {
 }
 
 async function createAllergen(req, res) {
-  const { label } = req.body;
+  const label = typeof req.body.label === 'string' ? req.body.label.trim() : '';
   if (!label) {
     return res.status(400).json({ error: 'label requis.' });
   }

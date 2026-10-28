@@ -109,6 +109,20 @@ function requireSanteScope(scope, { allowLead = false } = {}) {
   };
 }
 
+// Certaines actions Santé ne relèvent pas d'un seul sous-domaine : créer un
+// allergène se fait aussi bien depuis la configuration du questionnaire
+// (suivi/chef) que depuis la complétion d'un dossier, quand l'agent qui
+// interroge le DUT1 découvre un allergène absent de la liste (phase2). Le
+// sous-rôle NULL (accès aux deux) et le chef/IT passent, comme ailleurs.
+function requireSanteScopeAny(...scopes) {
+  return (req, res, next) => {
+    if (req.user.role === 'sante' && req.user.subRole && !scopes.includes(req.user.subRole)) {
+      return res.status(403).json({ error: 'Accès refusé pour ce sous-rôle de la commission Santé.' });
+    }
+    next();
+  };
+}
+
 // Gestion des comptes agents : it gère tout le monde ; un chef de commission
 // (is_commission_lead) peut gérer les comptes de sa propre commission (la
 // portée exacte — même commission, pas de promotion de privilèges — est
@@ -156,6 +170,7 @@ module.exports = {
   requireRoleStrict,
   requireOrgaScope,
   requireSanteScope,
+  requireSanteScopeAny,
   requireAgentManagement,
   requireCommissionLead,
   requireCommissionLeadStrict,
