@@ -28,8 +28,13 @@ async function getRisks(req, res) {
     return res.status(400).json({ error: 'date requise (YYYY-MM-DD).' });
   }
 
-  const allergyRows = await db.all(
-    `SELECT DISTINCT
+  // Les trois requêtes ci-dessous sont indépendantes : les enchaîner coûtait
+  // trois allers-retours Supabase (~100–150 ms chacun depuis Render) pour un
+  // écran jamais mis en cache. On les lance en parallèle — le pool (10
+  // connexions) absorbe sans problème ces requêtes simultanées.
+  const [allergyRows, restrictionRows, todaysActivities] = await Promise.all([
+    db.all(
+      `SELECT DISTINCT
        d.id, d.first_name, d.last_name, d.department, d.gender, r.label AS room_label,
        a.label AS allergen_label, da.severity,
        dish.name AS dish_name, ms.meal_type AS meal_type
@@ -42,11 +47,10 @@ async function getRisks(req, res) {
      LEFT JOIN rooms r ON r.id = d.room_id
      WHERE ms.service_date = $1
      ORDER BY d.last_name, d.first_name`,
-    [date]
-  );
-
-  const restrictionRows = await db.all(
-    `SELECT
+      [date]
+    ),
+    db.all(
+      `SELECT
        d.id, d.first_name, d.last_name, d.department, d.gender, r.label AS room_label,
        hr.reason, hr.end_date, hr.criterion_id, act.name AS activity_name
      FROM health_restrictions hr
@@ -57,18 +61,18 @@ async function getRisks(req, res) {
        AND hr.start_date <= $1
        AND (hr.end_date IS NULL OR hr.end_date >= $1)
      ORDER BY d.last_name, d.first_name`,
-    [date]
-  );
-
-  // Un critère lié à une restriction ponctuelle (hr.criterion_id) s'applique
-  // automatiquement à toute activité du jour qui l'exige, sans que l'agent
-  // ait eu besoin de lier la restriction à cette activité précise au moment
-  // de la déclarer — seul un lien explicite (hr.activity_id) restait limité
-  // à une activité choisie à l'avance.
-  const todaysActivities = await db.all(
-    `SELECT id, name FROM activities WHERE $1 BETWEEN activity_date AND COALESCE(end_date, activity_date)`,
-    [date]
-  );
+      [date]
+    ),
+    // Un critère lié à une restriction ponctuelle (hr.criterion_id) s'applique
+    // automatiquement à toute activité du jour qui l'exige, sans que l'agent
+    // ait eu besoin de lier la restriction à cette activité précise au moment
+    // de la déclarer — seul un lien explicite (hr.activity_id) restait limité
+    // à une activité choisie à l'avance.
+    db.all(
+      `SELECT id, name FROM activities WHERE $1 BETWEEN activity_date AND COALESCE(end_date, activity_date)`,
+      [date]
+    ),
+  ]);
   const activityNameById = new Map(todaysActivities.map((a) => [a.id, a.name]));
 
   // Niveau minimum exigé par critère, pour chaque activité du jour.
@@ -99,17 +103,21 @@ async function getRisks(req, res) {
   // apparaît automatiquement à risque pour cette activité.
   const aptitudeMismatches = [];
   if (requiredCriteriaRows.length) {
-    const completedDut1Rows = await db.all(
-      `SELECT d.id, d.first_name, d.last_name, d.department, d.gender, r.label AS room_label
+    // Deux requêtes indépendantes (profils complétés, niveaux déclarés) :
+    // inutile de payer deux allers-retours successifs.
+    const [completedDut1Rows, ownLevelRows] = await Promise.all([
+      db.all(
+        `SELECT d.id, d.first_name, d.last_name, d.department, d.gender, r.label AS room_label
        FROM dut1_records d
        LEFT JOIN rooms r ON r.id = d.room_id
        WHERE d.complementary_completed_at IS NOT NULL`
-    );
-    const ownLevelRows = await db.all(
-      `SELECT dal.dut1_id, dal.criterion_id, lvl.rank, lvl.label
+      ),
+      db.all(
+        `SELECT dal.dut1_id, dal.criterion_id, lvl.rank, lvl.label
        FROM dut1_aptitude_levels dal
        JOIN aptitude_criterion_levels lvl ON lvl.id = dal.level_id`
-    );
+      ),
+    ]);
     const ownLevelByDut1 = new Map();
     for (const row of ownLevelRows) {
       if (!ownLevelByDut1.has(row.dut1_id)) ownLevelByDut1.set(row.dut1_id, new Map());
