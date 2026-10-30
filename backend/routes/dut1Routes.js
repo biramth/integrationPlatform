@@ -34,6 +34,7 @@ router.get(
   '/without-complementary',
   requireRole('sante'),
   requireSanteScope('phase2', { allowLead: true }),
+  cached(15_000),
   dut1Controller.listWithoutComplementary
 );
 // Annuaire en lecture : Orga/Santé/Cuisine voient tout, Communication et
