@@ -54,18 +54,28 @@ function normalizeHeader(text) {
 
 async function loadCsvWorkbook(buffer) {
   const workbook = new ExcelJS.Workbook();
-  // Try CSV first
-  try {
-    await workbook.csv.load(buffer);
-    return workbook;
-  } catch (e) {
-    // Fall back to XLSX
+  // Check magic bytes: XLSX files start with PK (ZIP), CSV files start with text
+  const isXlsx = buffer.length >= 2 && buffer[0] === 0x50 && buffer[1] === 0x4B; // PK
+  
+  if (isXlsx) {
     try {
       await workbook.xlsx.load(buffer);
       return workbook;
-    } catch (e2) {
-      throw new Error('Impossible de lire le fichier. Format attendu : CSV ou XLSX.');
+    } catch (e) {
+      throw new Error('Impossible de lire le fichier XLSX.');
     }
+  }
+  
+  // Try CSV
+  try {
+    const stream = require('stream');
+    const readable = new stream.Readable();
+    readable.push(buffer);
+    readable.push(null);
+    await workbook.csv.read(readable);
+    return workbook;
+  } catch (e) {
+    throw new Error('Impossible de lire le fichier. Format attendu : CSV ou XLSX.');
   }
 }
 
