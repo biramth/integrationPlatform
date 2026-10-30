@@ -341,12 +341,10 @@ async function listRecords(req, res) {
   const limit = Math.min(Number(pageSize) || 25, 100);
   const offset = (Math.max(Number(page) || 1, 1) - 1) * limit;
 
-  // Le total et la page sont indépendants : les lancer ensemble supprime un
-  // aller-retour Supabase (~250 ms) sur l'écran le plus consulté.
-  const [countRow, records] = await Promise.all([
-    db.get(`SELECT COUNT(*) AS n FROM dut1_records d ${whereSql}`, params),
-    db.all(
-      `SELECT d.*, r.label AS room_label,
+  const total = (await db.get(`SELECT COUNT(*) AS n FROM dut1_records d ${whereSql}`, params)).n;
+
+  const records = await db.all(
+    `SELECT d.*, r.label AS room_label,
        ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
        ${LUGGAGE_SENSITIVE_SUBQUERY},
        ${ALLERGENS_SUBQUERY},
@@ -356,10 +354,8 @@ async function listRecords(req, res) {
      ${whereSql}
      ORDER BY d.created_at DESC, d.id DESC
      LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-      [...params, limit, offset]
-    ),
-  ]);
-  const total = countRow.n;
+    [...params, limit, offset]
+  );
 
   const serialized = records.map(serializeRecord);
   res.json({
@@ -454,12 +450,8 @@ async function exportContactsCsv(req, res) {
 }
 
 async function getRecord(req, res) {
-  // Les rôles non médicaux ne reçoivent pas les bagages : inutile d'aller les
-  // chercher. Pour les autres, dossier et bagages partent en parallèle.
-  const wantsLuggage = !NON_MEDICAL_ROLES.includes(req.user.role);
-  const [record, luggageItems] = await Promise.all([
-    db.get(
-      `SELECT d.*, r.label AS room_label,
+  const record = await db.get(
+    `SELECT d.*, r.label AS room_label,
        ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
        ${LUGGAGE_SENSITIVE_SUBQUERY},
        ${ALLERGENS_SUBQUERY},
@@ -467,23 +459,21 @@ async function getRecord(req, res) {
      FROM dut1_records d
      LEFT JOIN rooms r ON r.id = d.room_id
      WHERE d.id = $1`,
-      [req.params.id]
-    ),
-    wantsLuggage
-      ? db.all(
-          'SELECT id, file_path, original_name, is_sensitive, sensitive_note, uploaded_at FROM luggage_items WHERE dut1_id = $1',
-          [req.params.id]
-        )
-      : Promise.resolve([]),
-  ]);
+    [req.params.id]
+  );
 
   if (!record) {
     return res.status(404).json({ error: 'Dossier introuvable.' });
   }
 
-  if (!wantsLuggage) {
+  if (NON_MEDICAL_ROLES.includes(req.user.role)) {
     return res.json({ record: stripMedicalFields(serializeRecord(record)), luggageItems: [] });
   }
+
+  const luggageItems = await db.all(
+    'SELECT id, file_path, original_name, is_sensitive, sensitive_note, uploaded_at FROM luggage_items WHERE dut1_id = $1',
+    [req.params.id]
+  );
 
   res.json({ record: serializeRecord(record), luggageItems });
 }
