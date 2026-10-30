@@ -198,8 +198,8 @@ async function confirmContactsCsv(req, res) {
           [
             lastName,
             firstName,
-            null, // birth_date - non fourni dans ce CSV
-            null, // birth_place - non fourni
+            '', // birth_date - non fourni dans ce CSV
+            '', // birth_place - non fourni
             gender,
             department,
             phoneNumber,
