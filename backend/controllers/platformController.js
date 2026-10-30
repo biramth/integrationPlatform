@@ -1,5 +1,6 @@
 const db = require('../db/database');
 const auditService = require('../services/auditService');
+const { invalidateUserCheck } = require('../middleware/auth');
 
 const CONFIRMATION_PHRASE = 'RESET PLATEFORME';
 
@@ -62,6 +63,10 @@ async function resetPlatform(req, res) {
     await tx.run('DELETE FROM medications');
     await tx.run('DELETE FROM users WHERE id != $1', [req.user.id]);
   });
+
+  // Tous les autres comptes viennent d'être supprimés : aucun jeton encore
+  // valide ne doit rester accepté par le cache de verifyToken.
+  invalidateUserCheck();
 
   await auditService.logAction(req, {
     action: 'platform.reset',

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const db = require('../db/database');
 const { comparePassword, hashPassword } = require('../services/passwordService');
+const { invalidateUserCheck } = require('../middleware/auth');
 
 async function login(req, res) {
   const { username, password } = req.body;
@@ -86,6 +87,9 @@ async function changePassword(req, res) {
     'UPDATE users SET password_hash = $1, token_version = token_version + 1, updated_at = NOW() WHERE id = $2',
     [await hashPassword(newPassword), req.user.id]
   );
+  // L'ancien jeton doit être refusé dès la requête suivante, sans attendre
+  // l'expiration du cache de verifyToken.
+  invalidateUserCheck(req.user.id);
 
   // Générer un nouveau token (l'ancien sera rejeté à cause de token_version incrémenté).
   const fullUser = await db.get(

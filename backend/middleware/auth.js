@@ -1,6 +1,67 @@
 const jwt = require('jsonwebtoken');
 const db = require('../db/database');
 
+// --- Contrôle d'accès : cache court -----------------------------------------
+// La signature et l'expiration du JWT sont vérifiées à chaque requête. Seule la
+// lecture de `users` (token_version + is_active) est mémorisée quelques
+// secondes : sans ça, chaque appel authentifié payait un aller-retour Supabase
+// (~100 ms depuis Render) avant même d'atteindre le contrôleur.
+//
+// Les écritures qui révoquent un jeton (mot de passe, désactivation, changement
+// de privilèges) appellent invalidateUserCheck() : la révocation reste donc
+// immédiate. Le TTL n'est qu'un filet de sécurité pour les modifications faites
+// hors application (SQL direct).
+const USER_CHECK_TTL_MS = 15_000;
+const userChecks = new Map();
+
+// Clé normalisée : les routes passent l'id en chaîne, le JWT en nombre.
+const userKey = (id) => String(id);
+
+function getUserCheck(id) {
+  const key = userKey(id);
+  const entry = userChecks.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    userChecks.delete(key);
+    return null;
+  }
+  return entry;
+}
+
+function rememberUserCheck(user) {
+  const entry = {
+    tokenVersion: user.token_version,
+    isActive: user.is_active,
+    expiresAt: Date.now() + USER_CHECK_TTL_MS,
+  };
+  userChecks.set(userKey(user.id), entry);
+  return entry;
+}
+
+// À appeler après toute écriture qui doit révoquer les jetons d'un compte.
+// Sans argument : vide tout (import/synchronisation en masse).
+function invalidateUserCheck(id) {
+  if (id === undefined || id === null) userChecks.clear();
+  else userChecks.delete(userKey(id));
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of userChecks) {
+    if (now > entry.expiresAt) userChecks.delete(key);
+  }
+}, 60_000).unref?.();
+
+function applyUserCheck(entry, req, res, next) {
+  if (!entry.isActive) {
+    return res.status(401).json({ error: 'Compte désactivé ou introuvable.' });
+  }
+  if (entry.tokenVersion !== req.user.tokenVersion) {
+    return res.status(401).json({ error: 'Token révoqué. Veuillez vous reconnecter.' });
+  }
+  return next();
+}
+
 function verifyToken(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -16,17 +77,18 @@ function verifyToken(req, res, next) {
   }
 
   // Vérification du token_version : si le mot de passe a changé ou le compte
-  // a été désactivé depuis l'émission du JWT, le token est révoqué. Requête
-  // simple sur users (indexé par PK) — un seul hit par requête authentifiée.
-  db.get('SELECT token_version, is_active FROM users WHERE id = $1', [req.user.id])
+  // a été désactivé depuis l'émission du JWT, le token est révoqué.
+  const cached = getUserCheck(req.user.id);
+  if (cached) {
+    return applyUserCheck(cached, req, res, next);
+  }
+
+  db.get('SELECT id, token_version, is_active FROM users WHERE id = $1', [req.user.id])
     .then((user) => {
-      if (!user || !user.is_active) {
+      if (!user) {
         return res.status(401).json({ error: 'Compte désactivé ou introuvable.' });
       }
-      if (user.token_version !== req.user.tokenVersion) {
-        return res.status(401).json({ error: 'Token révoqué. Veuillez vous reconnecter.' });
-      }
-      next();
+      return applyUserCheck(rememberUserCheck(user), req, res, next);
     })
     .catch(() => {
       res.status(500).json({ error: 'Erreur serveur.' });
@@ -166,6 +228,7 @@ function requireCommissionLeadStrict(req, res, next) {
 
 module.exports = {
   verifyToken,
+  invalidateUserCheck,
   requireRole,
   requireRoleStrict,
   requireOrgaScope,

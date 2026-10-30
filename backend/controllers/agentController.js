@@ -1,6 +1,7 @@
 const db = require('../db/database');
 const { hashPassword } = require('../services/passwordService');
 const auditService = require('../services/auditService');
+const { invalidateUserCheck } = require('../middleware/auth');
 
 const ROLES = ['orga', 'sante', 'cuisine', 'it', 'communication', 'culturelle', 'presidentielle', 'dreudj'];
 // Sous-rôles valides par commission — NULL = accès à tout le périmètre de la
@@ -199,6 +200,10 @@ async function updateAgent(req, res) {
     ]
   );
 
+  // Le rôle, l'activité ou les privilèges ont pu changer : la prochaine requête
+  // de ce compte doit relire la base, pas le cache de verifyToken.
+  invalidateUserCheck(id);
+
   const updatedAgent = await db.get('SELECT * FROM users WHERE id = $1', [id]);
 
   await auditService.logAction(req, {
@@ -234,6 +239,7 @@ async function resetPassword(req, res) {
   }
 
   await db.run(`UPDATE users SET password_hash = $1, token_version = token_version + 1, updated_at = NOW() WHERE id = $2`, [await hashPassword(password), id]);
+  invalidateUserCheck(id);
 
   // before/after volontairement vides : jamais le secret lui-même dans le journal.
   await auditService.logAction(req, {
@@ -258,6 +264,7 @@ async function deactivateAgent(req, res) {
   }
 
   await db.run(`UPDATE users SET is_active = FALSE, token_version = token_version + 1, updated_at = NOW() WHERE id = $1`, [id]);
+  invalidateUserCheck(id);
 
   await auditService.logAction(req, {
     action: 'agent.deactivate',
@@ -289,6 +296,7 @@ async function hardDeleteAgent(req, res) {
 
   try {
     await db.run('DELETE FROM users WHERE id = $1', [id]);
+    invalidateUserCheck(id);
 
     await auditService.logAction(req, {
       action: 'agent.hard_delete',
