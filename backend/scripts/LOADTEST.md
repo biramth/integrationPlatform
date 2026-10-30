@@ -94,10 +94,21 @@ npm run loadtest -- --url=https://integration-dut1-api.onrender.com --requests=5
 # Cibler un seul endpoint ou sauvegarder les résultats
 npm run loadtest -- --endpoints=/api/dut1 --requests=100
 npm run loadtest -- --json > ..\http-before.json
+
+# Mesurer le chemin « cache froid » (miss systématique) : le paramètre --bust
+# ajoute une query string unique à chaque requête, donc aucun résultat ne peut
+# être resservi par le cache ni mutualisé entre requêtes simultanées
+npm run loadtest -- --endpoints=/api/stats/overview --requests=20 --connections=2 --bust
 ```
 
+`--bust` est le seul moyen d'obtenir un avant/après reproductible sur une
+optimisation de requêtes : sans lui, un test peut tomber sur un cache chaud et
+masquer complètement le gain. Il est beaucoup plus lent (chaque requête paie le
+coût SQL complet) : gardez `--requests` bas et pensez à `--duration`.
+
 Options utiles : `--token=…` (au lieu du login), `--requests`, `--connections`,
-`--duration` (plafond de temps par endpoint), `--max-total`, `--date`.
+`--duration` (le test s'arrête au premier des deux objectifs, nombre de requêtes
+ou durée), `--bust`, `--max-total`, `--date`.
 
 ### 3. Capacité SSE
 
@@ -136,8 +147,8 @@ les scénarios « actuel » vs « consolidé » : si le consolidé divise le tem
 - `429` : limite par compte atteinte ; attendez 15 min et relancez avec moins de
   requêtes.
 - Rappel : `/api/dut1` est mis en cache 15 s, les stats 30–60 s. Un test HTTP
-  mesure donc surtout le **chemin cache chaud** ; le coût SQL réel est dans
-  `bench-queries`.
+  mesure donc surtout le **chemin cache chaud** ; ajoutez `--bust` pour mesurer
+  le chemin cache froid, et `bench-queries` pour le coût SQL isolé.
 
 ### SSE (`loadtest:sse`)
 

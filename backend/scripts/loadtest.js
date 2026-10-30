@@ -13,9 +13,10 @@
 // Sécurité : uniquement des GET. Le garde-fou --max-total (défaut 4000) arrête
 // le test avant d'atteindre la limite de 5000 requêtes/15 min par compte.
 //
-// Rappel : /api/stats/* et /api/dut1 sont mis en cache 15–60 s. Un test HTTP
-// mesure donc surtout le chemin « cache chaud » ; le coût SQL réel se mesure
-// avec bench-queries.js.
+// Rappel : /api/stats/* et /api/dut1 sont mis en cache 15–60 s. Par défaut un
+// test HTTP mesure donc surtout le chemin « cache chaud » ; --bust ajoute un
+// paramètre unique à chaque requête pour mesurer le chemin « cache froid » de
+// façon reproductible (avant/après une optimisation).
 
 const autocannon = require('autocannon');
 const { resolveToken, decodeJwtPayload } = require('./lib/auth');
@@ -42,6 +43,7 @@ function parseArgs(argv) {
     duration: DEFAULT_DURATION,
     maxTotal: DEFAULT_MAX_TOTAL,
     endpoints: null,
+    bust: false,
     json: false,
     help: false,
     date: new Date().toISOString().slice(0, 10),
@@ -49,6 +51,7 @@ function parseArgs(argv) {
   for (const arg of argv) {
     if (arg === '--help' || arg === '-h') opts.help = true;
     else if (arg === '--json') opts.json = true;
+    else if (arg === '--bust') opts.bust = true;
     else if (arg.startsWith('--url=')) opts.url = arg.split('=')[1];
     else if (arg.startsWith('--token=')) opts.token = arg.slice('--token='.length);
     else if (arg.startsWith('--username=')) opts.username = arg.split('=')[1];
@@ -81,10 +84,14 @@ Charge :
   --url=URL                Origine de l'API (défaut ${DEFAULT_URL})
   --connections=N          Connexions simultanées (défaut ${DEFAULT_CONNECTIONS})
   --requests=N             Requêtes par endpoint (défaut ${DEFAULT_REQUESTS})
-  --duration=N             Durée maximale par endpoint en secondes (défaut ${DEFAULT_DURATION})
+  --duration=N             Durée maximale par endpoint en secondes (défaut ${DEFAULT_DURATION}) :
+                            le premier des deux objectifs atteint arrête le test
   --max-total=N            Arrêt avant N requêtes cumulées (défaut ${DEFAULT_MAX_TOTAL},
                            0 = désactivé). Protège la limite de ${USER_LIMIT_PER_15_MIN}/15 min par compte.
   --endpoints=/a,/b        Force une liste d'endpoints (sinon scénario selon le rôle)
+  --bust                   Ajoute un paramètre unique à chaque requête pour forcer
+                            le cache froid (comparer avant/après une optimisation).
+                            Beaucoup plus lent : réduisez --requests.
   --date=YYYY-MM-DD        Date pour /api/health/risks (défaut aujourd'hui)
   --json                   Sortie JSON (pour comparer avant/après)
   -h, --help               Affiche cette aide
@@ -165,20 +172,62 @@ async function warmUp(url, headers) {
 
 async function runOne({ baseUrl, path, headers, opts }) {
   const url = `${baseUrl}${path}`;
-  await warmUp(url, headers);
+  // En mode --bust chaque requête est un cache miss par construction :
+  // préchauffer n'apporterait rien et consommerait une requête de plus.
+  if (!opts.bust) await warmUp(url, headers);
 
-  const result = await autocannon({
+  // Préfixe commun au run : sert à rendre les URL uniques d'un run à l'autre,
+  // pour que deux exécutions ne partagent jamais la même entrée de cache.
+  const bustPrefix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  let bustSeq = 0;
+
+  const options = {
     url,
     method: 'GET',
     headers,
     connections: opts.connections,
     amount: opts.requests,
-    duration: opts.duration,
     // Pas de pipelining : on veut la latence d'une requête, pas d'un lot.
     pipelining: 1,
     // Les réponses non-2xx ne doivent pas fausser la latence des 200.
     excludeErrorStats: true,
-  });
+  };
+  if (opts.bust) {
+    // La clé de cache inclut la query string : un paramètre différent par
+    // requête garantit un cache miss (et désactive la coalescence des
+    // requêtes simultanées sur une même clé).
+    //
+    // setupRequest doit être porté par une entrée de `requests` (et non par
+    // l'objet d'options) : autocannon ne reconstruit la requête à chaque envoi
+    // que si le `setupRequest` est attaché à la requête courante.
+    options.requests = [
+      {
+        setupRequest: (req) => {
+          const sep = req.path.includes('?') ? '&' : '?';
+          req.path = `${req.path}${sep}bust=${bustPrefix}-${bustSeq++}`;
+          return req;
+        },
+      },
+    ];
+  }
+
+  const instance = autocannon(options);
+
+  // autocannon traite `amount` et `duration` comme des objectifs séparés : avec
+  // un `amount` élevé, la durée ne coupe pas le test. On impose donc nous-mêmes
+  // le plafond de temps pour que `--duration` reste une vraie durée maximale.
+  let stoppedByDuration = false;
+  const timer = setTimeout(() => {
+    stoppedByDuration = true;
+    instance.stop();
+  }, opts.duration * 1000);
+
+  let result;
+  try {
+    result = await instance;
+  } finally {
+    clearTimeout(timer);
+  }
 
   const statuses = statusSummary(result);
   return {
@@ -186,6 +235,7 @@ async function runOne({ baseUrl, path, headers, opts }) {
     requests: result.requests.sent,
     completed: result.requests.total,
     requestsPerSec: result.requests.average,
+    stoppedByDuration,
     latency: {
       p50: result.latency.p50,
       p97_5: result.latency.p97_5,
@@ -241,8 +291,10 @@ async function main() {
     console.log(`\nAPI : ${baseUrl}`);
     console.log(`Compte : ${payload ? `${payload.username} (rôle ${payload.role}${payload.subRole ? `/${payload.subRole}` : ''})` : 'jeton opaque'}`);
     console.log(
-      `Charge : ${opts.connections} connexions, ${opts.requests} requêtes/endpoint, ${opts.duration}s max — ${paths.length} endpoint(s)\n`
+      `Charge : ${opts.connections} connexions, ${opts.requests} requêtes/endpoint, ${opts.duration}s max — ${paths.length} endpoint(s)` +
+        (opts.bust ? ' — cache froid forcé (--bust)' : '')
     );
+    console.log('');
   }
 
   const results = [];
@@ -274,10 +326,14 @@ async function main() {
         console.log(
           `${path.padEnd(36)} ${String(result.requestsPerSec.toFixed(1)).padStart(7)} req/s  ` +
             `p50 ${fmt(result.latency.p50, 0).padStart(4)} ms  p97.5 ${fmt(result.latency.p97_5, 0).padStart(4)} ms  ` +
-            `p99 ${fmt(result.latency.p99, 0).padStart(4)} ms  ${codes}`
+            `p99 ${fmt(result.latency.p99, 0).padStart(4)} ms  ${codes}` +
+            (result.stoppedByDuration ? '  (arrêt à --duration)' : '')
         );
-        if (result.errors || result.timeouts) {
+        if (!result.stoppedByDuration && (result.errors || result.timeouts)) {
           console.log(`  ⚠ erreurs réseau : ${result.errors}, timeouts : ${result.timeouts}`);
+        }
+        if (result.stoppedByDuration && result.timeouts) {
+          console.log(`  requêtes en vol interrompues à la fin du temps imparti : ${result.timeouts}`);
         }
         if (result.rateLimited > 0) {
           console.log(`  ⚠ ${result.rateLimited} réponse(s) 429 : limite par compte atteinte, chiffres non représentatifs.`);
@@ -302,6 +358,7 @@ async function main() {
           role: payload?.role ?? null,
           connections: opts.connections,
           requestsPerEndpoint: opts.requests,
+          bust: opts.bust,
           totalRequests,
           stoppedEarly,
           results,
