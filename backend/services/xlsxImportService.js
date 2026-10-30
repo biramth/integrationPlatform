@@ -52,10 +52,21 @@ function normalizeHeader(text) {
     .trim();
 }
 
-async function loadWorkbook(buffer) {
+async function loadCsvWorkbook(buffer) {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
-  return workbook;
+  // Try CSV first
+  try {
+    await workbook.csv.load(buffer);
+    return workbook;
+  } catch (e) {
+    // Fall back to XLSX
+    try {
+      await workbook.xlsx.load(buffer);
+      return workbook;
+    } catch (e2) {
+      throw new Error('Impossible de lire le fichier. Format attendu : CSV ou XLSX.');
+    }
+  }
 }
 
 function sheetToRows(worksheet) {
@@ -255,7 +266,7 @@ const DEFAULT_CONTACTS_COLS = {
 };
 
 function parseContactsCsvBuffer(buffer) {
-  return loadWorkbook(buffer).then((workbook) => {
+  return loadCsvWorkbook(buffer).then((workbook) => {
     const rows = [];
     workbook.eachSheet((worksheet) => {
       let columns = null;

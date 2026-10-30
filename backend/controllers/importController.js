@@ -183,12 +183,12 @@ async function confirmContactsCsv(req, res) {
       }
 
       // Essayer de trouver un dossier existant par nom/prénom/department
-      const existing = await tx.query(
+      const existing = await tx.all(
         `SELECT id, emergency_contacts_json FROM dut1_records WHERE last_name = $1 AND first_name = $2 AND department = $3`,
         [lastName, firstName, department]
       );
 
-      if (existing.rows.length === 0) {
+      if (existing.length === 0) {
         // Création d'un nouveau dossier
         const result = await tx.run(
           `INSERT INTO dut1_records
@@ -210,14 +210,14 @@ async function confirmContactsCsv(req, res) {
         createdCount++;
       } else {
         // Mise à jour du dossier existant - fusionner les contacts d'urgence
-        const existingRecord = existing.rows[0];
+        const existingRecord = existing[0];
         let contacts = [];
         if (existingRecord.emergency_contacts_json) {
           try { contacts = JSON.parse(existingRecord.emergency_contacts_json); } catch { contacts = []; }
         }
         // Ajouter le nouveau contact s'il n'est pas déjà présent
-        const alreadyExists = contacts.some(c => c.name === emergencyContact.name && c.phone === emergencyContact.phone);
-        if (!alreadyExists && emergencyContact.name) {
+        const alreadyExists = emergencyContact && contacts.some(c => c.name === emergencyContact.name && c.phone === emergencyContact.phone);
+        if (!alreadyExists && emergencyContact && emergencyContact.name) {
           contacts.push(emergencyContact);
         }
         await tx.run(
