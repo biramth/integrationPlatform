@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Search, Trash2, Download, Phone, ChevronDown, Upload, X } from 'lucide-react';
 import AdmittedStudentsImportPanel from '../../components/admin/AdmittedStudentsImportPanel';
+import ContactsCsvImportPanel from '../../components/admin/ContactsCsvImportPanel';
 import { useFetch } from '../../hooks/useFetch';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
@@ -47,6 +48,7 @@ export default function AdminRecordsPage() {
   const [exporting, setExporting] = useState(false);
   const [exportingContacts, setExportingContacts] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [contactsCsvImportOpen, setContactsCsvImportOpen] = useState(false);
 
   const fetcher = useCallback(
     () => listDut1({ search: debouncedSearch, department: filters.department, gender: filters.gender, page, pageSize: PAGE_SIZE }),
@@ -272,6 +274,9 @@ export default function AdminRecordsPage() {
             <Button variant="secondary" onClick={() => setImportOpen((v) => !v)}>
               <Upload className="h-4 w-4" /> {importOpen ? 'Fermer l\'import' : 'Importer (Excel)'}
             </Button>
+            <Button variant="secondary" onClick={() => setContactsCsvImportOpen((v) => !v)}>
+              <Upload className="h-4 w-4" /> {contactsCsvImportOpen ? 'Fermer l\'import CSV' : 'Importer (CSV coordonnées)'}
+            </Button>
           </div>
         }
       />
@@ -280,6 +285,15 @@ export default function AdminRecordsPage() {
         <AdmittedStudentsImportPanel
           onImported={() => {
             setImportOpen(false);
+            reload();
+          }}
+        />
+      )}
+
+      {contactsCsvImportOpen && (
+        <ContactsCsvImportPanel
+          onImported={() => {
+            setContactsCsvImportOpen(false);
             reload();
           }}
         />

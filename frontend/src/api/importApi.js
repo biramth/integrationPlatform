@@ -29,3 +29,15 @@ export function previewRoomsFile(file) {
 export function confirmRoomsImport(candidates) {
   return axiosClient.post('/import/rooms/confirm', { candidates }).then((res) => res.data);
 }
+
+export function previewContactsCsvFile(file) {
+  return axiosClient
+    .post('/import/contacts-csv/preview', fileFormData(file), {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    .then((res) => res.data);
+}
+
+export function confirmContactsCsvImport(candidates) {
+  return axiosClient.post('/import/contacts-csv/confirm', { candidates }).then((res) => res.data);
+}
