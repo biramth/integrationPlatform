@@ -1,7 +1,15 @@
 const db = require('../db/database');
-const { DEPARTMENTS } = require('../constants/departments');
+const { DEPARTMENTS, DEPARTMENT_LABELS } = require('../constants/departments');
 const { parseAdmittedStudentsBuffer, parseRoomsBuffer, parseContactsCsvBuffer } = require('../services/xlsxImportService');
 const auditService = require('../services/auditService');
+
+function normalizeText(text) {
+  return String(text ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
 
 async function previewAdmittedStudents(req, res) {
   if (!req.file) {
@@ -109,6 +117,43 @@ async function previewContactsCsv(req, res) {
   res.json(await parseContactsCsvBuffer(req.file.buffer));
 }
 
+// Mappe le nom complet du département (comme dans le CSV) vers le code court
+function resolveDepartmentCode(fullName) {
+  if (!fullName) return null;
+  const normalized = fullName.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  
+  // Correspondance exacte avec les labels
+  for (const [code, label] of Object.entries(DEPARTMENT_LABELS)) {
+    if (normalizeText(label) === normalized) return code;
+  }
+  
+  // Correspondance partielle (ex: "Genie electrique" -> "GE")
+  for (const [code, label] of Object.entries(DEPARTMENT_LABELS)) {
+    const normalizedLabel = normalizeText(label);
+    if (normalizedLabel.includes(normalized) || normalized.includes(normalizedLabel)) {
+      return code;
+    }
+  }
+  
+  // Essayer de matcher avec les codes directement
+  const upper = fullName.trim().toUpperCase();
+  if (DEPARTMENTS.includes(upper)) return upper;
+  
+  // Correspondance par mots-clés
+  if (normalized.includes('gestion')) return 'Gestion';
+  if (normalized.includes('genie civil') || normalized === 'gc') return 'GC';
+  if (normalized.includes('genie electrique') || normalized === 'ge') return 'GE';
+  if (normalized.includes('genie informatique') && normalized.includes('informatique')) return 'INFO';
+  if (normalized.includes('genie informatique') && (normalized.includes('telecommunication') || normalized.includes('reseau'))) return 'ITR';
+  if (normalized.includes('genie mecanique') || normalized === 'gm') return 'GM';
+  if (normalized.includes('industrie alimentaire') || normalized === 'ia') return 'IA';
+  if (normalized.includes('biologie appliquee') || normalized === 'ba') return 'BA';
+  if (normalized.includes('genie chimique') || normalized === 'gch') return 'GCH';
+  if (normalized.includes('biomedical') || normalized.includes('licence biomedical') || normalized === 'gb') return 'GB';
+  
+  return null;
+}
+
 async function confirmContactsCsv(req, res) {
   const rows = Array.isArray(req.body.candidates) ? req.body.candidates : [];
   if (rows.length === 0) {
@@ -119,14 +164,20 @@ async function confirmContactsCsv(req, res) {
   let skippedCount = 0;
   await db.transaction(async (tx) => {
     for (const row of rows) {
-      const { lastName, firstName, gender, department, phoneNumber, emergencyContact } = row;
+      const { lastName, firstName, gender: genderRaw, department: deptRaw, phoneNumber, emergencyContact } = row;
 
       // Validation minimale
       if (!lastName || !firstName) {
         skippedCount++;
         continue;
       }
-      if (!DEPARTMENTS.includes(department)) {
+      
+      // Normaliser le genre
+      const gender = (genderRaw || '').trim().toLowerCase().startsWith('m') ? 'M' : 'F';
+      
+      // Résoudre le code département à partir du nom complet
+      const department = resolveDepartmentCode(deptRaw);
+      if (!department || !DEPARTMENTS.includes(department)) {
         skippedCount++;
         continue;
       }
