@@ -28,4 +28,13 @@ router.post(
 );
 router.post('/rooms/confirm', requireRoleStrict('orga'), requireCommissionLeadStrict, importController.confirmRooms);
 
+// Nouvel import : CSV "Vos coordonnées" — DUT1 + contacts d'urgence
+router.post(
+  '/contacts-csv/preview',
+  requireRole('it'),
+  uploadSpreadsheet.single('file'),
+  importController.previewContactsCsv
+);
+router.post('/contacts-csv/confirm', requireRole('it'), importController.confirmContactsCsv);
+
 module.exports = router;
