@@ -180,6 +180,15 @@ La région du service Render ne peut pas être changée après création : pour 
 public ouest-africain, créer le service en **Frankfurt** (ligne `region`
 commentée dans `render.yaml`) plutôt que dans une région américaine.
 
+### Mesurer la charge et les performances
+
+Avant de modifier l'architecture ou d'optimiser une requête, mesurez : trois
+scripts en lecture seule sont fournis dans [`backend/scripts`](backend/scripts) —
+benchmark SQL (`bench:queries`), charge HTTP (`loadtest`) et capacité temps réel
+SSE (`loadtest:sse`). Le protocole avant/après, les commandes et la lecture des
+résultats sont décrits dans
+[`backend/scripts/LOADTEST.md`](backend/scripts/LOADTEST.md).
+
 ### Mise à jour de la production
 
 Il n'y a rien à faire à la main : **un `git push` sur `main` met la production
