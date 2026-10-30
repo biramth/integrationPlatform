@@ -92,6 +92,13 @@ CREATE TABLE IF NOT EXISTS admitted_students (
   imported_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Contacts d'urgence et téléphone importés depuis le CSV "Vos coordonnées" :
+-- fusionnés avec le référentiel des admis pour pré-remplir au maximum les
+-- champs lors de l'enregistrement d'un DUT1.
+ALTER TABLE admitted_students
+  ADD COLUMN IF NOT EXISTS phone_number TEXT,
+  ADD COLUMN IF NOT EXISTS emergency_contacts_json TEXT;
+
 -- Colonnes dépréciées, plus renseignées ni lues par aucun code applicatif
 -- (retiré : ça ne servait qu'à accélérer la recherche à l'enregistrement, pas
 -- une fonctionnalité à garder) — conservées telles quelles plutôt que

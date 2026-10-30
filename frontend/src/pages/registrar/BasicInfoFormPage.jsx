@@ -70,6 +70,10 @@ export default function BasicInfoFormPage() {
       department: student.department,
       birthDate: student.birth_date || v.birthDate,
       birthPlace: student.birth_place || v.birthPlace,
+      phoneNumber: student.phone_number || v.phoneNumber,
+      emergencyContacts: student.emergency_contacts_json
+        ? JSON.parse(student.emergency_contacts_json)
+        : v.emergencyContacts,
     }));
     setAdmittedStudentId(student.id);
     setErrors({});

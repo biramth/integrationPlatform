@@ -230,7 +230,7 @@ async function createRecord(req, res) {
     let repaired = null;
     if (admittedStudentId) {
       const admitted = await db.get(
-        'SELECT id, last_name, first_name FROM admitted_students WHERE id = $1',
+        'SELECT id, last_name, first_name, phone_number, emergency_contacts_json FROM admitted_students WHERE id = $1',
         [Number(admittedStudentId)]
       );
       if (admitted) {
@@ -265,6 +265,36 @@ async function createRecord(req, res) {
             before: { last_name: admitted.last_name, first_name: admitted.first_name },
             after: { last_name: cleanLast, first_name: cleanFirst },
           });
+        }
+
+        // Fusionner les infos de contact (téléphone + contacts d'urgence) de l'admis
+        // avec le dossier DUT1 : on ne remplace que si le dossier n'a pas déjà
+        // la valeur (pour ne pas écraser une saisie humaine).
+        if (admitted.phone_number) {
+          await db.run(
+            'UPDATE dut1_records SET phone_number = COALESCE(phone_number, $1) WHERE id = $2',
+            [admitted.phone_number, dut1Id]
+          );
+        }
+        if (admitted.emergency_contacts_json) {
+          const existing = await db.get('SELECT emergency_contacts_json FROM dut1_records WHERE id = $1', [dut1Id]);
+          let contacts = [];
+          if (existing && existing.emergency_contacts_json) {
+            try { contacts = JSON.parse(existing.emergency_contacts_json); } catch { contacts = []; }
+          }
+          try {
+            const admittedContacts = JSON.parse(admitted.emergency_contacts_json);
+            for (const c of admittedContacts) {
+              const alreadyExists = contacts.some((ec) => ec.name === c.name && ec.phone === c.phone);
+              if (!alreadyExists) contacts.push(c);
+            }
+          } catch { /* ignore parse errors */ }
+          if (contacts.length > 0) {
+            await db.run('UPDATE dut1_records SET emergency_contacts_json = $1 WHERE id = $2', [
+              JSON.stringify(contacts),
+              dut1Id,
+            ]);
+          }
         }
       }
     }

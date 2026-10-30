@@ -108,6 +108,7 @@ export default function ContactsCsvImportPanel({ onImported }) {
                   <th className="py-2 pr-2">Département</th>
                   <th className="py-2 pr-2">Téléphone</th>
                   <th className="py-2 pr-2">Contact d'urgence</th>
+                  <th className="py-2 pr-2">Téléphone contact</th>
                   <th className="py-2" />
                 </tr>
               </thead>
@@ -139,6 +140,9 @@ export default function ContactsCsvImportPanel({ onImported }) {
                     <td className="py-1.5 pr-2">
                       <RowInput value={row.emergencyContact?.name || ''} onChange={(v) => updateRow(row._key, { emergencyContact: { ...row.emergencyContact, name: v } })} />
                     </td>
+                    <td className="py-1.5 pr-2">
+                      <RowInput value={row.emergencyContact?.phone || ''} onChange={(v) => updateRow(row._key, { emergencyContact: { ...row.emergencyContact, phone: v } })} />
+                    </td>
                     <td className="py-1.5">
                       <button
                         type="button"
@@ -152,7 +156,7 @@ export default function ContactsCsvImportPanel({ onImported }) {
                 ))}
                 {candidates.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-4 text-center text-sm text-muted-foreground">
+                    <td colSpan={8} className="py-4 text-center text-sm text-muted-foreground">
                       Aucune ligne pour l'instant.
                     </td>
                   </tr>

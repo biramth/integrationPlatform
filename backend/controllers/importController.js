@@ -161,6 +161,7 @@ async function confirmContactsCsv(req, res) {
   }
 
   let createdCount = 0;
+  let updatedCount = 0;
   let skippedCount = 0;
   await db.transaction(async (tx) => {
     for (const row of rows) {
@@ -182,62 +183,73 @@ async function confirmContactsCsv(req, res) {
         continue;
       }
 
-      // Essayer de trouver un dossier existant par nom/prénom/department
+      // Préparer les contacts d'urgence
+      const contacts = emergencyContact && emergencyContact.name
+        ? [{ name: emergencyContact.name, phone: emergencyContact.phone }]
+        : [];
+      const contactsJson = contacts.length > 0 ? JSON.stringify(contacts) : null;
+
+      // Essayer de trouver un admis existant par nom/prénom/department
       const existing = await tx.all(
-        `SELECT id, emergency_contacts_json FROM dut1_records WHERE last_name = $1 AND first_name = $2 AND department = $3`,
+        `SELECT id, phone_number, emergency_contacts_json FROM admitted_students WHERE last_name = $1 AND first_name = $2 AND department = $3`,
         [lastName, firstName, department]
       );
 
       if (existing.length === 0) {
-        // Création d'un nouveau dossier
-        const result = await tx.run(
-          `INSERT INTO dut1_records
-            (last_name, first_name, birth_date, birth_place, gender, department, phone_number, emergency_contacts_json, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-           RETURNING id`,
+        // Création d'un nouvel admis avec les infos de contact
+        await tx.run(
+          `INSERT INTO admitted_students
+            (last_name, first_name, department, gender, phone_number, emergency_contacts_json, list_type, imported_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
             lastName,
             firstName,
-            '', // birth_date - non fourni dans ce CSV
-            '', // birth_place - non fourni
-            gender,
             department,
+            gender,
             phoneNumber,
-            emergencyContact ? JSON.stringify([emergencyContact]) : null,
+            contactsJson,
+            'principale',
             req.user.id,
           ]
         );
         createdCount++;
       } else {
-        // Mise à jour du dossier existant - fusionner les contacts d'urgence
+        // Mise à jour de l'admis existant - fusionner les contacts d'urgence
         const existingRecord = existing[0];
-        let contacts = [];
+        let existingContacts = [];
         if (existingRecord.emergency_contacts_json) {
-          try { contacts = JSON.parse(existingRecord.emergency_contacts_json); } catch { contacts = []; }
+          try { existingContacts = JSON.parse(existingRecord.emergency_contacts_json); } catch { existingContacts = []; }
         }
-        // Ajouter le nouveau contact s'il n'est pas déjà présent
-        const alreadyExists = emergencyContact && contacts.some(c => c.name === emergencyContact.name && c.phone === emergencyContact.phone);
-        if (!alreadyExists && emergencyContact && emergencyContact.name) {
-          contacts.push(emergencyContact);
+        // Fusionner les nouveaux contacts
+        for (const contact of contacts) {
+          const alreadyExists = existingContacts.some(c => c.name === contact.name && c.phone === contact.phone);
+          if (!alreadyExists) {
+            existingContacts.push(contact);
+          }
         }
+        const mergedContactsJson = existingContacts.length > 0 ? JSON.stringify(existingContacts) : existingRecord.emergency_contacts_json;
+        
         await tx.run(
-          `UPDATE dut1_records SET emergency_contacts_json = $1 WHERE id = $2`,
-          [JSON.stringify(contacts), existingRecord.id]
+          `UPDATE admitted_students SET 
+            phone_number = COALESCE($1, phone_number),
+            emergency_contacts_json = $2
+           WHERE id = $3`,
+          [phoneNumber, mergedContactsJson, existingRecord.id]
         );
-        createdCount++;
+        updatedCount++;
       }
     }
   });
 
   await auditService.logAction(req, {
-    action: 'dut1.import_contacts',
-    resourceType: 'dut1_records',
-    resourceLabel: `${createdCount} dossiers importés avec contacts d'urgence`,
+    action: 'admitted_students.import_contacts',
+    resourceType: 'admitted_students',
+    resourceLabel: `${createdCount} créés, ${updatedCount} mis à jour avec contacts d'urgence`,
     commission: 'sante',
-    after: { createdCount, totalRows: rows.length },
+    after: { createdCount, updatedCount, totalRows: rows.length },
   });
 
-  res.status(201).json({ createdCount, skippedCount });
+  res.status(201).json({ createdCount, updatedCount, skippedCount });
 }
 
 module.exports = { previewAdmittedStudents, previewRooms, previewContactsCsv, confirmAdmittedStudents, confirmRooms, confirmContactsCsv };
