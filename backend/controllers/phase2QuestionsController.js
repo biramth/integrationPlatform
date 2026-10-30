@@ -1,4 +1,13 @@
 const db = require('../db/database');
+const cache = require('../middleware/cache');
+
+// La liste des questions est mise en cache 60 s par la route. Ces mutations ne
+// passent pas par auditService (aucune action métier journalisée ici), donc
+// c'est à elles de vider le cache : sinon le formulaire phase 2 réafficherait
+// l'ancienne question jusqu'à une minute après sa création ou son renommage.
+function invalidateQuestionList() {
+  cache.invalidate('/api/phase2-questions');
+}
 
 // Types "libres" : le chef en crée autant qu'il veut, réponse stockée dans
 // dut1_records.extra_fields_json sous field_key.
@@ -75,6 +84,7 @@ async function createQuestion(req, res) {
     [fieldKey, label.trim(), type, options ? JSON.stringify(options) : null, !!required, Number(posRow.next), req.user.id]
   );
   const question = await db.get('SELECT * FROM phase2_questions WHERE id = $1', [result.rows[0].id]);
+  invalidateQuestionList();
   res.status(201).json({ question });
 }
 
@@ -100,6 +110,7 @@ async function updateQuestion(req, res) {
       return res.status(400).json({ error: 'Le type de cette question est fixe et ne peut pas être modifié.' });
     }
     await db.run(`UPDATE phase2_questions SET label = $1, updated_at = NOW() WHERE id = $2`, [label.trim(), id]);
+    invalidateQuestionList();
     return res.json({ question: await db.get('SELECT * FROM phase2_questions WHERE id = $1', [id]) });
   }
 
@@ -118,6 +129,7 @@ async function updateQuestion(req, res) {
     `UPDATE phase2_questions SET label = $1, type = $2, options = $3, required = $4, updated_at = NOW() WHERE id = $5`,
     [label.trim(), nextType, options ? JSON.stringify(options) : null, !!required, id]
   );
+  invalidateQuestionList();
   res.json({ question: await db.get('SELECT * FROM phase2_questions WHERE id = $1', [id]) });
 }
 
@@ -134,6 +146,7 @@ async function deleteQuestion(req, res) {
   }
 
   await db.run('DELETE FROM phase2_questions WHERE id = $1', [id]);
+  invalidateQuestionList();
   res.status(204).send();
 }
 
@@ -148,6 +161,8 @@ async function reorderQuestions(req, res) {
       await trx.run('UPDATE phase2_questions SET position = $1 WHERE id = $2', [i, orderedIds[i]]);
     }
   });
+
+  invalidateQuestionList();
 
   res.json({ questions: await db.all('SELECT * FROM phase2_questions ORDER BY position ASC, id ASC') });
 }
