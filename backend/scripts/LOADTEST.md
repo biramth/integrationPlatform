@@ -253,6 +253,8 @@ Gabarit de suivi :
 | 30/10/2026 | `bcfad07` | `health/treatments` chaud / froid | ~710 ms (SQL ≈ 485) | 306 / 408 ms | −100 % / −79 % de SQL | cache 10 s partagé par tous les navigateurs |
 | 30/10/2026 | `bcfad07` | `health/restrictions/active` chaud | ~710 ms | 305 ms = plancher | −100 % de SQL | idem |
 | 30/10/2026 | `bcfad07` | SSE 20 conn. + 90 req HTTP simultanées | 645 / 1 300 ms (SSE seul) | 829 / 1 361 ms, 0 coupure | HTTP au plancher (287–306 ms) | un rechargement de masse ne repaie plus le SQL |
+| 30/10/2026 | `bcfad07` | `phase2-questions` chaud, 1 conn. | 725 ms (SQL ≈ 500) | 306 ms = plancher | −100 % de SQL | cache 60 s, invalidé par chaque mutation de question |
+| 30/10/2026 | `00c5bc2` | `health/risks` à froid, 1 conn. | 511 ms (SQL ≈ 205) | 511 ms | 0 % **sur les données actuelles** | aptitude calculée en SQL : plus aucune table entière chargée en Node, et une vague en moins dès que des critères requis existent (aucun dossier phase 2 complété aujourd'hui) |
 
 Notes de lecture :
 
@@ -276,6 +278,11 @@ Notes de lecture :
   absolue en production.
 - `bench-queries` exécute de vraies requêtes : gardez `--iterations` modéré sur
   la base de production.
+- Le scénario d'aptitude de `health/risks` n'a pas pu être validé sur les données
+  actuelles (aucun dossier phase 2 complété, donc aucun niveau déclaré) : la
+  requête s'exécute et renvoie la même réponse, mais les cas « niveau déclaré
+  insuffisant » demandent une base de test avec des dossiers complets
+  (`DATABASE_URL`).
 - Le plan gratuit Render (0,1 CPU, une instance) plafonne vite : un débit
   modeste en test n'est pas un bug de l'application.
 
