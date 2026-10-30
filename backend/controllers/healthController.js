@@ -75,18 +75,43 @@ async function getRisks(req, res) {
   ]);
   const activityNameById = new Map(todaysActivities.map((a) => [a.id, a.name]));
 
-  // Niveau minimum exigé par critère, pour chaque activité du jour.
-  const requiredCriteriaRows = todaysActivities.length
-    ? await db.all(
-        `SELECT arc.activity_id, arc.criterion_id, ac.label AS criterion_label,
-           lvl.rank AS min_rank, lvl.label AS min_level_label
-         FROM activity_required_criteria arc
-         JOIN aptitude_criteria ac ON ac.id = arc.criterion_id
-         JOIN aptitude_criterion_levels lvl ON lvl.id = arc.min_level_id
-         WHERE arc.activity_id = ANY($1::int[])`,
-        [todaysActivities.map((a) => a.id)]
-      )
-    : [];
+  // Les deux lectures ne dépendent que des activités du jour : les lancer
+  // ensemble évite une vague d'aller-retours supplémentaire.
+  const todaysActivityIds = todaysActivities.map((a) => a.id);
+  const [requiredCriteriaRows, aptitudeRows] = todaysActivityIds.length
+    ? await Promise.all([
+        db.all(
+          `SELECT arc.activity_id, arc.criterion_id, ac.label AS criterion_label,
+             lvl.rank AS min_rank, lvl.label AS min_level_label
+           FROM activity_required_criteria arc
+           JOIN aptitude_criteria ac ON ac.id = arc.criterion_id
+           JOIN aptitude_criterion_levels lvl ON lvl.id = arc.min_level_id
+           WHERE arc.activity_id = ANY($1::int[])`,
+          [todaysActivityIds]
+        ),
+        // Écarts d'aptitude calculés en SQL : l'ancienne version chargeait tous
+        // les dossiers complétés et tous les niveaux déclarés en Node, puis les
+        // croisait en boucle. Sur une instance à 0,1 CPU, c'était le poste le
+        // plus lourd de l'écran dès quelques centaines de dossiers ; ici la
+        // jointure ne fait remonter que les écarts réels.
+        db.all(
+          `SELECT d.id, d.first_name, d.last_name, d.department, d.gender,
+             r.label AS room_label,
+             arc.activity_id, ac.label AS criterion_label,
+             lvl.label AS min_level_label, own.label AS own_label
+           FROM activity_required_criteria arc
+           JOIN aptitude_criteria ac ON ac.id = arc.criterion_id
+           JOIN aptitude_criterion_levels lvl ON lvl.id = arc.min_level_id
+           JOIN dut1_records d ON d.complementary_completed_at IS NOT NULL
+           LEFT JOIN dut1_aptitude_levels dal
+             ON dal.dut1_id = d.id AND dal.criterion_id = arc.criterion_id
+           LEFT JOIN aptitude_criterion_levels own ON own.id = dal.level_id
+           WHERE arc.activity_id = ANY($1::int[])
+             AND (own.rank IS NULL OR own.rank < lvl.rank)`,
+          [todaysActivityIds]
+        ),
+      ])
+    : [[], []];
   // Pour la restriction ponctuelle (blocage total, pas de niveau) : simple
   // regroupement activité(s) par critère, comme avant.
   const activitiesByCriterion = new Map();
@@ -101,41 +126,13 @@ async function getRisks(req, res) {
   // minimum exigé par une activité du jour (ou qu'aucun niveau n'a été
   // renseigné pour ce critère, dossier complété avant son ajout), le DUT1
   // apparaît automatiquement à risque pour cette activité.
-  const aptitudeMismatches = [];
-  if (requiredCriteriaRows.length) {
-    // Deux requêtes indépendantes (profils complétés, niveaux déclarés) :
-    // inutile de payer deux allers-retours successifs.
-    const [completedDut1Rows, ownLevelRows] = await Promise.all([
-      db.all(
-        `SELECT d.id, d.first_name, d.last_name, d.department, d.gender, r.label AS room_label
-       FROM dut1_records d
-       LEFT JOIN rooms r ON r.id = d.room_id
-       WHERE d.complementary_completed_at IS NOT NULL`
-      ),
-      db.all(
-        `SELECT dal.dut1_id, dal.criterion_id, lvl.rank, lvl.label
-       FROM dut1_aptitude_levels dal
-       JOIN aptitude_criterion_levels lvl ON lvl.id = dal.level_id`
-      ),
-    ]);
-    const ownLevelByDut1 = new Map();
-    for (const row of ownLevelRows) {
-      if (!ownLevelByDut1.has(row.dut1_id)) ownLevelByDut1.set(row.dut1_id, new Map());
-      ownLevelByDut1.get(row.dut1_id).set(row.criterion_id, { rank: row.rank, label: row.label });
-    }
-
-    for (const req of requiredCriteriaRows) {
-      const activityName = activityNameById.get(req.activity_id);
-      for (const dut1 of completedDut1Rows) {
-        const own = ownLevelByDut1.get(dut1.id)?.get(req.criterion_id);
-        if (own && own.rank >= req.min_rank) continue;
-        const reason = own
-          ? `${req.criterion_label} : niveau requis "${req.min_level_label}", actuellement "${own.label}"`
-          : `${req.criterion_label} : niveau requis "${req.min_level_label}", non renseigné`;
-        aptitudeMismatches.push({ ...dut1, reason, activityName });
-      }
-    }
-  }
+  const aptitudeMismatches = aptitudeRows.map((row) => ({
+    ...row,
+    reason: row.own_label
+      ? `${row.criterion_label} : niveau requis "${row.min_level_label}", actuellement "${row.own_label}"`
+      : `${row.criterion_label} : niveau requis "${row.min_level_label}", non renseigné`,
+    activityName: activityNameById.get(row.activity_id),
+  }));
 
   // Traitement médical : n'apparaît plus ici. Un traitement suivi vit dans
   // dut1_treatments (cf. treatmentController.js) avec ses propres créneaux de
