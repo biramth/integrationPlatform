@@ -74,10 +74,18 @@ Le script compare notamment :
 
 - `stats/overview` **séquentiel** (5 allers-retours, ancien code) vs **consolidé** (1 requête) ;
 - `stats/health-overview` **séquentiel** (7 allers-retours) vs **consolidé** ;
-- la liste paginée `/api/dut1` (`COUNT` + page), le détail d'un dossier ;
-- les listes Santé : restrictions actives, sous traitement, traitements actifs,
-  risques du jour ;
+- `health/risks` **séquentiel** (6 allers-retours), **étape précédente**
+  (2 vagues, 5 requêtes) et **code actuel** (1 vague, 4 requêtes) ;
+- la liste paginée `/api/dut1` (`COUNT` + page en parallèle), le détail d'un dossier ;
+- les listes Santé : restrictions actives, sous traitement, traitements actifs ;
 - allergènes, activités, questions phase 2.
+
+Le script utilise un petit pool (5 connexions) et raisonne en **vagues** : une
+vague est un ensemble de requêtes indépendantes lancées ensemble (un
+`Promise.all`), les vagues s'enchaînent. Un scénario séquentiel a autant de
+vagues que de requêtes. Chaque connexion est basculée en `READ ONLY` dès sa
+première utilisation (le pooler Supabase ignore l'option de démarrage
+`options`), et le script vérifie ce garde-fou avant de mesurer.
 
 ### 2. Charge HTTP
 
@@ -149,7 +157,31 @@ réponse calculée avant une invalidation, et clés isolées par rôle/sous-rôl
 Les chiffres absolus dépendent de votre machine et de la distance au pooler
 Supabase : raisonnez surtout en **ratio** entre deux mesures. Regardez d'abord
 les scénarios « séquentiel » vs « consolidé » : si le consolidé divise le temps par
-5–7, le problème est bien le nombre d'allers-retours.
+5–7, le problème est bien le nombre d'allers-retours. La colonne `vagues` donne
+le nombre d'allers-retours réellement empilés : deux scénarios à 5 requêtes
+peuvent coûter 400 ms (5 vagues) ou 80 ms (1 vague).
+
+### Coût SQL vu de l'intérieur (30/10/2026)
+
+Mesuré depuis le poste, 20 itérations après 5 échauffements, sur le pooler
+Supabase (`aws-1-eu-west-1`). L'aller-retour réseau vers la base vaut
+**73–80 ms** : c'est le prix incompressible d'une requête et l'unité des
+scénarios multi-requêtes.
+
+| Scénario | p50 avant | p50 après | requêtes / vagues | gain |
+| --- | --- | --- | --- | --- |
+| `stats/overview` | 370 ms (5 séquentielles) | 74 ms | 1 / 1 | −80 % |
+| `stats/health-overview` | 518 ms (7 séquentielles) | 75 ms | 1 / 1 | −86 % |
+| `GET /api/dut1` (page 1) | 150 ms (COUNT puis page) | 150 ms | 2 / 2 | −50 % de latence perçue (COUNT et page ensemble) |
+| `GET /api/health/risks` | 449 ms (6 séquentielles) | 83 ms | 4 / 1 | **−82 %** |
+
+Toutes les autres lectures tiennent en **75–82 ms**, soit un seul aller-retour :
+détail d'un dossier, `without-complementary`, restrictions actives,
+sous-traitement, traitements actifs, allergènes, activités, questions phase 2.
+Aucune requête ne dépasse 90 ms hors incident de connexion : il n'y a donc pas
+d'index manquant à ajouter aujourd'hui sur ces volumes (133 activités, 7
+dossiers). Le levier restant n'est pas la vitesse du SQL mais le **nombre
+d'allers-retours** et le cache.
 
 ### HTTP (`loadtest`)
 
@@ -258,6 +290,7 @@ Gabarit de suivi :
 | 30/10/2026 | `bcfad07` | `activities` chaud, 1 conn. | 611 ms (SQL ≈ 386) | 306 ms = plancher | −100 % de SQL | cache 30 s, ~26 Ko compressés |
 | 30/10/2026 | `bcfad07` | charge mixte, 10 conn. | — | 1 647 req en ~10 s (~160 req/s), 0 erreur, p50 286–306 ms | — | tous les écrans du tableau de bord servis par le cache |
 | 30/10/2026 | `bcfad07` | SSE 60 et 80 conn. | 40 conn. : 1 412 ms (p50) | 60/60 et 80/80 établies, 0 et 1 coupure | — | p50 d'établissement 975 / 914 ms ; première coupure à 80 connexions |
+| 30/10/2026 | `8d5573f` | `health/risks` à froid, 3 conn. | 285 ms (SQL ≈ 164 ms, 2 vagues) | 217 ms (SQL ≈ 83 ms, 1 vague) | −24 % HTTP, **−49 % de SQL** | critères requis et aptitude filtrés par date dans la requête : plus de seconde vague, 4 requêtes au lieu de 5 ; JSON identique en prod (3 dates) |
 
 Notes de lecture :
 
@@ -288,10 +321,13 @@ Notes de lecture :
 - `bench-queries` exécute de vraies requêtes : gardez `--iterations` modéré sur
   la base de production.
 - Le scénario d'aptitude de `health/risks` n'a pas pu être validé sur les données
-  actuelles (aucun dossier phase 2 complété, donc aucun niveau déclaré) : la
-  requête s'exécute et renvoie la même réponse, mais les cas « niveau déclaré
-  insuffisant » demandent une base de test avec des dossiers complets
-  (`DATABASE_URL`).
+  actuelles (aucun dossier phase 2 complété, aucun critère requis, donc aucun
+  niveau déclaré) : la requête s'exécute et renvoie la même réponse, mais les cas
+  « niveau déclaré insuffisant » demandent des données de test. La comparaison
+  ancien/nouveau SQL a été faite en lecture seule sur 10 dates (dont 3 sans
+  activité) : réponses identiques. Reste à valider les cas non vides dans une
+  transaction annulée (`BEGIN … ROLLBACK`) avec des lignes synthétiques, à faire
+  avec l'accord explicite du propriétaire de la base.
 - Le plan gratuit Render (0,1 CPU, une instance) plafonne vite : un débit
   modeste en test n'est pas un bug de l'application.
 
