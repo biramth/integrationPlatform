@@ -185,6 +185,12 @@ Lecture : hors ~215 ms de réseau incompressible, les écrans lents sont ceux qu
 enchaînent des allers-retours SQL (`stats/*`, `health/risks`) et non ceux qui
 transfèrent beaucoup d'octets.
 
+Repère utile : `/healthz` ne fait aucune requête SQL. Après l'optimisation de
+`verifyToken`, les endpoints **servis par le cache** doivent tomber au niveau de
+`/healthz` (~225 ms avec 1 connexion). S'ils restent nettement au-dessus, c'est
+qu'ils repaient un aller-retour base. Pour isoler le coût d'un contrôleur, on
+peut donc comparer son p50 à celui de `/healthz` plutôt qu'au p50 brut.
+
 ## Protocole avant/après
 
 1. **Figer le point de départ** : notez `git rev-parse --short HEAD`, le plan et
@@ -205,6 +211,7 @@ Gabarit de suivi :
 | Date | Commit | Scénario | Avant (p50/p95) | Après (p50/p95) | Gain | Remarque |
 | --- | --- | --- | --- | --- | --- | --- |
 | 30/10/2026 | `a4d5f61` | `health/risks` HTTP, 5 conn. | 1 077 / 1 250 ms | 866 / 1 193 ms | −20 % | requêtes indépendantes parallélisées (5 vagues → 2) |
+| 30/10/2026 | `bf25b7f` | endpoints en cache, 1 conn. | 346 / 486 / 611 ms | 226 / 230 / 234 ms | −35 à −62 % | lecture `users` de `verifyToken` mémorisée 15 s |
 | … | … | `stats/overview` SQL | … | … | … | … |
 | … | … | `/api/dut1` HTTP | … | … | … | … |
 | … | … | SSE 20 connexions | … | … | … | … |
