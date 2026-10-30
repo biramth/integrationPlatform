@@ -213,6 +213,8 @@ Gabarit de suivi :
 | 30/10/2026 | `a4d5f61` | `health/risks` HTTP, 5 conn. | 1 077 / 1 250 ms | 866 / 1 193 ms | −20 % | requêtes indépendantes parallélisées (5 vagues → 2) |
 | 30/10/2026 | `bf25b7f` | endpoints en cache, 1 conn. | 346 / 486 / 611 ms | 226 / 230 / 234 ms | −35 à −62 % | lecture `users` de `verifyToken` mémorisée 15 s (plancher `/healthz` = 225 ms) |
 | 30/10/2026 | `bf25b7f` | `health/risks` 1 conn. + `stats/overview` à froid | 866 / 1 094 ms | 479 / 841 ms | −45 % / −23 % | même changement : un aller-retour de moins avant le contrôleur |
+| 30/10/2026 | `d96fe98` | `stats/overview` à froid, 1 conn. | 841 ms | 409 ms | −51 % | 5 `COUNT` séquentiels → 1 requête, JSON identique en prod |
+| 30/10/2026 | `d96fe98` | `stats/health-overview` à froid, 1 conn. | ~1 090 ms (estimé) | 408 ms | ~−63 % | 7 `COUNT` → 1 requête |
 | … | … | `stats/overview` SQL | … | … | … | … |
 | … | … | `/api/dut1` HTTP | … | … | … | … |
 | … | … | SSE 20 connexions | … | … | … | … |
