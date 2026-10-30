@@ -341,27 +341,30 @@ async function listRecords(req, res) {
   const limit = Math.min(Number(pageSize) || 25, 100);
   const offset = (Math.max(Number(page) || 1, 1) - 1) * limit;
 
-  // Le total et la page sont indépendants : les lancer ensemble supprime un
-  // aller-retour Supabase (~250 ms) sur l'écran le plus consulté.
-  const [countRow, records] = await Promise.all([
-    db.get(`SELECT COUNT(*) AS n FROM dut1_records d ${whereSql}`, params),
-    db.all(
-      `SELECT d.*, r.label AS room_label,
+  // Le total et la page tiennent dans une seule requête : `COUNT(*) OVER ()` est
+  // évalué sur le filtre complet, avant `LIMIT`, donc un seul aller-retour
+  // Supabase au lieu de deux. Quand la page demandée est au-delà du dernier
+  // dossier, la fenêtre ne renvoie aucune ligne : on retombe alors sur un COUNT
+  // simple, uniquement dans ce cas rare.
+  const rows = await db.all(
+    `SELECT d.*, r.label AS room_label,
        ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
        ${LUGGAGE_SENSITIVE_SUBQUERY},
        ${ALLERGENS_SUBQUERY},
-       ${APTITUDE_LEVELS_SUBQUERY}
+       ${APTITUDE_LEVELS_SUBQUERY},
+       COUNT(*) OVER () AS total_count
      FROM dut1_records d
      LEFT JOIN rooms r ON r.id = d.room_id
      ${whereSql}
      ORDER BY d.created_at DESC, d.id DESC
      LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-      [...params, limit, offset]
-    ),
-  ]);
-  const total = countRow.n;
+    [...params, limit, offset]
+  );
+  const total = rows.length
+    ? Number(rows[0].total_count)
+    : (await db.get(`SELECT COUNT(*) AS n FROM dut1_records d ${whereSql}`, params)).n;
 
-  const serialized = records.map(serializeRecord);
+  const serialized = rows.map(({ total_count: _total, ...record }) => serializeRecord(record));
   res.json({
     records: NON_MEDICAL_ROLES.includes(req.user.role) ? serialized.map(stripMedicalFields) : serialized,
     total,

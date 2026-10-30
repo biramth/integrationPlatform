@@ -227,6 +227,18 @@ const DUT1_LIST_SQL = `SELECT d.*, r.label AS room_label,
      ORDER BY d.created_at DESC, d.id DESC
      LIMIT $1 OFFSET $2`;
 
+// Version actuelle : le total voyage avec la page (fenêtre évaluée avant LIMIT).
+const DUT1_LIST_CONSOLIDATED_SQL = `SELECT d.*, r.label AS room_label,
+       ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
+       ${LUGGAGE_SENSITIVE_SUBQUERY},
+       ${ALLERGENS_SUBQUERY},
+       ${APTITUDE_LEVELS_SUBQUERY},
+       COUNT(*) OVER () AS total_count
+     FROM dut1_records d
+     LEFT JOIN rooms r ON r.id = d.room_id
+     ORDER BY d.created_at DESC, d.id DESC
+     LIMIT $1 OFFSET $2`;
+
 const DUT1_DETAIL_SQL = `SELECT d.*, r.label AS room_label,
        ${LUGGAGE_ITEMS_COUNT_SUBQUERY},
        ${LUGGAGE_SENSITIVE_SUBQUERY},
@@ -473,11 +485,15 @@ async function main() {
       { name: 'stats/health-overview — séquentiel, ancien code (7 allers-retours)', statements: HEALTH_OVERVIEW_CURRENT },
       { name: 'stats/health-overview — consolidé, code actuel (1 requête)', statements: HEALTH_OVERVIEW_CONSOLIDATED },
       {
-        name: 'GET /api/dut1 (page 1, 25) — COUNT + liste en parallèle',
+        name: 'GET /api/dut1 (page 1, 25) — COUNT + page, étape précédente (2 allers-retours)',
         waves: [
           [{ sql: 'SELECT COUNT(*) AS n FROM dut1_records d' }],
           [{ sql: DUT1_LIST_SQL, params: [25, 0] }],
         ],
+      },
+      {
+        name: 'GET /api/dut1 (page 1, 25) — code actuel (1 requête)',
+        waves: [[{ sql: DUT1_LIST_CONSOLIDATED_SQL, params: [25, 0] }]],
       },
       sampleDut1Id
         ? { name: 'GET /api/dut1/:id — détail', statements: [{ sql: DUT1_DETAIL_SQL, params: [sampleDut1Id] }] }
