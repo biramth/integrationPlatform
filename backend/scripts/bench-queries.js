@@ -3,9 +3,11 @@
 //
 // Objectif : mesurer le coût réel des requêtes derrière les écrans fréquentés,
 // sans passer par HTTP, pour distinguer « le serveur Node est lent » de « la
-// base met du temps à répondre ». Le script ouvre UNE connexion Postgres, la
-// place en transaction READ ONLY (toute écriture échouerait), puis exécute
-// chaque scénario plusieurs fois après échauffement.
+// base met du temps à répondre ». Le script ouvre un petit pool Postgres dont
+// chaque connexion est en READ ONLY par défaut (toute écriture échouerait),
+// puis exécute chaque scénario plusieurs fois après échauffement. Le pool est
+// nécessaire pour reproduire les « vagues » du code actuel : plusieurs requêtes
+// indépendantes lancées en parallèle, comme le fait le contrôleur.
 //
 // Usage (depuis backend/) :
 //   npm run bench:queries
@@ -17,7 +19,7 @@
 // Les valeurs affichées sont des millisecondes côté client (aller-retour inclus).
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env'), quiet: true });
-const { Client, types } = require('pg');
+const { Pool, types } = require('pg');
 
 // Même conversion que db/database.js : COUNT(*) revient en BIGINT (OID 20),
 // pg le rendrait en string.
@@ -67,7 +69,7 @@ Options :
   --url=URL          Chaîne Postgres (défaut : DATABASE_URL de backend/.env)
   -h, --help         Affiche cette aide
 
-Sécurité : la connexion est ouverte dans une transaction READ ONLY, aucune
+Sécurité : chaque connexion du pool est ouverte en READ ONLY par défaut, aucune
 donnée n'est modifiée. Le script ne doit pas être lancé sur une base de
 production pendant un import, mais il est sans danger pour les données.
 `);
@@ -96,28 +98,35 @@ function ms(value) {
   return Number(value.toFixed(2));
 }
 
-// Un « scénario » = une ou plusieurs requêtes exécutées dans l'ordre, comme le
-// fait le contrôleur. Les scénarios multi-requêtes montrent le coût des
-// allers-retours séquentiels ; c'est exactement ce que la consolidation supprime.
-async function measure(client, scenario, opts) {
+// Un « scénario » = une ou plusieurs VAGUES de requêtes. Une vague est un
+// ensemble de requêtes indépendantes lancées en parallèle (comme un
+// Promise.all dans un contrôleur) ; les vagues s'enchaînent. Un scénario sans
+// `waves` est une suite strictement séquentielle (`statements`).
+async function runWaves(db, waves) {
+  for (const wave of waves) {
+    if (wave.length === 1) await db.query(wave[0].sql, wave[0].params);
+    else await Promise.all(wave.map((stmt) => db.query(stmt.sql, stmt.params)));
+  }
+}
+
+async function measure(db, scenario, opts) {
+  const waves = scenario.waves ?? scenario.statements.map((stmt) => [stmt]);
+
   for (let i = 0; i < opts.warmup; i++) {
-    for (const stmt of scenario.statements) {
-      await client.query(stmt.sql, stmt.params);
-    }
+    await runWaves(db, waves);
   }
 
   const samples = [];
   for (let i = 0; i < opts.iterations; i++) {
     const startedAt = performance.now();
-    for (const stmt of scenario.statements) {
-      await client.query(stmt.sql, stmt.params);
-    }
+    await runWaves(db, waves);
     samples.push(performance.now() - startedAt);
   }
 
   return {
     name: scenario.name,
-    queries: scenario.statements.length,
+    queries: waves.reduce((acc, wave) => acc + wave.length, 0),
+    waves: waves.length,
     ...Object.fromEntries(Object.entries(summarize(samples)).map(([k, v]) => [k, k === 'n' ? v : ms(v)])),
   };
 }
@@ -263,6 +272,53 @@ const REQUIRED_CRITERIA_SQL = `SELECT arc.activity_id, arc.criterion_id, ac.labe
      JOIN aptitude_criterion_levels lvl ON lvl.id = arc.min_level_id
      WHERE arc.activity_id = ANY($1::int[])`;
 
+// Version actuelle (depuis « 1 vague ») : le filtre « activités du jour » est
+// dans la requête, plus besoin de charger la liste des activités avant.
+const REQUIRED_CRITERIA_BY_DATE_SQL = `SELECT arc.activity_id, arc.criterion_id, ac.label AS criterion_label,
+       lvl.rank AS min_rank, lvl.label AS min_level_label, act.name AS activity_name
+     FROM activity_required_criteria arc
+     JOIN aptitude_criteria ac ON ac.id = arc.criterion_id
+     JOIN aptitude_criterion_levels lvl ON lvl.id = arc.min_level_id
+     JOIN activities act ON act.id = arc.activity_id
+       AND $1 BETWEEN act.activity_date AND COALESCE(act.end_date, act.activity_date)`;
+
+// Copie fidèle de la requête d'écarts d'aptitude du contrôleur : la jointure
+// ne remonte que les DUT1 dont le niveau déclaré est absent ou inférieur au
+// minimum exigé par une activité du jour (l'ancienne version chargeait tous les
+// dossiers complétés + tous les niveaux en Node, puis croisait en boucle).
+const APTITUDE_MISMATCHES_SQL = `SELECT d.id, d.first_name, d.last_name, d.department, d.gender,
+       r.label AS room_label,
+       arc.activity_id, ac.label AS criterion_label,
+       lvl.label AS min_level_label, own.label AS own_label
+     FROM activity_required_criteria arc
+     JOIN aptitude_criteria ac ON ac.id = arc.criterion_id
+     JOIN aptitude_criterion_levels lvl ON lvl.id = arc.min_level_id
+     JOIN dut1_records d ON d.complementary_completed_at IS NOT NULL
+     LEFT JOIN rooms r ON r.id = d.room_id
+     LEFT JOIN dut1_aptitude_levels dal
+       ON dal.dut1_id = d.id AND dal.criterion_id = arc.criterion_id
+     LEFT JOIN aptitude_criterion_levels own ON own.id = dal.level_id
+     WHERE arc.activity_id = ANY($1::int[])
+       AND (own.rank IS NULL OR own.rank < lvl.rank)`;
+
+const APTITUDE_MISMATCHES_BY_DATE_SQL = `SELECT d.id, d.first_name, d.last_name, d.department, d.gender,
+       r.label AS room_label,
+       arc.activity_id, ac.label AS criterion_label,
+       lvl.label AS min_level_label, own.label AS own_label, act.name AS activity_name
+     FROM activity_required_criteria arc
+     JOIN aptitude_criteria ac ON ac.id = arc.criterion_id
+     JOIN aptitude_criterion_levels lvl ON lvl.id = arc.min_level_id
+     JOIN activities act ON act.id = arc.activity_id
+       AND $1 BETWEEN act.activity_date AND COALESCE(act.end_date, act.activity_date)
+     JOIN dut1_records d ON d.complementary_completed_at IS NOT NULL
+     LEFT JOIN rooms r ON r.id = d.room_id
+     LEFT JOIN dut1_aptitude_levels dal
+       ON dal.dut1_id = d.id AND dal.criterion_id = arc.criterion_id
+     LEFT JOIN aptitude_criterion_levels own ON own.id = dal.level_id
+     WHERE own.rank IS NULL OR own.rank < lvl.rank`;
+
+// Ancien code (avant 9c4acd5) : tous les dossiers complétés et tous les
+// niveaux déclarés, croisés ensuite en JavaScript — deux requêtes de plus.
 const COMPLETED_DUT1_SQL = `SELECT d.id, d.first_name, d.last_name, d.department, d.gender, r.label AS room_label
      FROM dut1_records d
      LEFT JOIN rooms r ON r.id = d.room_id
@@ -359,24 +415,46 @@ async function main() {
     // chaîne non-URL (rare) : on n'affiche pas les identifiants
   }
 
-  const client = new Client({
+  // Un pool de quelques connexions : c'est ce qui permet de mesurer les vagues
+  // parallèles du code actuel. Chaque connexion est basculée en READ ONLY dès
+  // sa première utilisation (garde-fou au niveau session, pas seulement
+  // transaction) — le pooler Supabase ignore l'option de démarrage `options`,
+  // d'où ce SET explicite. Le coût de ce SET n'est payé qu'une fois par
+  // connexion, avant les mesures.
+  const pool = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false },
+    max: 5,
     application_name: 'integration-platform-bench',
-    statement_timeout: 30_000,
     connectionTimeoutMillis: 15_000,
   });
-
-  await client.connect();
+  const readOnlyReady = new WeakSet();
+  const db = {
+    async query(sql, params) {
+      const conn = await pool.connect();
+      try {
+        if (!readOnlyReady.has(conn)) {
+          await conn.query('SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY; SET statement_timeout = 30000');
+          readOnlyReady.add(conn);
+        }
+        return await conn.query(sql, params);
+      } finally {
+        conn.release();
+      }
+    },
+    end: () => pool.end(),
+  };
 
   try {
-    // Garde-fou : même une requête fautive ne peut rien écrire.
-    await client.query('BEGIN TRANSACTION READ ONLY');
+    const guard = await db.query('SHOW default_transaction_read_only');
+    if (guard.rows[0].default_transaction_read_only !== 'on') {
+      throw new Error('la session n’est pas en READ ONLY — abandon par sécurité');
+    }
 
     const tables = [];
     for (const table of COUNTED_TABLES) {
       try {
-        const res = await client.query(`SELECT COUNT(*) AS n FROM ${table}`);
+        const res = await db.query(`SELECT COUNT(*) AS n FROM ${table}`);
         tables.push({ table, rows: res.rows[0].n });
       } catch (err) {
         tables.push({ table, rows: null, error: err.message });
@@ -384,9 +462,9 @@ async function main() {
     }
 
     // Paramètres dépendant des données réelles.
-    const activitiesRes = await client.query(TODAY_ACTIVITIES_SQL, [opts.date]);
+    const activitiesRes = await db.query(TODAY_ACTIVITIES_SQL, [opts.date]);
     const activityIds = activitiesRes.rows.map((r) => r.id);
-    const firstDut1 = await client.query('SELECT id FROM dut1_records ORDER BY id ASC LIMIT 1');
+    const firstDut1 = await db.query('SELECT id FROM dut1_records ORDER BY id ASC LIMIT 1');
     const sampleDut1Id = firstDut1.rows[0]?.id ?? null;
 
     const scenarios = [
@@ -395,10 +473,10 @@ async function main() {
       { name: 'stats/health-overview — séquentiel, ancien code (7 allers-retours)', statements: HEALTH_OVERVIEW_CURRENT },
       { name: 'stats/health-overview — consolidé, code actuel (1 requête)', statements: HEALTH_OVERVIEW_CONSOLIDATED },
       {
-        name: 'GET /api/dut1 (page 1, 25) — COUNT + liste',
-        statements: [
-          { sql: 'SELECT COUNT(*) AS n FROM dut1_records d' },
-          { sql: DUT1_LIST_SQL, params: [25, 0] },
+        name: 'GET /api/dut1 (page 1, 25) — COUNT + liste en parallèle',
+        waves: [
+          [{ sql: 'SELECT COUNT(*) AS n FROM dut1_records d' }],
+          [{ sql: DUT1_LIST_SQL, params: [25, 0] }],
         ],
       },
       sampleDut1Id
@@ -409,7 +487,7 @@ async function main() {
       { name: 'GET /api/health/on-treatment', statements: [{ sql: ON_TREATMENT_SQL }] },
       { name: 'GET /api/health/treatments (actifs)', statements: [{ sql: TREATMENTS_ACTIVE_SQL, params: [opts.date] }] },
       {
-        name: 'GET /api/health/risks (SQL du jour)',
+        name: 'GET /api/health/risks — séquentiel, ancien code (6 allers-retours)',
         statements: [
           { sql: RISKS_ALLERGY_SQL, params: [opts.date] },
           { sql: RISKS_RESTRICTION_SQL, params: [opts.date] },
@@ -423,6 +501,35 @@ async function main() {
             : []),
         ],
       },
+      {
+        name: 'GET /api/health/risks — étape précédente (2 vagues, 5 requêtes)',
+        waves: [
+          [
+            { sql: RISKS_ALLERGY_SQL, params: [opts.date] },
+            { sql: RISKS_RESTRICTION_SQL, params: [opts.date] },
+            { sql: TODAY_ACTIVITIES_SQL, params: [opts.date] },
+          ],
+          ...(activityIds.length
+            ? [
+                [
+                  { sql: REQUIRED_CRITERIA_SQL, params: [activityIds] },
+                  { sql: APTITUDE_MISMATCHES_SQL, params: [activityIds] },
+                ],
+              ]
+            : []),
+        ],
+      },
+      {
+        name: 'GET /api/health/risks — code actuel (1 vague, 4 requêtes)',
+        waves: [
+          [
+            { sql: RISKS_ALLERGY_SQL, params: [opts.date] },
+            { sql: RISKS_RESTRICTION_SQL, params: [opts.date] },
+            { sql: REQUIRED_CRITERIA_BY_DATE_SQL, params: [opts.date] },
+            { sql: APTITUDE_MISMATCHES_BY_DATE_SQL, params: [opts.date] },
+          ],
+        ],
+      },
       { name: 'GET /api/allergens', statements: [{ sql: ALLERGENS_SQL }] },
       { name: 'GET /api/activities', statements: [{ sql: 'SELECT * FROM activities ORDER BY activity_date ASC, start_time ASC NULLS LAST, name ASC' }] },
       { name: 'GET /api/phase2-questions', statements: [{ sql: 'SELECT * FROM phase2_questions ORDER BY position ASC, id ASC' }] },
@@ -430,13 +537,14 @@ async function main() {
 
     const results = [];
     for (const scenario of scenarios) {
-      results.push(await measure(client, scenario, opts));
+      results.push(await measure(db, scenario, opts));
 
       if (opts.detail) {
-        for (const [index, stmt] of scenario.statements.entries()) {
+        const statements = scenario.waves ? scenario.waves.flat() : scenario.statements;
+        for (const [index, stmt] of statements.entries()) {
           results.push(
             await measure(
-              client,
+              db,
               { name: `  ↳ ${scenario.name} · requête ${index + 1}`, statements: [stmt] },
               opts
             )
@@ -470,23 +578,25 @@ async function main() {
     }
 
     console.log('\nLatence SQL (ms, aller-retour inclus)');
-    const header = ['Scénario', 'p50', 'p95', 'max', 'moy.', 'req.'];
+    const header = ['Scénario', 'p50', 'p95', 'max', 'moy.', 'req.', 'vagues'];
     console.log(
-      `  ${header[0].padEnd(44)} ${header[1].padStart(8)} ${header[2].padStart(8)} ${header[3].padStart(8)} ${header[4].padStart(8)} ${header[5].padStart(4)}`
+      `  ${header[0].padEnd(62)} ${header[1].padStart(8)} ${header[2].padStart(8)} ${header[3].padStart(8)} ${header[4].padStart(8)} ${header[5].padStart(4)} ${header[6].padStart(6)}`
     );
     for (const r of results) {
       console.log(
-        `  ${r.name.padEnd(44)} ${String(r.p50).padStart(8)} ${String(r.p95).padStart(8)} ${String(r.max).padStart(8)} ${String(r.mean).padStart(8)} ${String(r.queries).padStart(4)}`
+        `  ${r.name.padEnd(62)} ${String(r.p50).padStart(8)} ${String(r.p95).padStart(8)} ${String(r.max).padStart(8)} ${String(r.mean).padStart(8)} ${String(r.queries).padStart(4)} ${String(r.waves).padStart(6)}`
       );
     }
     console.log(
-      '\nLecture : comparez « séquentiel » et « consolidé » à volumes réels. Si p95 d\'une liste\n' +
-        'dépasse ~200 ms, la requête (ou le réseau Supabase) est le point chaud ; si toutes\n' +
-        'les requêtes sont rapides mais l\'API lente, cherchez côté Node/cold start.\n'
+      '\nLecture : comparez « séquentiel » (ancien code) et « vagues » (code actuel) à\n' +
+        'volumes réels. « req. » = nombre de requêtes SQL, « vagues » = nombre d’allers-\n' +
+        'retours réseau empilés (une vague parallèle ne coûte qu’un aller-retour).\n' +
+        'Si p95 d’une liste dépasse ~200 ms, la requête (ou le réseau Supabase) est le\n' +
+        'point chaud ; si toutes les requêtes sont rapides mais l’API lente, cherchez\n' +
+        'côté Node/cold start ou sérialisation JSON.\n'
     );
   } finally {
-    await client.query('ROLLBACK').catch(() => {});
-    await client.end().catch(() => {});
+    await db.end().catch(() => {});
   }
 }
 
