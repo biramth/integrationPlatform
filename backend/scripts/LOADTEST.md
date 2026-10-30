@@ -72,8 +72,8 @@ npm run bench:queries -- --json > ..\bench-before.json
 
 Le script compare notamment :
 
-- `stats/overview` **actuel** (5 allers-retours) vs **consolidé** (1 requête) ;
-- `stats/health-overview` **actuel** (7 allers-retours) vs **consolidé** ;
+- `stats/overview` **séquentiel** (5 allers-retours, ancien code) vs **consolidé** (1 requête) ;
+- `stats/health-overview` **séquentiel** (7 allers-retours) vs **consolidé** ;
 - la liste paginée `/api/dut1` (`COUNT` + page), le détail d'un dossier ;
 - les listes Santé : restrictions actives, sous traitement, traitements actifs,
   risques du jour ;
@@ -136,7 +136,7 @@ coupure, pas les octets.
 
 Les chiffres absolus dépendent de votre machine et de la distance au pooler
 Supabase : raisonnez surtout en **ratio** entre deux mesures. Regardez d'abord
-les scénarios « actuel » vs « consolidé » : si le consolidé divise le temps par
+les scénarios « séquentiel » vs « consolidé » : si le consolidé divise le temps par
 5–7, le problème est bien le nombre d'allers-retours.
 
 ### HTTP (`loadtest`)

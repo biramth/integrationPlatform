@@ -1,23 +1,28 @@
 const db = require('../db/database');
 
+// Les compteurs d'un même tableau de bord sont calculés en UNE requête : cinq
+// (ou sept) COUNT séparés coûtaient autant d'allers-retours Supabase (~125 ms
+// chacun depuis Render) pour les mêmes données. Les sous-requêtes non corrélées
+// sont évaluées une seule fois par Postgres, et tout est lu au même instant —
+// plus de valeurs incohérentes entre elles pendant une écriture concurrente.
 async function overview(req, res) {
-  const total = Number((await db.get('SELECT COUNT(*) AS n FROM dut1_records')).n);
-  const withRoom = Number((await db.get('SELECT COUNT(*) AS n FROM dut1_records WHERE room_id IS NOT NULL')).n);
-  const withLuggage = Number(
-    (
-      await db.get(
-        `SELECT COUNT(*) AS n FROM dut1_records d
+  const row = await db.get(
+    `SELECT
+       COUNT(*) AS total,
+       COUNT(*) FILTER (WHERE d.room_id IS NOT NULL) AS with_room,
+       COUNT(*) FILTER (
          WHERE d.luggage_count IS NOT NULL
-           AND (SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id) >= d.luggage_count`
-      )
-    ).n
+           AND (SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id) >= d.luggage_count
+       ) AS with_luggage,
+       COUNT(*) FILTER (WHERE d.complementary_completed_at IS NOT NULL) AS complementary_done,
+       (SELECT COUNT(*) FROM health_restrictions WHERE resolved_at IS NULL) AS active_restrictions
+     FROM dut1_records d`
   );
-  const complementaryDone = Number(
-    (await db.get('SELECT COUNT(*) AS n FROM dut1_records WHERE complementary_completed_at IS NOT NULL')).n
-  );
-  const activeRestrictions = Number(
-    (await db.get('SELECT COUNT(*) AS n FROM health_restrictions WHERE resolved_at IS NULL')).n
-  );
+
+  const total = Number(row.total);
+  const withRoom = Number(row.with_room);
+  const withLuggage = Number(row.with_luggage);
+  const complementaryDone = Number(row.complementary_done);
 
   res.json({
     total,
@@ -27,7 +32,7 @@ async function overview(req, res) {
     withoutLuggage: total - withLuggage,
     complementaryDone,
     complementaryPending: total - complementaryDone,
-    activeRestrictions,
+    activeRestrictions: Number(row.active_restrictions),
   });
 }
 
@@ -97,41 +102,32 @@ async function allergyPrevalence(req, res) {
 // Tableau de bord santé : stats exclusivement médicales, séparées des stats
 // générales (overview) réservées à Orga/Présidentielle.
 async function healthOverview(req, res) {
-  const total = Number((await db.get('SELECT COUNT(*) AS n FROM dut1_records')).n);
-  const complementaryDone = Number(
-    (await db.get('SELECT COUNT(*) AS n FROM dut1_records WHERE complementary_completed_at IS NOT NULL')).n
-  );
-  const activeRestrictions = Number(
-    (await db.get('SELECT COUNT(*) AS n FROM health_restrictions WHERE resolved_at IS NULL')).n
-  );
-  const onTreatment = Number(
-    (await db.get('SELECT COUNT(*) AS n FROM dut1_records WHERE on_treatment = TRUE')).n
-  );
-  const withAllergies = Number(
-    (await db.get('SELECT COUNT(DISTINCT dut1_id) AS n FROM dut1_allergens')).n
-  );
-  const totalAllergens = Number(
-    (await db.get('SELECT COUNT(*) AS n FROM allergens')).n
-  );
-  const activeTreatments = Number(
-    (
-      await db.get(
-        `SELECT COUNT(*) AS n FROM dut1_treatments
+  const row = await db.get(
+    `SELECT
+       COUNT(*) AS total,
+       COUNT(*) FILTER (WHERE d.complementary_completed_at IS NOT NULL) AS complementary_done,
+       (SELECT COUNT(*) FROM health_restrictions WHERE resolved_at IS NULL) AS active_restrictions,
+       COUNT(*) FILTER (WHERE d.on_treatment = TRUE) AS on_treatment,
+       (SELECT COUNT(DISTINCT dut1_id) FROM dut1_allergens) AS with_allergies,
+       (SELECT COUNT(*) FROM allergens) AS total_allergens,
+       (SELECT COUNT(*) FROM dut1_treatments
          WHERE start_date <= CURRENT_DATE
-           AND (end_date IS NULL OR end_date >= CURRENT_DATE)`
-      )
-    ).n
+           AND (end_date IS NULL OR end_date >= CURRENT_DATE)) AS active_treatments
+     FROM dut1_records d`
   );
+
+  const total = Number(row.total);
+  const complementaryDone = Number(row.complementary_done);
 
   res.json({
     total,
     complementaryDone,
     complementaryPending: total - complementaryDone,
-    activeRestrictions,
-    onTreatment,
-    activeTreatments,
-    withAllergies,
-    totalAllergens,
+    activeRestrictions: Number(row.active_restrictions),
+    onTreatment: Number(row.on_treatment),
+    activeTreatments: Number(row.active_treatments),
+    withAllergies: Number(row.with_allergies),
+    totalAllergens: Number(row.total_allergens),
   });
 }
 

@@ -390,10 +390,10 @@ async function main() {
     const sampleDut1Id = firstDut1.rows[0]?.id ?? null;
 
     const scenarios = [
-      { name: 'stats/overview — actuel (5 allers-retours)', statements: STATS_OVERVIEW_CURRENT },
-      { name: 'stats/overview — consolidé (1 requête)', statements: STATS_OVERVIEW_CONSOLIDATED },
-      { name: 'stats/health-overview — actuel (7 allers-retours)', statements: HEALTH_OVERVIEW_CURRENT },
-      { name: 'stats/health-overview — consolidé (1 requête)', statements: HEALTH_OVERVIEW_CONSOLIDATED },
+      { name: 'stats/overview — séquentiel, ancien code (5 allers-retours)', statements: STATS_OVERVIEW_CURRENT },
+      { name: 'stats/overview — consolidé, code actuel (1 requête)', statements: STATS_OVERVIEW_CONSOLIDATED },
+      { name: 'stats/health-overview — séquentiel, ancien code (7 allers-retours)', statements: HEALTH_OVERVIEW_CURRENT },
+      { name: 'stats/health-overview — consolidé, code actuel (1 requête)', statements: HEALTH_OVERVIEW_CONSOLIDATED },
       {
         name: 'GET /api/dut1 (page 1, 25) — COUNT + liste',
         statements: [
@@ -480,7 +480,7 @@ async function main() {
       );
     }
     console.log(
-      '\nLecture : comparez « actuel » et « consolidé » à volumes réels. Si p95 d\'une liste\n' +
+      '\nLecture : comparez « séquentiel » et « consolidé » à volumes réels. Si p95 d\'une liste\n' +
         'dépasse ~200 ms, la requête (ou le réseau Supabase) est le point chaud ; si toutes\n' +
         'les requêtes sont rapides mais l\'API lente, cherchez côté Node/cold start.\n'
     );
