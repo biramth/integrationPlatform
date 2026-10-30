@@ -103,6 +103,7 @@ async function getRisks(req, res) {
            JOIN aptitude_criteria ac ON ac.id = arc.criterion_id
            JOIN aptitude_criterion_levels lvl ON lvl.id = arc.min_level_id
            JOIN dut1_records d ON d.complementary_completed_at IS NOT NULL
+           LEFT JOIN rooms r ON r.id = d.room_id
            LEFT JOIN dut1_aptitude_levels dal
              ON dal.dut1_id = d.id AND dal.criterion_id = arc.criterion_id
            LEFT JOIN aptitude_criterion_levels own ON own.id = dal.level_id
