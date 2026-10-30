@@ -124,6 +124,18 @@ Le flux est quasi vide (quelques octets par mutation, heartbeat toutes les
 25 s) : ce qui compte est le **nombre de connexions tenues** et l'absence de
 coupure, pas les octets.
 
+### 4. Cache (sans base ni réseau)
+
+```powershell
+npm run check:cache
+```
+
+Vérifie en quelques millisecondes, sans base de données : TTL, invalidation par
+préfixe, coalescence des requêtes simultanées, refus de mettre en cache une
+réponse calculée avant une invalidation, et clés isolées par rôle/sous-rôle.
+À relancer après toute modification de `middleware/cache.js` ou ajout d'un
+`cached(...)` à une route.
+
 ## Comment lire les résultats
 
 ### SQL (`bench-queries`)
@@ -146,9 +158,24 @@ les scénarios « séquentiel » vs « consolidé » : si le consolidé divise l
   SQL lente ou cold start — pas seulement un manque de CPU.
 - `429` : limite par compte atteinte ; attendez 15 min et relancez avec moins de
   requêtes.
-- Rappel : `/api/dut1` est mis en cache 15 s, les stats 30–60 s. Un test HTTP
+- Rappel : `/api/dut1` (liste) est mis en cache 15 s, les stats 30–60 s, les
+  lectures du suivi santé (risques, restrictions, traitements, planning) 10 s,
+  les listes de référence (allergènes, questions phase 2) 60 s. Un test HTTP
   mesure donc surtout le **chemin cache chaud** ; ajoutez `--bust` pour mesurer
   le chemin cache froid, et `bench-queries` pour le coût SQL isolé.
+- Un endpoint **au niveau de `/healthz`** dans le même passage ne paie aucune
+  requête SQL : c'est la signature d'un cache chaud. S'il reste au-dessus,
+  mesurez `p50 − plancher` pour obtenir le coût SQL réel.
+- Rafale temps réel : ouvrez des connexions SSE et chargez les écrans dans le
+  même passage. Avec les caches en place, le HTTP doit rester au plancher :
+
+  ```powershell
+  # Terminal 1
+  npm run loadtest:sse -- --url=https://… --connections=20 --duration=45
+  # Terminal 2, pendant que le flux est ouvert
+  npm run loadtest -- --url=https://… --connections=6 --requests=40 `
+    --endpoints=/api/dut1,/api/health/risks?date=2026-10-30
+  ```
 
 ### SSE (`loadtest:sse`)
 
@@ -191,6 +218,11 @@ Repère utile : `/healthz` ne fait aucune requête SQL. Après l'optimisation de
 qu'ils repaient un aller-retour base. Pour isoler le coût d'un contrôleur, on
 peut donc comparer son p50 à celui de `/healthz` plutôt qu'au p50 brut.
 
+Le plancher réseau varie avec l'heure : mesuré à **~306 ms** le 30/10/2026 en fin
+d'après-midi, contre ~225 ms le matin, depuis le même poste. Les lignes du
+tableau ci-dessous donnent donc aussi le **coût SQL** (`p50 − plancher du même
+passage`), seule grandeur comparable d'une session à l'autre.
+
 ## Protocole avant/après
 
 1. **Figer le point de départ** : notez `git rev-parse --short HEAD`, le plan et
@@ -215,9 +247,24 @@ Gabarit de suivi :
 | 30/10/2026 | `bf25b7f` | `health/risks` 1 conn. + `stats/overview` à froid | 866 / 1 094 ms | 479 / 841 ms | −45 % / −23 % | même changement : un aller-retour de moins avant le contrôleur |
 | 30/10/2026 | `d96fe98` | `stats/overview` à froid, 1 conn. | 841 ms | 409 ms | −51 % | 5 `COUNT` séquentiels → 1 requête, JSON identique en prod |
 | 30/10/2026 | `d96fe98` | `stats/health-overview` à froid, 1 conn. | ~1 090 ms (estimé) | 408 ms | ~−63 % | 7 `COUNT` → 1 requête |
-| … | … | `stats/overview` SQL | … | … | … | … |
-| … | … | `/api/dut1` HTTP | … | … | … | … |
-| … | … | SSE 20 connexions | … | … | … | … |
+| 30/10/2026 | `bcfad07` | `/api/dut1` à froid, 1 conn. | 592 ms (SQL ≈ 367) | 408 ms (SQL ≈ 102) | **−72 % de SQL** | `COUNT` et page lancés ensemble (1 aller-retour de moins) |
+| 30/10/2026 | `bcfad07` | `/api/dut1` chaud, 1 conn. | 346 ms (SQL ≈ 121) | 306 ms = plancher (SQL 0) | −100 % de SQL | liste mise en cache 15 s |
+| 30/10/2026 | `bcfad07` | `health/risks` chaud, 1 conn. | 479 ms (SQL ≈ 254) | 306 ms = plancher (SQL 0) | −100 % de SQL | cache 10 s ; à froid 508 ms (SQL ≈ 202) |
+| 30/10/2026 | `bcfad07` | `health/treatments` chaud / froid | ~710 ms (SQL ≈ 485) | 306 / 408 ms | −100 % / −79 % de SQL | cache 10 s partagé par tous les navigateurs |
+| 30/10/2026 | `bcfad07` | `health/restrictions/active` chaud | ~710 ms | 305 ms = plancher | −100 % de SQL | idem |
+| 30/10/2026 | `bcfad07` | SSE 20 conn. + 90 req HTTP simultanées | 645 / 1 300 ms (SSE seul) | 829 / 1 361 ms, 0 coupure | HTTP au plancher (287–306 ms) | un rechargement de masse ne repaie plus le SQL |
+
+Notes de lecture :
+
+- le script affiche **p97,5** là où les lignes précédentes disaient « p95 » : les
+  deux valeurs sont équivalentes à l'arrondi près ;
+- sur les lectures mises en cache, le p97,5 reste à 307–327 ms (donc au
+  plancher) ; le seul pic de `/api/dut1` (687–921 ms) correspond à l'expiration
+  des 15 s, c'est-à-dire à un vrai calcul ;
+- **invalidation** : toute mutation qui passe par `auditService.logAction` vide
+  ce cache **avant** de diffuser `data_changed`, donc les navigateurs qui
+  rechargent en réaction lisent la donnée à jour. Les mutations du questionnaire
+  phase 2, non journalisées, invalident explicitement leur liste.
 
 ## Limites connues
 
