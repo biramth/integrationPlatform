@@ -204,6 +204,7 @@ Gabarit de suivi :
 
 | Date | Commit | Scénario | Avant (p50/p95) | Après (p50/p95) | Gain | Remarque |
 | --- | --- | --- | --- | --- | --- | --- |
+| 30/10/2026 | `a4d5f61` | `health/risks` HTTP, 5 conn. | 1 077 / 1 250 ms | 866 / 1 193 ms | −20 % | requêtes indépendantes parallélisées (5 vagues → 2) |
 | … | … | `stats/overview` SQL | … | … | … | … |
 | … | … | `/api/dut1` HTTP | … | … | … | … |
 | … | … | SSE 20 connexions | … | … | … | … |
