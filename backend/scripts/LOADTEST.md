@@ -160,6 +160,31 @@ les scénarios « actuel » vs « consolidé » : si le consolidé divise le tem
 - Sur un maintien > 25 s, des `heartbeat` doivent apparaître : c'est la preuve
   que le flux reste ouvert.
 
+## Point de départ mesuré (30/10/2026)
+
+Relevé sur `https://integration-dut1-api.onrender.com` (plan gratuit, une
+instance, Supabase distant) depuis un poste en France, 5 connexions et
+200 requêtes/endpoint sauf mention contraire. La latence réseau de ce poste vers
+Render est d'environ **215 ms par requête** : ces chiffres servent de référence
+relative, pas de cible absolue.
+
+| Mesure | p50 | p99 | Remarque |
+| --- | --- | --- | --- |
+| `/healthz` (1 puis 10 connexions) | 217 / 221 ms | 365 / 410 ms | endpoint sans SQL, plancher réseau + Node |
+| `/api/stats/overview` cache chaud | 486 ms | 652 ms | 10 requêtes, 1 connexion |
+| `/api/stats/overview` cache froid (`--bust`) | 1 094 ms | 1 372 ms | 5 `COUNT` séquentiels |
+| `/api/dut1` cache chaud / froid | 346 / 592 ms | 443 / 889 ms | liste paginée |
+| `/api/activities` cache chaud / froid | 611 / 829 ms | 657 / 863 ms | ~26 Ko de réponse |
+| `/api/health/risks` | 1 077 ms | 1 290 ms | jamais mis en cache |
+| `/api/stats/health-overview` | 470 ms | 718 ms | 7 `COUNT` séquentiels |
+| Santé : restrictions / traitements | ~710 ms | ~900 ms | |
+| `/api/phase2-questions` | 725 ms | 2 784 ms | p99 instable |
+| SSE 20 / 40 connexions | 645 / 1 412 ms | 1 300 / 1 643 ms | 0 coupure, heartbeats reçus |
+
+Lecture : hors ~215 ms de réseau incompressible, les écrans lents sont ceux qui
+enchaînent des allers-retours SQL (`stats/*`, `health/risks`) et non ceux qui
+transfèrent beaucoup d'octets.
+
 ## Protocole avant/après
 
 1. **Figer le point de départ** : notez `git rev-parse --short HEAD`, le plan et
