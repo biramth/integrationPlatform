@@ -255,6 +255,9 @@ Gabarit de suivi :
 | 30/10/2026 | `bcfad07` | SSE 20 conn. + 90 req HTTP simultanées | 645 / 1 300 ms (SSE seul) | 829 / 1 361 ms, 0 coupure | HTTP au plancher (287–306 ms) | un rechargement de masse ne repaie plus le SQL |
 | 30/10/2026 | `bcfad07` | `phase2-questions` chaud, 1 conn. | 725 ms (SQL ≈ 500) | 306 ms = plancher | −100 % de SQL | cache 60 s, invalidé par chaque mutation de question |
 | 30/10/2026 | `00c5bc2` | `health/risks` à froid, 1 conn. | 511 ms (SQL ≈ 205) | 511 ms | 0 % **sur les données actuelles** | aptitude calculée en SQL : plus aucune table entière chargée en Node, et une vague en moins dès que des critères requis existent (aucun dossier phase 2 complété aujourd'hui) |
+| 30/10/2026 | `bcfad07` | `activities` chaud, 1 conn. | 611 ms (SQL ≈ 386) | 306 ms = plancher | −100 % de SQL | cache 30 s, ~26 Ko compressés |
+| 30/10/2026 | `bcfad07` | charge mixte, 10 conn. | — | 1 647 req en ~10 s (~160 req/s), 0 erreur, p50 286–306 ms | — | tous les écrans du tableau de bord servis par le cache |
+| 30/10/2026 | `bcfad07` | SSE 60 et 80 conn. | 40 conn. : 1 412 ms (p50) | 60/60 et 80/80 établies, 0 et 1 coupure | — | p50 d'établissement 975 / 914 ms ; première coupure à 80 connexions |
 
 Notes de lecture :
 
@@ -266,7 +269,13 @@ Notes de lecture :
 - **invalidation** : toute mutation qui passe par `auditService.logAction` vide
   ce cache **avant** de diffuser `data_changed`, donc les navigateurs qui
   rechargent en réaction lisent la donnée à jour. Les mutations du questionnaire
-  phase 2, non journalisées, invalident explicitement leur liste.
+  phase 2, non journalisées, invalident explicitement leur liste ;
+- sous 10 connexions, les p99 de `/api/dut1` (1,2 s) et des risques (413 ms)
+  tombent pile à l'expiration du TTL : ce sont de vrais calculs, pas une
+  saturation. Le p50 reste au plancher, et aucune requête n'a échoué ;
+- capacité observée : 60 connexions SSE tenues sans coupure, 80 = limite du
+  palier (1 coupure). En HTTP, ~160 req/s sur 10 connexions sans erreur : le
+  facteur limitant est la mémoire/socket des flux ouverts, pas le débit.
 
 ## Limites connues
 
