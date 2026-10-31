@@ -16,10 +16,10 @@ import { staggerStyle } from '../../utils/stagger';
 // complétion médicale, restrictions actives) sans les graphiques médicaux
 // détaillés (tendance maladies, prévalence allergies) réservés à Santé.
 export default function OverviewPage() {
-  const overview = useFetch(statsApi.getOverview, [], { resourceTypes: ['dut1_record', 'room', 'luggage_item', 'health_restriction'] });
-  const byDepartment = useFetch(statsApi.getByDepartment, [], { resourceTypes: ['dut1_record'] });
-  const byGender = useFetch(statsApi.getByGender, [], { resourceTypes: ['dut1_record'] });
-  const occupancy = useFetch(statsApi.getRoomsOccupancy, [], { resourceTypes: ['room', 'dut1_record'] });
+  const overview = useFetch(statsApi.getOverview, []);
+  const byDepartment = useFetch(statsApi.getByDepartment, []);
+  const byGender = useFetch(statsApi.getByGender, []);
+  const occupancy = useFetch(statsApi.getRoomsOccupancy, []);
 
   const loading = overview.loading || byDepartment.loading || byGender.loading || occupancy.loading;
   const error = overview.error || byDepartment.error || byGender.error || occupancy.error;

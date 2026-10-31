@@ -31,40 +31,44 @@ const { requestId } = require('./middleware/requestId');
 const app = express();
 const PORT = 3000;
 
-// Assure un JWT_SECRET par défaut en dev si absent
-process.env.JWT_SECRET = process.env.JWT_SECRET || 'integrationplatform-super-secret-jwt-key-32-chars-minimum';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-at-least-32-chars-long-platform-secret';
 
-if (process.env.NODE_ENV === 'production' && process.env.JWT_SECRET.length < 32) {
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)) {
   throw new Error('JWT_SECRET doit être défini et contenir au moins 32 caractères en production.');
 }
+
+// CORS en tout premier : autorise toutes les origines (Vercel, Render, local, previews)
+// sans jamais lever de 403 sur les requêtes preflight OPTIONS.
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+    exposedHeaders: ['X-Request-Id'],
+  })
+);
 
 // En tout premier : chaque requête a un id, dispo dans les logs serveur et
 // dans le journal d'audit (colonne request_id) pour corréler les deux.
 app.use(requestId);
 
-// Render/proxy support
+// Render place l'app derrière son proxy : sans ceci, req.ip vaut l'IP du proxy
+// et le rate limiter de /api/auth/login mettrait tous les utilisateurs dans le
+// même compteur (10 tentatives pour tout le monde au lieu de 10 par personne).
 app.set('trust proxy', 1);
 
-// Sécurité : helmet avec CSP et frameguard assouplis pour environnement iframe et dev
+// Sécurité : helmet configuré pour permettre l'affichage dans l'iframe du studio
 app.use(
   helmet({
     contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false,
     frameguard: false,
+    crossOriginEmbedderPolicy: false,
   })
 );
 
 // Rate limiting global : protège contre les abus et le DoS sur tous les
 // endpoints. Le login a son propre limiter plus strict (authRoutes.js).
-//
-// Compté PAR COMPTE pour les requêtes authentifiées, pas par IP : pendant les
-// intégrations, des dizaines d'agents partagent la même IP publique (Wi-Fi de
-// l'école, partage de connexion, NAT des opérateurs mobiles). Un quota par IP
-// de 200 requêtes / 15 min se retrouvait épuisé en quelques secondes pour tout
-// le groupe — chaque événement temps réel fait recharger toutes les pages
-// ouvertes — et bloquait tout le monde pendant 15 minutes.
-// La signature du JWT est vérifiée (sans requête SQL) pour qu'un jeton forgé
-// ne puisse pas se créer son propre quota.
 const USER_LIMIT_PER_15_MIN = 5000;
 const ANONYMOUS_LIMIT_PER_15_MIN = 300;
 
@@ -91,39 +95,6 @@ const globalLimiter = rateLimit({
   message: { error: 'Trop de requêtes, veuillez réessayer plus tard.' },
 });
 app.use('/api', globalLimiter);
-
-// Le frontend est servi par Vercel, l'API par Render : les deux origines sont
-// différentes, il faut donc autoriser explicitement celle du frontend.
-// CORS_ORIGIN est une liste séparée par des virgules ; une entrée peut
-// commencer par "*." pour couvrir les déploiements de preview Vercel
-// (ex: "https://integration-dut1.vercel.app,*.vercel.app").
-// Sans CORS_ORIGIN (développement local), toutes les origines sont acceptées.
-const allowedOrigins = (process.env.CORS_ORIGIN || '')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
-function isAllowedOrigin(origin) {
-  return allowedOrigins.some((allowed) =>
-    allowed.startsWith('*.') ? origin.endsWith(allowed.slice(1)) : allowed === origin
-  );
-}
-
-app.use(
-  cors({
-    origin(origin, callback) {
-      // Origin absent = appel same-origin, curl, ou health check de Render.
-      if (!origin || allowedOrigins.length === 0 || isAllowedOrigin(origin)) {
-        return callback(null, true);
-      }
-      const error = new Error(`Origine non autorisée par CORS : ${origin}`);
-      // .status pour que errorHandler réponde 403 plutôt que 500 : une origine
-      // refusée est un rejet attendu, pas un bug serveur à investiguer.
-      error.status = 403;
-      return callback(error);
-    },
-  })
-);
 
 // Gzip des réponses JSON : les listes de dossiers/chambres compressent très
 // bien, ce qui compte maintenant que chaque réponse traverse le réseau public
@@ -171,29 +142,23 @@ app.use('/api/phase2-questions', phase2QuestionsRoutes);
 app.use('/api/medications', medicationRoutes);
 app.use('/api/aptitude-criteria', aptitudeCriteriaRoutes);
 
-app.use('/api', notFoundHandler);
-
 const path = require('path');
-const fs = require('fs');
-
 const frontendDist = path.resolve(__dirname, '../frontend/dist');
 
-// Servir le frontend buildé
-if (fs.existsSync(frontendDist)) {
-  app.use(express.static(frontendDist));
-}
+app.use('/api', notFoundHandler);
 
-// Fallback SPA pour toute requête GET frontend non-API
+app.use(express.static(frontendDist));
 app.use((req, res, next) => {
   if (req.method !== 'GET') return next();
-  if (req.path.startsWith('/api') || req.path.startsWith('/healthz')) {
+  if (req.path.startsWith('/api') || req.path === '/healthz') {
     return next();
   }
-  const indexHtml = path.join(frontendDist, 'index.html');
-  if (fs.existsSync(indexHtml)) {
-    return res.sendFile(indexHtml);
-  }
-  res.send(`<!DOCTYPE html><html><head><title>Integration Platform</title></head><body><h2>Démarrage en cours... Veuillez recharger dans un instant.</h2></body></html>`);
+  const indexPath = path.join(frontendDist, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      res.send('Plateforme intégration DUT1 — En cours de chargement.');
+    }
+  });
 });
 
 app.use(errorHandler);
@@ -212,7 +177,7 @@ async function runCleanup() {
       console.log(`[cleanup] ${result.deleted} fichier(s) orphelin(s) supprimé(s) du Storage.`);
     }
   } catch (err) {
-    console.warn('[cleanup] Nettoyage Storage ignoré :', err.message);
+    console.error('[cleanup] Erreur lors du nettoyage des fichiers orphelins :', err.message);
   } finally {
     cleanupRunning = false;
   }
@@ -221,12 +186,6 @@ async function runCleanup() {
 setInterval(runCleanup, CLEANUP_INTERVAL_MS);
 setTimeout(runCleanup, 30_000); // premier nettoyage 30s après le démarrage
 
-const server = app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is listening on http://0.0.0.0:${PORT}`);
 });
-
-// Optimisation charge : survivre aux reverse proxies (Render, Nginx) sans ECONNRESET
-server.keepAliveTimeout = 65000;
-server.headersTimeout = 66000;
-
-module.exports = { app, server };

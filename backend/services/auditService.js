@@ -64,7 +64,7 @@ async function logAction(req, {
     // Le cache des listes est vidé au même endroit, AVANT le signal : les
     // navigateurs qui rechargent en réaction obtiennent la donnée à jour.
     if (success) {
-      cache.invalidateForResource(resourceType);
+      cache.invalidateAll();
       realtimeService.broadcastDataChanged({ action, resourceType, commission });
     }
   } catch (err) {

@@ -1,8 +1,8 @@
 {
-  "name": "Integration Platform",
-  "description": "Student integration and campus management platform with logistics, health tracking, and administration.",
+  "name": "Plateforme Intégration DUT1",
+  "description": "Plateforme complète de gestion et de suivi de la semaine d'intégration des étudiants DUT1.",
+  "prompt": "Fix imported applet biramth/integrationPlatform",
   "capabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ],
-  "permissions": []
+  ]
 }

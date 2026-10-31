@@ -8,29 +8,19 @@ async function listRooms(req, res) {
   // Orga y voit d'un coup d'œil si le mélange voulu par l'auto-assignation est
   // respecté, et où déplacer quelqu'un pour rééquilibrer.
   const rooms = await db.all(
-    `WITH dept_counts AS (
-       SELECT d2.room_id, d2.department, COUNT(*) AS n
-       FROM dut1_records d2
-       WHERE d2.room_id IS NOT NULL
-       GROUP BY d2.room_id, d2.department
-     ),
-     dept_agg AS (
-       SELECT dc.room_id, json_agg(json_build_object('department', dc.department, 'count', dc.n) ORDER BY dc.n DESC) AS departments_json
-       FROM dept_counts dc
-       GROUP BY dc.room_id
-     ),
-     occupancy AS (
-       SELECT d.room_id, COUNT(*) AS occupied
-       FROM dut1_records d
-       WHERE d.room_id IS NOT NULL
-       GROUP BY d.room_id
-     )
-     SELECT r.*,
-       COALESCE(o.occupied, 0) AS occupied,
-       COALESCE(da.departments_json, '[]'::json) AS departments_json
+    `SELECT r.*, COUNT(d.id) AS occupied,
+       COALESCE((
+         SELECT json_agg(json_build_object('department', x.department, 'count', x.n) ORDER BY x.n DESC)
+         FROM (
+           SELECT d2.department AS department, COUNT(*) AS n
+           FROM dut1_records d2
+           WHERE d2.room_id = r.id
+           GROUP BY d2.department
+         ) x
+       ), '[]'::json) AS departments_json
      FROM rooms r
-     LEFT JOIN occupancy o ON o.room_id = r.id
-     LEFT JOIN dept_agg da ON da.room_id = r.id
+     LEFT JOIN dut1_records d ON d.room_id = r.id
+     GROUP BY r.id
      ORDER BY r.label ASC`
   );
 

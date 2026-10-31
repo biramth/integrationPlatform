@@ -130,6 +130,7 @@ export default function LoginPage() {
               onChange={(e) => setUsername(e.target.value)}
               required
               autoFocus
+              autoComplete="username"
             />
             <Input
               label="Mot de passe"
@@ -137,6 +138,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
             />
             {error && (
               <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-soft-foreground">{error}</p>

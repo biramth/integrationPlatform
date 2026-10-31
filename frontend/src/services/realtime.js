@@ -12,7 +12,7 @@
 //   de rechargements.
 
 const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
-const EVENTS_URL = `${apiUrl}/api/events`;
+const EVENTS_URL = apiUrl ? `${apiUrl}/api/events` : '/api/events';
 
 const FLUSH_INTERVAL_MS = 800;
 const BACKOFF_INITIAL_MS = 1000;

@@ -110,6 +110,7 @@ export default function AccountPage() {
               onChange={(e) => setCurrentPassword(e.target.value)}
               required
               autoFocus
+              autoComplete="current-password"
             />
 
             <div>
@@ -119,6 +120,7 @@ export default function AccountPage() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
+                autoComplete="new-password"
               />
               {newPassword.length > 0 && (
                 <ul className="mt-2 flex flex-col gap-1 pl-0.5">
@@ -136,6 +138,7 @@ export default function AccountPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
+                autoComplete="new-password"
               />
               {confirmPassword.length > 0 && !passwordsMatch && (
                 <p className="mt-1.5 text-xs text-danger-soft-foreground">

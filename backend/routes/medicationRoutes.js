@@ -6,12 +6,11 @@ const router = express.Router();
 
 router.use(verifyToken);
 
-// Le chef de commission ne gère pas le stock lui-même (le responsable désigné
-// du sous-rôle "medoc" s'en charge au quotidien) — il garde seulement un accès
-// en lecture pour son tableau de bord, d'où allowLead sur cette seule route.
-router.get('/', requireRole('sante'), requireSanteScope('medoc', { allowLead: true }), medicationController.listMedications);
+// Lecture de la liste des médicaments : accessible à tous les agents Santé et IT
+// (utilisée par le formulaire des traitements et la vue d'ensemble).
+router.get('/', requireRole('sante', 'it'), medicationController.listMedications);
 
-router.use(requireRole('sante'), requireSanteScope('medoc'));
+router.use(requireRole('sante', 'it'), requireSanteScope('medoc', { allowLead: true }));
 
 router.post('/', medicationController.createMedication);
 router.put('/:id', medicationController.updateMedication);

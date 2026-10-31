@@ -37,12 +37,8 @@ const GENDER_ACCENT = {
 export default function AdminRoomsPage() {
   const { showToast } = useToast();
   const { theme } = useTheme();
-  const { data, loading, error, reload } = useFetch(roomApi.listRooms, [], {
-    resourceTypes: ['room', 'dut1_record'],
-  });
-  const occupancyFetch = useFetch(statsApi.getRoomsOccupancy, [], {
-    resourceTypes: ['room', 'dut1_record'],
-  });
+  const { data, loading, error, reload } = useFetch(roomApi.listRooms, []);
+  const occupancyFetch = useFetch(statsApi.getRoomsOccupancy, []);
   const [movingOccupant, setMovingOccupant] = useState(null);
   const [moveTargetRoomId, setMoveTargetRoomId] = useState('');
   const [moving, setMoving] = useState(false);

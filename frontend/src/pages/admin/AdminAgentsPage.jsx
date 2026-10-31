@@ -45,9 +45,7 @@ export default function AdminAgentsPage() {
   const canNamePoleLead = isPrivileged || (user.role === ROLES.ORGA && user.isCommissionLead);
   const { showToast } = useToast();
   const roleColors = useRoleColors();
-  const { data, loading, error, reload } = useFetch(agentApi.listAgents, [], {
-    resourceTypes: ['agent', 'user'],
-  });
+  const { data, loading, error, reload } = useFetch(agentApi.listAgents, []);
   const [form, setForm] = useState(isPrivileged ? EMPTY_FORM : { ...EMPTY_FORM, role: user.role });
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);

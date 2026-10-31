@@ -25,18 +25,14 @@ const MAX_PENDING_CHANGES = 50;
 
 function writeEvent(res, payload) {
   try {
-    if (res.writableEnded || res.destroyed) return false;
-    return res.write(payload);
+    res.write(payload);
+    return true;
   } catch {
     return false;
   }
 }
 
 function removeClient(id) {
-  const res = clients.get(id);
-  if (res && !res.writableEnded && !res.destroyed) {
-    try { res.end(); } catch {}
-  }
   clients.delete(id);
 }
 
@@ -62,10 +58,7 @@ function addClient(req, res) {
   const id = nextClientId++;
   clients.set(id, res);
 
-  const cleanup = () => removeClient(id);
-  req.on('close', cleanup);
-  res.on('close', cleanup);
-  res.on('error', cleanup);
+  req.on('close', () => removeClient(id));
 }
 
 function flushPending() {

@@ -7,22 +7,16 @@ const db = require('../db/database');
 // plus de valeurs incohérentes entre elles pendant une écriture concurrente.
 async function overview(req, res) {
   const row = await db.get(
-    `WITH luggage_counts AS (
-       SELECT dut1_id, COUNT(*) AS count
-       FROM luggage_items
-       GROUP BY dut1_id
-     )
-     SELECT
+    `SELECT
        COUNT(*) AS total,
        COUNT(*) FILTER (WHERE d.room_id IS NOT NULL) AS with_room,
        COUNT(*) FILTER (
          WHERE d.luggage_count IS NOT NULL
-           AND COALESCE(lc.count, 0) >= d.luggage_count
+           AND (SELECT COUNT(*) FROM luggage_items li WHERE li.dut1_id = d.id) >= d.luggage_count
        ) AS with_luggage,
        COUNT(*) FILTER (WHERE d.complementary_completed_at IS NOT NULL) AS complementary_done,
        (SELECT COUNT(*) FROM health_restrictions WHERE resolved_at IS NULL) AS active_restrictions
-     FROM dut1_records d
-     LEFT JOIN luggage_counts lc ON lc.dut1_id = d.id`
+     FROM dut1_records d`
   );
 
   const total = Number(row.total);

@@ -37,42 +37,6 @@ function invalidate(prefix) {
   }
 }
 
-function invalidateForResource(resourceType) {
-  generation++;
-  if (!resourceType) {
-    store.clear();
-    return;
-  }
-
-  const prefixMap = {
-    dut1_record: ['/api/dut1', '/api/stats', '/api/health', '/api/admitted-students'],
-    room: ['/api/rooms', '/api/stats'],
-    luggage_item: ['/api/luggage', '/api/stats'],
-    meal: ['/api/meals'],
-    dish: ['/api/meals'],
-    activity: ['/api/activities', '/api/stats'],
-    medication: ['/api/medications', '/api/health', '/api/stats/health-overview'],
-    treatment: ['/api/health', '/api/stats/health-overview'],
-    health_restriction: ['/api/health', '/api/stats/health-overview'],
-    allergen: ['/api/allergens', '/api/health', '/api/meals', '/api/stats'],
-    agent: ['/api/agents'],
-    user: ['/api/agents'],
-    platform_settings: ['/api/platform-settings'],
-  };
-
-  const prefixes = prefixMap[resourceType];
-  if (!prefixes) {
-    store.clear();
-    return;
-  }
-
-  for (const key of store.keys()) {
-    if (prefixes.some((p) => key.startsWith(p))) {
-      store.delete(key);
-    }
-  }
-}
-
 function invalidateAll() {
   generation++;
   store.clear();
@@ -144,4 +108,4 @@ function cached(ttlMs) {
   };
 }
 
-module.exports = { get, set, invalidate, invalidateForResource, invalidateAll, cacheKey, cached };
+module.exports = { get, set, invalidate, invalidateAll, cacheKey, cached };
