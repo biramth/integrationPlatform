@@ -2,18 +2,74 @@ import { useRef, useState } from 'react';
 import { Camera, ShieldAlert } from 'lucide-react';
 import Button from '../common/Button';
 
+function compressImage(file, maxDimension = 1920, quality = 0.82) {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) {
+      return resolve(file);
+    }
+
+    const reader = new FileReader();
+    reader.onload = (readerEvent) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return resolve(file);
+            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressed);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = readerEvent.target.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function PhotoCapture({ onCapture, submitting }) {
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [isCompressing, setIsCompressing] = useState(false);
   const [isSensitive, setIsSensitive] = useState(false);
   const [sensitiveNote, setSensitiveNote] = useState('');
 
-  function handleFileChange(e) {
+  async function handleFileChange(e) {
     const selected = e.target.files?.[0];
     if (!selected) return;
-    setFile(selected);
-    setPreviewUrl(URL.createObjectURL(selected));
+
+    try {
+      setIsCompressing(true);
+      const readyFile = await compressImage(selected);
+      setFile(readyFile);
+      setPreviewUrl(URL.createObjectURL(readyFile));
+    } finally {
+      setIsCompressing(false);
+    }
   }
 
   function reset() {
@@ -71,8 +127,9 @@ export default function PhotoCapture({ onCapture, submitting }) {
           variant="secondary"
           className="w-full"
           onClick={() => inputRef.current?.click()}
+          loading={isCompressing}
         >
-          <Camera className="h-4 w-4" /> Photographier un bagage
+          <Camera className="h-4 w-4" /> {isCompressing ? 'Optimisation de la photo…' : 'Photographier un bagage'}
         </Button>
       )}
       <input

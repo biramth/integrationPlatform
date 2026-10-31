@@ -37,8 +37,12 @@ export default function MenuPage() {
   const [dishAllergenIds, setDishAllergenIds] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const servicesFetch = useFetch(() => mealApi.listMealServices(date), [date]);
-  const allergensFetch = useFetch(listAllergens, []);
+  const servicesFetch = useFetch(() => mealApi.listMealServices(date), [date], {
+    resourceTypes: ['meal', 'dish'],
+  });
+  const allergensFetch = useFetch(listAllergens, [], {
+    resourceTypes: ['allergen'],
+  });
 
   const service = servicesFetch.data?.mealServices.find((s) => s.mealType === mealType) || null;
 

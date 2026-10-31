@@ -3,11 +3,19 @@ require('dotenv').config();
 
 const BUCKET = 'luggage-photos';
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY sont requis.');
+const hasSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+let supabase = null;
+if (hasSupabase) {
+  try {
+    supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  } catch (err) {
+    console.warn('[Storage] Impossible d\'initialiser Supabase Client :', err.message);
+  }
+} else {
+  console.warn('[Storage] SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY manquant — stockage en mémoire activé.');
 }
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const inMemoryFiles = new Map();
 
 function extensionFor(file) {
   const fromName = (file.originalname.match(/\.[a-zA-Z0-9]+$/) || [])[0];
@@ -17,6 +25,11 @@ function extensionFor(file) {
 async function uploadLuggagePhoto(dut1Id, file) {
   const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extensionFor(file)}`;
   const objectPath = `${dut1Id}/${unique}`;
+
+  if (!supabase) {
+    inMemoryFiles.set(objectPath, { buffer: file.buffer, mimetype: file.mimetype });
+    return objectPath;
+  }
 
   const { error } = await supabase.storage.from(BUCKET).upload(objectPath, file.buffer, {
     contentType: file.mimetype,
@@ -31,6 +44,11 @@ async function uploadLuggagePhoto(dut1Id, file) {
 }
 
 async function deleteLuggagePhoto(objectPath) {
+  if (!supabase) {
+    inMemoryFiles.delete(objectPath);
+    return;
+  }
+
   const { error } = await supabase.storage.from(BUCKET).remove([objectPath]);
   if (error) {
     throw new Error(`Échec de la suppression sur Supabase Storage : ${error.message}`);
@@ -38,6 +56,10 @@ async function deleteLuggagePhoto(objectPath) {
 }
 
 async function listAllFiles() {
+  if (!supabase) {
+    return Array.from(inMemoryFiles.keys());
+  }
+
   const files = [];
   let offset = 0;
   const limit = 100;
@@ -74,6 +96,11 @@ async function listAllFiles() {
 
 async function deleteMany(objectPaths) {
   if (objectPaths.length === 0) return;
+  if (!supabase) {
+    objectPaths.forEach((p) => inMemoryFiles.delete(p));
+    return;
+  }
+
   const { error } = await supabase.storage.from(BUCKET).remove(objectPaths);
   if (error) {
     throw new Error(`Échec de la suppression groupée sur Supabase Storage : ${error.message}`);
@@ -81,24 +108,37 @@ async function deleteMany(objectPaths) {
 }
 
 async function cleanupOrphanedFiles() {
-  const db = require('../db/database');
+  try {
+    const db = require('../db/database');
 
-  const dbFiles = await db.all(
-    "SELECT file_path FROM luggage_items WHERE file_path IS NOT NULL"
-  );
-  const dbPaths = new Set(dbFiles.map((r) => r.file_path));
+    const dbFiles = await db.all(
+      "SELECT file_path FROM luggage_items WHERE file_path IS NOT NULL"
+    );
+    const dbPaths = new Set(dbFiles.map((r) => r.file_path));
 
-  const storageFiles = await listAllFiles();
+    const storageFiles = await listAllFiles();
 
-  const orphaned = storageFiles.filter((f) => !dbPaths.has(f));
+    const orphaned = storageFiles.filter((f) => !dbPaths.has(f));
 
-  if (orphaned.length === 0) return { deleted: 0 };
+    if (orphaned.length === 0) return { deleted: 0 };
 
-  await deleteMany(orphaned);
-  return { deleted: orphaned.length };
+    await deleteMany(orphaned);
+    return { deleted: orphaned.length };
+  } catch (err) {
+    console.warn('[cleanup] Nettoyage ignoré :', err.message);
+    return { deleted: 0 };
+  }
 }
 
 async function getSignedUrl(objectPath, expiresInSeconds = 300) {
+  if (!supabase) {
+    const item = inMemoryFiles.get(objectPath);
+    if (item?.buffer) {
+      return `data:${item.mimetype};base64,${item.buffer.toString('base64')}`;
+    }
+    return `https://placehold.co/400x300?text=Bagage+${encodeURIComponent(objectPath)}`;
+  }
+
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(objectPath, expiresInSeconds);
   if (error) {
     throw new Error(`Échec de la génération de l'URL signée : ${error.message}`);

@@ -18,7 +18,7 @@ function subscribeConnected(listener) {
 }
 
 export function useFetch(fetcher, deps = [], options = {}) {
-  const { pollMs = 0, realtime: enableRealtime = true } = options;
+  const { pollMs = 0, realtime: enableRealtime = true, resourceTypes = null } = options;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -83,7 +83,18 @@ export function useFetch(fetcher, deps = [], options = {}) {
       }, Math.random() * REALTIME_JITTER_MS);
     };
 
-    const unsubscribe = onDataChanged(() => {
+    const unsubscribe = onDataChanged((batch) => {
+      // Filtrage ciblé : si le composant s'intéresse seulement à certains types
+      // de ressources, ignorer les événements non pertinents pour éviter
+      // d'assaillir l'API inutilement lors d'actions concurrentes.
+      if (resourceTypes && Array.isArray(resourceTypes) && resourceTypes.length > 0 && Array.isArray(batch)) {
+        const isRelevant = batch.some((change) => {
+          if (!change.resourceType || change.action === 'realtime.resync') return true;
+          return resourceTypes.includes(change.resourceType);
+        });
+        if (!isRelevant) return;
+      }
+
       if (document.visibilityState === 'visible') scheduleReload();
       else staleWhileHidden = true;
     });
@@ -101,7 +112,8 @@ export function useFetch(fetcher, deps = [], options = {}) {
       document.removeEventListener('visibilitychange', onVisibility);
       if (timer) clearTimeout(timer);
     };
-  }, [enableRealtime, silentReload]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enableRealtime, silentReload, Array.isArray(resourceTypes) ? resourceTypes.join(',') : resourceTypes]);
 
   // 2) Polling : soit explicite via options.pollMs (fréquence imposée),
   // soit repli automatique uniquement quand le flux SSE est down.

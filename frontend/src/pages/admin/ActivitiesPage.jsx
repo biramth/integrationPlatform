@@ -35,7 +35,9 @@ function ActivityFields({ value, onChange, idPrefix }) {
 
 export default function ActivitiesPage() {
   const { showToast } = useToast();
-  const { data, loading, error, reload } = useFetch(activityApi.listActivities, []);
+  const { data, loading, error, reload } = useFetch(activityApi.listActivities, [], {
+    resourceTypes: ['activity'],
+  });
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
 

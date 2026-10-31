@@ -1,4 +1,4 @@
-import { Users, DoorOpen, Luggage, Home, ClipboardCheck, HeartPulse, ScrollText, ArrowRight } from 'lucide-react';
+import { Users, DoorOpen, Luggage, Home, ClipboardCheck, HeartPulse, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useFetch } from '../../hooks/useFetch';
 import * as statsApi from '../../api/statsApi';

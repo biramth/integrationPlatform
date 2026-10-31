@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Plus, Trash2, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import { previewContactsCsvFile, confirmContactsCsvImport } from '../../api/importApi';

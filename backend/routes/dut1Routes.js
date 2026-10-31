@@ -44,7 +44,7 @@ router.get(
 router.get('/', requireRole('orga', 'sante', 'cuisine', 'communication', 'presidentielle'), cached(15_000), dut1Controller.listRecords);
 router.get('/export', requireRole('it'), dut1Controller.exportRecordsCsv);
 router.get('/export-contacts', requireRole('it'), dut1Controller.exportContactsCsv);
-router.get('/:id', requireRole('orga', 'sante', 'cuisine', 'communication', 'presidentielle'), dut1Controller.getRecord);
+router.get('/:id', requireRole('orga', 'sante', 'cuisine', 'communication', 'presidentielle'), cached(10_000), dut1Controller.getRecord);
 // Historique des chambres : outil de gestion des chambres du chef Orga (et
 // IT via son bypass), pas la tâche quotidienne du sous-rôle "logistique" (qui
 // ne fait que livrer les bagages, cf. requireOrgaScope) — cf. /:id/room ci-dessous.

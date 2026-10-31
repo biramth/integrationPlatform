@@ -29,7 +29,9 @@ function formatMovement(m) {
 
 export default function MedicationStockPage() {
   const { showToast } = useToast();
-  const { data, loading, error, reload } = useFetch(medicationApi.listMedications, []);
+  const { data, loading, error, reload } = useFetch(medicationApi.listMedications, [], {
+    resourceTypes: ['medication'],
+  });
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
 

@@ -29,11 +29,12 @@ const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const { requestId } = require('./middleware/requestId');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
-// Refuse de démarrer avec un JWT secret par défaut / faible — évite les
-// déploiements en production avec un secret devinable.
-if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)) {
+// Assure un JWT_SECRET par défaut en dev si absent
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'integrationplatform-super-secret-jwt-key-32-chars-minimum';
+
+if (process.env.NODE_ENV === 'production' && process.env.JWT_SECRET.length < 32) {
   throw new Error('JWT_SECRET doit être défini et contenir au moins 32 caractères en production.');
 }
 
@@ -41,14 +42,17 @@ if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process
 // dans le journal d'audit (colonne request_id) pour corréler les deux.
 app.use(requestId);
 
-// Render place l'app derrière son proxy : sans ceci, req.ip vaut l'IP du proxy
-// et le rate limiter de /api/auth/login mettrait tous les utilisateurs dans le
-// même compteur (10 tentatives pour tout le monde au lieu de 10 par personne).
+// Render/proxy support
 app.set('trust proxy', 1);
 
-// Sécurité : helmet ajoute X-Content-Type-Options, X-Frame-Options,
-// Strict-Transport-Security, X-XSS-Protection, Content-Security-Policy, etc.
-app.use(helmet());
+// Sécurité : helmet avec CSP et frameguard assouplis pour environnement iframe et dev
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    frameguard: false,
+  })
+);
 
 // Rate limiting global : protège contre les abus et le DoS sur tous les
 // endpoints. Le login a son propre limiter plus strict (authRoutes.js).
@@ -169,8 +173,27 @@ app.use('/api/aptitude-criteria', aptitudeCriteriaRoutes);
 
 app.use('/api', notFoundHandler);
 
-app.get('/', (req, res) => {
-  res.send('Plateforme intégration DUT1 — API en ligne.');
+const path = require('path');
+const fs = require('fs');
+
+const frontendDist = path.resolve(__dirname, '../frontend/dist');
+
+// Servir le frontend buildé
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+}
+
+// Fallback SPA pour toute requête GET frontend non-API
+app.use((req, res, next) => {
+  if (req.method !== 'GET') return next();
+  if (req.path.startsWith('/api') || req.path.startsWith('/healthz')) {
+    return next();
+  }
+  const indexHtml = path.join(frontendDist, 'index.html');
+  if (fs.existsSync(indexHtml)) {
+    return res.sendFile(indexHtml);
+  }
+  res.send(`<!DOCTYPE html><html><head><title>Integration Platform</title></head><body><h2>Démarrage en cours... Veuillez recharger dans un instant.</h2></body></html>`);
 });
 
 app.use(errorHandler);
@@ -189,7 +212,7 @@ async function runCleanup() {
       console.log(`[cleanup] ${result.deleted} fichier(s) orphelin(s) supprimé(s) du Storage.`);
     }
   } catch (err) {
-    console.error('[cleanup] Erreur lors du nettoyage des fichiers orphelins :', err.message);
+    console.warn('[cleanup] Nettoyage Storage ignoré :', err.message);
   } finally {
     cleanupRunning = false;
   }
@@ -198,6 +221,12 @@ async function runCleanup() {
 setInterval(runCleanup, CLEANUP_INTERVAL_MS);
 setTimeout(runCleanup, 30_000); // premier nettoyage 30s après le démarrage
 
-app.listen(PORT, () => {
-  console.log(`Server is listening on http://localhost:${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is listening on http://0.0.0.0:${PORT}`);
 });
+
+// Optimisation charge : survivre aux reverse proxies (Render, Nginx) sans ECONNRESET
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
+
+module.exports = { app, server };

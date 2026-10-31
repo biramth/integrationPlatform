@@ -1,0 +1,8 @@
+{
+  "name": "Integration Platform",
+  "description": "Student integration and campus management platform with logistics, health tracking, and administration.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ],
+  "permissions": []
+}

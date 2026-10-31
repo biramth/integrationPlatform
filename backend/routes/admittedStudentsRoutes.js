@@ -1,6 +1,7 @@
 const express = require('express');
 const controller = require('../controllers/admittedStudentsController');
 const { verifyToken, requireRole, requireOrgaScope } = require('../middleware/auth');
+const { cached } = require('../middleware/cache');
 
 const router = express.Router();
 
@@ -11,6 +12,6 @@ router.use(verifyToken);
 router.get('/', requireRole('orga'), requireOrgaScope('enregistrement'), controller.search);
 // Progression de l'import (admis importés vs déjà rattachés à un dossier) :
 // affichée dans le panneau d'import, réservé à IT.
-router.get('/progress', requireRole('it'), controller.progress);
+router.get('/progress', requireRole('it'), cached(15_000), controller.progress);
 
 module.exports = router;
