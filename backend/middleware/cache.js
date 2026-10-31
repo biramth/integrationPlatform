@@ -37,9 +37,19 @@ function invalidate(prefix) {
   }
 }
 
+let invalidateTimer = null;
 function invalidateAll() {
-  generation++;
-  store.clear();
+  // Debounce : si plusieurs mutations arrivent en rafale (import Excel,
+  // salve de saisies), on ne vide le cache qu'une fois a la fin de la rafale.
+  // Les mutations restent committees immediatement ; seul le rafraichissement
+  // du cache est differe de 2 secondes.
+  if (invalidateTimer) clearTimeout(invalidateTimer);
+  invalidateTimer = setTimeout(() => {
+    generation++;
+    store.clear();
+    invalidateTimer = null;
+  }, 2000);
+  invalidateTimer.unref?.();
 }
 
 // Nettoyage périodique des entrées expirées ( toutes les 60s )

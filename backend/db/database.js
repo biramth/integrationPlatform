@@ -11,7 +11,7 @@ if (process.env.DATABASE_URL) {
     pgPool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false },
-      max: 10,
+      max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
     });
@@ -736,18 +736,32 @@ const pool = {
   },
 };
 
+async function queryWithRetry(text, params = [], retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await pool.query(text, params);
+    } catch (err) {
+      const isTransient = err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' ||
+        err.code === '57P01' || err.code === '08006' || err.code === '08003' ||
+        err.message?.includes('timeout') || err.message?.includes('terminated');
+      if (!isTransient || attempt === retries) throw err;
+      await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
+    }
+  }
+}
+
 async function get(text, params = []) {
-  const result = await pool.query(text, params);
+  const result = await queryWithRetry(text, params);
   return result.rows ? result.rows[0] : null;
 }
 
 async function all(text, params = []) {
-  const result = await pool.query(text, params);
+  const result = await queryWithRetry(text, params);
   return result.rows || [];
 }
 
 async function run(text, params = []) {
-  const result = await pool.query(text, params);
+  const result = await queryWithRetry(text, params);
   return { changes: result.rowCount || 0, rows: result.rows || [] };
 }
 

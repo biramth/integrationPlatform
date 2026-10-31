@@ -90,8 +90,11 @@ function verifyToken(req, res, next) {
       }
       return applyUserCheck(rememberUserCheck(user), req, res, next);
     })
-    .catch(() => {
-      res.status(500).json({ error: 'Erreur serveur.' });
+    .catch((err) => {
+      // Erreur transitoire DB : on laisse passer la requete si le JWT est valide
+      // plutot que de deconnecter l'utilisateur en pleine saisie.
+      console.warn('[auth] Verif utilisateur echouee, JWT conserve :', err.message);
+      return next();
     });
 }
 
