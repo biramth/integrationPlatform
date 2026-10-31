@@ -11,7 +11,7 @@ if (process.env.DATABASE_URL) {
     pgPool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false },
-      max: 20,
+      max: 40,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
     });
