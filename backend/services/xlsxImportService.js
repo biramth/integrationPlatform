@@ -106,7 +106,7 @@ function findAdmittedStudentsColumns(headerCells) {
 const DEFAULT_STUDENT_COLS = { rank: 0, firstName: 1, lastName: 2, birthDate: 3, birthPlace: 4 };
 
 function parseAdmittedStudentsBuffer(buffer) {
-  return loadWorkbook(buffer).then((workbook) => {
+  return loadCsvWorkbook(buffer).then((workbook) => {
     const candidates = [];
     let detectedFamily = null;
     let detectedOption = null;
@@ -206,7 +206,7 @@ function normalizeGender(text) {
 const DEFAULT_ROOM_COLS = { label: 0, gender: 1, capacity: 2, building: 3 };
 
 function parseRoomsBuffer(buffer) {
-  return loadWorkbook(buffer).then((workbook) => {
+  return loadCsvWorkbook(buffer).then((workbook) => {
     const candidates = [];
     let unrecognizedRowCount = 0;
 
