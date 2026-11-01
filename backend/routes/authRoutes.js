@@ -9,7 +9,7 @@ const router = express.Router();
 // comptées sur les échecs (une connexion réussie ne consomme pas le quota).
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: 200,
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
