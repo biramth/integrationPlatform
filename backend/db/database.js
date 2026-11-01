@@ -705,23 +705,13 @@ async function mockQuery(sql, params = []) {
 const pool = {
   query: async (text, params = []) => {
     if (usePg && pgPool) {
-      try {
-        return await pgPool.query(text, params);
-      } catch (err) {
-        console.warn('[db] Connexion PostgreSQL échouée, repli définitif sur base en mémoire :', err.message);
-        usePg = false;
-      }
+      return await pgPool.query(text, params);
     }
     return mockQuery(text, params);
   },
   connect: async () => {
     if (usePg && pgPool) {
-      try {
-        return await pgPool.connect();
-      } catch (err) {
-        console.warn('[db] Connexion connect PostgreSQL échouée, repli définitif sur base en mémoire :', err.message);
-        usePg = false;
-      }
+      return await pgPool.connect();
     }
     return {
       query: (t, p) => mockQuery(t, p),

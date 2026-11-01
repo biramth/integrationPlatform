@@ -54,6 +54,7 @@ async function resetPlatform(req, res) {
   `);
 
   await db.transaction(async (tx) => {
+    await tx.run('DELETE FROM room_assignment_history');
     await tx.run('DELETE FROM dut1_records');
     await tx.run('DELETE FROM admitted_students');
     await tx.run('DELETE FROM rooms');

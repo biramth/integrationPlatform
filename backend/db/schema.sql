@@ -234,8 +234,8 @@ CREATE TABLE IF NOT EXISTS luggage_items (
 CREATE TABLE IF NOT EXISTS room_assignment_history (
   id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   dut1_id      INTEGER NOT NULL REFERENCES dut1_records(id) ON DELETE CASCADE,
-  old_room_id  INTEGER REFERENCES rooms(id),
-  new_room_id  INTEGER REFERENCES rooms(id),
+  old_room_id  INTEGER REFERENCES rooms(id) ON DELETE SET NULL,
+  new_room_id  INTEGER REFERENCES rooms(id) ON DELETE SET NULL,
   changed_by   INTEGER NOT NULL REFERENCES users(id),
   reason       TEXT,
   changed_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -771,4 +771,16 @@ CREATE INDEX IF NOT EXISTS idx_admitted_students_names ON admitted_students(last
 CREATE INDEX IF NOT EXISTS idx_luggage_items_dut1_id ON luggage_items(dut1_id);
 CREATE INDEX IF NOT EXISTS idx_room_assignment_history_dut1_id ON room_assignment_history(dut1_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
+
+-- Migration des contraintes de clés étrangères sur room_assignment_history
+-- pour autoriser la suppression d'une chambre sans bloquer l'historique :
+ALTER TABLE room_assignment_history
+  DROP CONSTRAINT IF EXISTS room_assignment_history_old_room_id_fkey,
+  DROP CONSTRAINT IF EXISTS room_assignment_history_new_room_id_fkey;
+
+ALTER TABLE room_assignment_history
+  ADD CONSTRAINT room_assignment_history_old_room_id_fkey
+    FOREIGN KEY (old_room_id) REFERENCES rooms(id) ON DELETE SET NULL,
+  ADD CONSTRAINT room_assignment_history_new_room_id_fkey
+    FOREIGN KEY (new_room_id) REFERENCES rooms(id) ON DELETE SET NULL;
 
