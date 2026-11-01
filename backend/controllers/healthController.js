@@ -188,11 +188,49 @@ async function getRisks(req, res) {
     return { ...entry, sortWeight };
   });
 
-  result.sort((a, b) => b.sortWeight - a.sortWeight || a.lastName.localeCompare(b.lastName));
+  // Activite en cours ou la plus proche dans le futur (base sur l'heure actuelle)
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const currentTime = now.toTimeString().slice(0, 5);
+  let upcomingActivityName = null;
+  if (date === todayStr) {
+    const upcomingActs = await db.all(
+      `SELECT id, name, start_time FROM activities
+       WHERE activity_date = $1 AND start_time IS NOT NULL
+       ORDER BY start_time ASC`,
+      [date]
+    );
+    let lastStarted = null;
+    for (const act of upcomingActs) {
+      if (act.start_time <= currentTime) {
+        lastStarted = act;
+      } else {
+        if (!lastStarted) lastStarted = act;
+        break;
+      }
+    }
+    if (lastStarted) {
+      upcomingActivityName = lastStarted.name;
+    }
+  }
+
+  // Marquer les risques lies a l'activite a venir
+  for (const entry of result) {
+    entry.forUpcomingActivity = entry.restrictions.some((r) =>
+      r.activityNames && r.activityNames.includes(upcomingActivityName)
+    );
+  }
+
+  // Tri : risques de l'activite a venir d'abord, puis par severite
+  result.sort((a, b) => {
+    if (a.forUpcomingActivity && !b.forUpcomingActivity) return -1;
+    if (!a.forUpcomingActivity && b.forUpcomingActivity) return 1;
+    return b.sortWeight - a.sortWeight || a.lastName.localeCompare(b.lastName);
+  });
 
   const payload = NON_MEDICAL_RISK_ROLES.includes(req.user.role) ? result.map(stripRiskMedicalDetails) : result;
 
-  res.json({ atRiskDut1: payload });
+  res.json({ atRiskDut1: payload, upcomingActivity: upcomingActivityName });
 }
 
 async function declareRestriction(req, res) {

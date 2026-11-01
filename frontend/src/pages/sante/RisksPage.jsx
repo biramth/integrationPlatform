@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Clock } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import { getRisks, declareRestriction } from '../../api/healthApi';
 import Input from '../../components/common/Input';
@@ -54,6 +54,8 @@ export default function RisksPage() {
     }
   }
 
+  const upcomingActivity = data?.upcomingActivity;
+
   return (
     <div>
       <PageHeader
@@ -67,6 +69,14 @@ export default function RisksPage() {
 
       <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mb-4 max-w-xs" />
 
+      {upcomingActivity && date === todayIso() && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary-soft px-4 py-2.5 text-sm">
+          <Clock className="h-4 w-4 text-primary" />
+          <span className="font-medium text-foreground">Activité en cours / à venir :</span>
+          <span className="text-muted-foreground">{upcomingActivity}</span>
+        </div>
+      )}
+
       {loading && <CardListSkeleton />}
       {error && <ErrorState label={error} onRetry={reload} />}
       {!loading && !error && data.atRiskDut1.length === 0 && (
@@ -76,11 +86,22 @@ export default function RisksPage() {
       {!loading && !error && data.atRiskDut1.length > 0 && (
         <div className="flex flex-col gap-3">
           {data.atRiskDut1.map((dut1, i) => (
-            <Card key={dut1.id} className="animate-fade-in-up-pulse border-danger/30 bg-danger-soft" style={staggerStyle(i)}>
+            <Card
+              key={dut1.id}
+              className={`animate-fade-in-up-pulse ${dut1.forUpcomingActivity ? 'border-warning/50 bg-warning-soft/40' : 'border-danger/30 bg-danger-soft'}`}
+              style={staggerStyle(i)}
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-medium text-foreground">
-                  {dut1.firstName} {dut1.lastName}
-                </p>
+                <div className="flex items-center gap-2">
+                  {dut1.forUpcomingActivity && (
+                    <span className="rounded-full bg-warning px-2 py-0.5 text-[10px] font-semibold uppercase text-white">
+                      Activité à venir
+                    </span>
+                  )}
+                  <p className="font-medium text-foreground">
+                    {dut1.firstName} {dut1.lastName}
+                  </p>
+                </div>
                 <Badge variant="neutral">{dut1.roomLabel || 'Sans chambre'}</Badge>
               </div>
               <p className="text-sm text-muted-foreground">{DEPARTMENT_LABELS[dut1.department] || dut1.department}</p>
@@ -121,12 +142,16 @@ export default function RisksPage() {
                 </>
               ) : (
                 <div className="mt-2">
-                  <Badge variant="danger">À risque aujourd'hui</Badge>
+                  <Badge variant="danger">à risque aujourd'hui</Badge>
                 </div>
               )}
             </Card>
           ))}
         </div>
+      )}
+
+      {!loading && !error && data.atRiskDut1.length === 0 && (
+        <EmptyState label="Aucun DUT1 à risque identifié pour cette date." icon={ShieldAlert} />
       )}
     </div>
   );
