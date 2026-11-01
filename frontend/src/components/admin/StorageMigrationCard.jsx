@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CloudUpload, HardDrive, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { CloudUpload, HardDrive, RefreshCw } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import { getStorageStatus, migrateStorageToR2 } from '../../api/platformApi';
@@ -79,32 +79,22 @@ export default function StorageMigrationCard() {
       </p>
 
       {status && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-muted/40 p-3 rounded-lg text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-muted/40 p-3 rounded-lg text-sm">
           <div>
             <span className="text-xs text-muted-foreground block">Fournisseur actif</span>
             <span className="font-medium text-foreground">{status.activeProvider}</span>
           </div>
           <div>
-            <span className="text-xs text-muted-foreground block">Photos en base</span>
-            <span className="font-medium text-foreground">{status.totalPhotosInDb} photo(s)</span>
+            <span className="text-xs text-muted-foreground block">Bucket R2</span>
+            <span className="font-medium text-foreground font-mono text-xs">{status.r2Bucket || status.bucketName || 'luggage-photos'}</span>
           </div>
           <div>
-            <span className="text-xs text-muted-foreground block">Statut R2</span>
-            <span
-              className={`inline-flex items-center gap-1 font-medium ${
-                status.isR2Configured ? 'text-success' : 'text-warning'
-              }`}
-            >
-              {status.isR2Configured ? (
-                <>
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Clés configurées
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-3.5 w-3.5" /> En attente des clés
-                </>
-              )}
-            </span>
+            <span className="text-xs text-muted-foreground block">Bucket Supabase</span>
+            <span className="font-medium text-foreground font-mono text-xs">{status.supabaseBucket || 'luggage-photos'}</span>
+          </div>
+          <div>
+            <span className="text-xs text-muted-foreground block">Photos en base</span>
+            <span className="font-medium text-foreground">{status.totalPhotosInDb} photo(s)</span>
           </div>
         </div>
       )}
@@ -140,7 +130,13 @@ export default function StorageMigrationCard() {
       )}
 
       {migrationResult && (
-        <div className="p-3 bg-success-soft rounded-lg text-sm text-success-soft-foreground border border-success">
+        <div
+          className={`p-3 rounded-lg text-sm border ${
+            migrationResult.failed > 0
+              ? 'bg-amber-500/10 border-amber-500/30 text-foreground'
+              : 'bg-success-soft text-success-soft-foreground border-success'
+          }`}
+        >
           <p className="font-semibold">Résultat du transfert :</p>
           <ul className="list-disc list-inside mt-1 space-y-0.5 text-xs">
             <li>Total analysé : {migrationResult.total}</li>
@@ -150,9 +146,29 @@ export default function StorageMigrationCard() {
               <li>Supprimées de Supabase : {migrationResult.deletedFromSource}</li>
             )}
             {migrationResult.failed > 0 && (
-              <li className="text-danger font-medium">Échecs : {migrationResult.failed}</li>
+              <li className="text-danger font-semibold">Échecs : {migrationResult.failed}</li>
             )}
           </ul>
+
+          {migrationResult.errors && migrationResult.errors.length > 0 && (
+            <div className="mt-3 p-2.5 bg-background border border-danger/40 rounded text-xs">
+              <p className="font-semibold text-danger mb-1.5">
+                Détail des erreurs ({migrationResult.errors.length}) :
+              </p>
+              <ul className="space-y-1 max-h-40 overflow-y-auto">
+                {migrationResult.errors.slice(0, 10).map((err, idx) => (
+                  <li key={idx} className="font-mono text-[11px] text-muted-foreground break-all">
+                    <span className="text-foreground font-semibold">[{err.path}]</span> : {err.error}
+                  </li>
+                ))}
+                {migrationResult.errors.length > 10 && (
+                  <li className="italic text-[11px] text-muted-foreground">
+                    ... et {migrationResult.errors.length - 10} autre(s) erreur(s).
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </Card>

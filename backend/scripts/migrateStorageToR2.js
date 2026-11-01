@@ -18,8 +18,8 @@ async function main() {
   console.log('   MIGRATION PHOTOS : SUPABASE STORAGE -> CLOUDFLARE R2');
   console.log('====================================================\n');
 
-  console.log(`Cloudflare R2 configuré : ${storage.isR2 ? 'OUI' : 'NON'}`);
-  console.log(`Supabase Storage configuré : ${storage.isSupabase ? 'OUI' : 'NON'}`);
+  console.log(`Cloudflare R2 configuré : ${storage.isR2 ? 'OUI' : 'NON'} (bucket: "${storage.R2_BUCKET}")`);
+  console.log(`Supabase Storage configuré : ${storage.isSupabase ? 'OUI' : 'NON'} (bucket: "${storage.SUPABASE_BUCKET}")`);
   console.log(`Option suppression source : ${deleteSource ? 'ACTIVÉE' : 'DÉSACTIVÉE (conservation source)'}\n`);
 
   if (!storage.isR2) {

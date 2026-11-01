@@ -11,17 +11,26 @@ const {
 const { getSignedUrl: getS3SignedUrl } = require('@aws-sdk/s3-request-presigner');
 require('dotenv').config();
 
-const BUCKET = process.env.R2_BUCKET_NAME || 'luggage-photos';
+const SUPABASE_BUCKET = (process.env.SUPABASE_BUCKET_NAME || 'luggage-photos').trim();
+const R2_BUCKET = (process.env.R2_BUCKET_NAME || 'luggage-photos').trim();
+// Rétrocompatibilité
+const BUCKET = R2_BUCKET;
 
 // Détection automatique du stockage :
 // 1. Cloudflare R2 (si les clés R2 sont présentes) — stockage illimité, sans frais d'egress
 // 2. Supabase Storage (si les clés Supabase sont présentes) — actif en parallèle pour la migration
 // 3. Repli en mémoire (développement local sans cloud)
-const isR2 = Boolean(
-  process.env.R2_ACCOUNT_ID &&
-  process.env.R2_ACCESS_KEY_ID &&
-  process.env.R2_SECRET_ACCESS_KEY
-);
+const r2AccountIdRaw = process.env.R2_ACCOUNT_ID?.trim() || '';
+const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID?.trim() || '';
+const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY?.trim() || '';
+
+// Nettoyer l'Account ID au cas où l'utilisateur a collé l'URL complète du endpoint R2
+const r2AccountId = r2AccountIdRaw
+  .replace(/^https?:\/\//i, '')
+  .replace(/\.r2\.cloudflarestorage\.com.*$/i, '')
+  .trim();
+
+const isR2 = Boolean(r2AccountId && r2AccessKeyId && r2SecretAccessKey);
 
 const isSupabase = Boolean(
   process.env.SUPABASE_URL &&
@@ -35,18 +44,18 @@ const inMemoryFiles = new Map();
 if (isR2) {
   r2Client = new S3Client({
     region: 'auto',
-    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
     credentials: {
-      accessKeyId: process.env.R2_ACCESS_KEY_ID,
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+      accessKeyId: r2AccessKeyId,
+      secretAccessKey: r2SecretAccessKey,
     },
   });
-  console.log(`[Storage] Cloudflare R2 actif (bucket: "${BUCKET}", endpoint: https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com)`);
+  console.log(`[Storage] Cloudflare R2 actif (bucket: "${R2_BUCKET}", endpoint: https://${r2AccountId}.r2.cloudflarestorage.com)`);
 }
 
 if (isSupabase) {
   supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  console.log(`[Storage] Supabase Storage initialisé (bucket: "${BUCKET}")`);
+  console.log(`[Storage] Supabase Storage initialisé (bucket: "${SUPABASE_BUCKET}")`);
 }
 
 if (!isR2 && !isSupabase) {
@@ -64,7 +73,7 @@ async function uploadLuggagePhoto(dut1Id, file) {
 
   if (isR2) {
     const command = new PutObjectCommand({
-      Bucket: BUCKET,
+      Bucket: R2_BUCKET,
       Key: objectPath,
       Body: file.buffer,
       ContentType: file.mimetype || 'image/jpeg',
@@ -73,17 +82,17 @@ async function uploadLuggagePhoto(dut1Id, file) {
       await r2Client.send(command);
       return objectPath;
     } catch (err) {
-      throw new Error(`Échec de l'upload vers Cloudflare R2 : ${err.message}`);
+      throw new Error(`Échec de l'upload vers Cloudflare R2 (${R2_BUCKET}) : ${err.message}`);
     }
   }
 
   if (isSupabase) {
-    const { error } = await supabase.storage.from(BUCKET).upload(objectPath, file.buffer, {
+    const { error } = await supabase.storage.from(SUPABASE_BUCKET).upload(objectPath, file.buffer, {
       contentType: file.mimetype || 'image/jpeg',
       upsert: false,
     });
     if (error) {
-      throw new Error(`Échec de l'upload vers Supabase Storage : ${error.message}`);
+      throw new Error(`Échec de l'upload vers Supabase Storage (${SUPABASE_BUCKET}) : ${error.message}`);
     }
     return objectPath;
   }
@@ -97,24 +106,25 @@ async function uploadLuggagePhoto(dut1Id, file) {
 }
 
 async function deleteLuggagePhoto(objectPath) {
+  const cleanPath = String(objectPath).replace(/^\/+/, '');
+
   if (isR2) {
     try {
-      await r2Client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: objectPath }));
+      await r2Client.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: cleanPath }));
     } catch (err) {
-      throw new Error(`Échec de la suppression sur Cloudflare R2 : ${err.message}`);
+      console.warn(`[R2] Avertissement suppression ${cleanPath} : ${err.message}`);
     }
-    return;
   }
 
   if (isSupabase) {
-    const { error } = await supabase.storage.from(BUCKET).remove([objectPath]);
-    if (error) {
-      throw new Error(`Échec de la suppression sur Supabase Storage : ${error.message}`);
+    try {
+      await supabase.storage.from(SUPABASE_BUCKET).remove([cleanPath]);
+    } catch (err) {
+      console.warn(`[Supabase] Avertissement suppression ${cleanPath} : ${err.message}`);
     }
-    return;
   }
 
-  inMemoryFiles.delete(objectPath);
+  inMemoryFiles.delete(cleanPath);
 }
 
 async function listAllFiles() {
@@ -123,7 +133,7 @@ async function listAllFiles() {
     let continuationToken = undefined;
     do {
       const command = new ListObjectsV2Command({
-        Bucket: BUCKET,
+        Bucket: R2_BUCKET,
         ContinuationToken: continuationToken,
         MaxKeys: 1000,
       });
@@ -145,18 +155,18 @@ async function listAllFiles() {
 
     while (true) {
       const { data, error } = await supabase.storage
-        .from(BUCKET)
+        .from(SUPABASE_BUCKET)
         .list('', { limit, offset, sortBy: { column: 'name', order: 'asc' } });
 
       if (error) {
-        throw new Error(`Échec du listage Supabase Storage : ${error.message}`);
+        throw new Error(`Échec du listage Supabase Storage (${SUPABASE_BUCKET}) : ${error.message}`);
       }
 
       if (!data || data.length === 0) break;
 
       for (const folder of data) {
         const { data: subFiles, error: subErr } = await supabase.storage
-          .from(BUCKET)
+          .from(SUPABASE_BUCKET)
           .list(folder.name, { limit: 100 });
 
         if (subErr) continue;
@@ -178,15 +188,16 @@ async function listAllFiles() {
 
 async function deleteMany(objectPaths) {
   if (!objectPaths || objectPaths.length === 0) return;
+  const cleanPaths = objectPaths.map((p) => String(p).replace(/^\/+/, ''));
 
   if (isR2) {
     const chunks = [];
-    for (let i = 0; i < objectPaths.length; i += 1000) {
-      chunks.push(objectPaths.slice(i, i + 1000));
+    for (let i = 0; i < cleanPaths.length; i += 1000) {
+      chunks.push(cleanPaths.slice(i, i + 1000));
     }
     for (const chunk of chunks) {
       const command = new DeleteObjectsCommand({
-        Bucket: BUCKET,
+        Bucket: R2_BUCKET,
         Delete: {
           Objects: chunk.map((Key) => ({ Key })),
           Quiet: true,
@@ -194,18 +205,16 @@ async function deleteMany(objectPaths) {
       });
       await r2Client.send(command);
     }
-    return;
   }
 
   if (isSupabase) {
-    const { error } = await supabase.storage.from(BUCKET).remove(objectPaths);
+    const { error } = await supabase.storage.from(SUPABASE_BUCKET).remove(cleanPaths);
     if (error) {
-      throw new Error(`Échec de la suppression groupée sur Supabase Storage : ${error.message}`);
+      console.warn(`[Supabase] Avertissement suppression groupée : ${error.message}`);
     }
-    return;
   }
 
-  for (const p of objectPaths) inMemoryFiles.delete(p);
+  for (const p of cleanPaths) inMemoryFiles.delete(p);
 }
 
 async function cleanupOrphanedFiles() {
@@ -214,7 +223,7 @@ async function cleanupOrphanedFiles() {
   const dbFiles = await db.all(
     "SELECT file_path FROM luggage_items WHERE file_path IS NOT NULL"
   );
-  const dbPaths = new Set(dbFiles.map((r) => r.file_path));
+  const dbPaths = new Set(dbFiles.map((r) => String(r.file_path).replace(/^\/+/, '')));
 
   const storageFiles = await listAllFiles();
   const orphaned = storageFiles.filter((f) => !dbPaths.has(f));
@@ -226,29 +235,45 @@ async function cleanupOrphanedFiles() {
 }
 
 async function getSignedUrl(objectPath, expiresInSeconds = 300) {
+  const cleanPath = String(objectPath).replace(/^\/+/, '');
+
+  // 1. Si Cloudflare R2 est configuré : tenter R2 en priorité
   if (isR2) {
-    // Si un domaine public personnalisé ou r2.dev est configuré : URL CDN directe sans présignature
     if (process.env.R2_PUBLIC_URL) {
       const base = process.env.R2_PUBLIC_URL.replace(/\/$/, '');
-      return `${base}/${objectPath}`;
+      return `${base}/${cleanPath}`;
     }
-    // Sinon génération d'une URL signée S3
-    const command = new GetObjectCommand({
-      Bucket: BUCKET,
-      Key: objectPath,
-    });
-    return await getS3SignedUrl(r2Client, command, { expiresIn: expiresInSeconds });
+
+    // Si Supabase est aussi configuré, on vérifie si l'image est déjà sur R2.
+    // Si pas encore transférée, on bascule de manière transparente sur Supabase pour ne pas casser l'image.
+    let presentInR2 = true;
+    if (isSupabase) {
+      try {
+        await r2Client.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: cleanPath }));
+      } catch {
+        presentInR2 = false;
+      }
+    }
+
+    if (presentInR2) {
+      const command = new GetObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: cleanPath,
+      });
+      return await getS3SignedUrl(r2Client, command, { expiresIn: expiresInSeconds });
+    }
   }
 
+  // 2. Si pas sur R2 ou non présent sur R2, tenter Supabase Storage
   if (isSupabase) {
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(objectPath, expiresInSeconds);
-    if (error) {
-      throw new Error(`Échec de la génération de l'URL signée : ${error.message}`);
+    const { data, error } = await supabase.storage.from(SUPABASE_BUCKET).createSignedUrl(cleanPath, expiresInSeconds);
+    if (!error && data?.signedUrl) {
+      return data.signedUrl;
     }
-    return data.signedUrl;
   }
 
-  const file = inMemoryFiles.get(objectPath);
+  // 3. Repli en mémoire ou placeholder
+  const file = inMemoryFiles.get(cleanPath);
   if (file && file.buffer) {
     return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
   }
@@ -262,7 +287,9 @@ async function getStorageStatus() {
     isR2Configured: isR2,
     isSupabaseConfigured: Boolean(supabase),
     activeProvider: isR2 ? 'Cloudflare R2' : isSupabase ? 'Supabase Storage' : 'Mémoire (local)',
-    bucketName: BUCKET,
+    r2Bucket: R2_BUCKET,
+    supabaseBucket: SUPABASE_BUCKET,
+    bucketName: R2_BUCKET,
     totalPhotosInDb: parseInt(countRow?.total || 0, 10),
     r2PublicUrlConfigured: Boolean(process.env.R2_PUBLIC_URL),
     r2PublicUrl: process.env.R2_PUBLIC_URL || null,
@@ -275,6 +302,23 @@ async function migrateSupabaseToR2({ deleteSource = false, onProgress = null } =
   }
   if (!supabase) {
     throw new Error("Supabase Storage n'est pas configuré. Veuillez renseigner SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY.");
+  }
+
+  // Test de diagnostic préalable de connectivité R2 (vérification des permissions d'écriture/lecture sur le bucket R2)
+  try {
+    await r2Client.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: '___r2_ping_check___' })).catch((err) => {
+      const status = err?.$metadata?.httpStatusCode || err?.status;
+      const code = err?.name || err?.Code || err?.code;
+      if (status === 403 || status === 401 || code === 'AccessDenied' || code === 'InvalidAccessKeyId') {
+        throw new Error(
+          `Accès R2 refusé (HTTP ${status || code}) : vérifiez que le token R2 a les permissions d'administration/lecture-écriture sur le bucket "${R2_BUCKET}".`
+        );
+      }
+    });
+  } catch (testErr) {
+    if (testErr.message.includes('Accès R2 refusé')) {
+      throw testErr;
+    }
   }
 
   const db = require('../db/database');
@@ -292,36 +336,55 @@ async function migrateSupabaseToR2({ deleteSource = false, onProgress = null } =
   };
 
   for (const item of items) {
-    const objectPath = item.file_path;
+    const rawPath = item.file_path;
+    const objectPath = String(rawPath).replace(/^\/+/, '');
+
     try {
       // 1. Vérifier si l'objet existe déjà dans Cloudflare R2
       let existsInR2 = false;
       try {
-        await r2Client.send(new HeadObjectCommand({ Bucket: BUCKET, Key: objectPath }));
+        await r2Client.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: objectPath }));
         existsInR2 = true;
-      } catch {
-        // Non trouvé dans R2 (404/NotFound) : continue vers le transfert
+      } catch (headErr) {
+        const status = headErr?.$metadata?.httpStatusCode || headErr?.status;
+        const code = headErr?.name || headErr?.Code || headErr?.code;
+        if (status === 403 || status === 401 || code === 'AccessDenied' || code === 'InvalidAccessKeyId') {
+          throw new Error(`Accès refusé au bucket R2 "${R2_BUCKET}" (${code || status}).`);
+        }
+        // Sinon (404/NotFound/NoSuchKey), l'objet n'existe pas encore sur R2 : continuer
       }
 
       if (existsInR2) {
         stats.alreadyInR2 += 1;
         if (deleteSource) {
           try {
-            await supabase.storage.from(BUCKET).remove([objectPath]);
+            await supabase.storage.from(SUPABASE_BUCKET).remove([objectPath]);
             stats.deletedFromSource += 1;
-          } catch {
-            // Tolérance si la suppression source échoue
+          } catch (delErr) {
+            console.warn(`[Supabase remove error ${objectPath}]:`, delErr.message);
           }
         }
         if (typeof onProgress === 'function') onProgress(stats);
         continue;
       }
 
-      // 2. Télécharger le fichier depuis Supabase Storage
-      const { data, error } = await supabase.storage.from(BUCKET).download(objectPath);
+      // 2. Télécharger le fichier depuis Supabase Storage (en ciblant SUPABASE_BUCKET)
+      let downloadRes = await supabase.storage.from(SUPABASE_BUCKET).download(objectPath);
+      if (downloadRes.error && rawPath !== objectPath) {
+        // Tentative alternative avec le chemin brut
+        downloadRes = await supabase.storage.from(SUPABASE_BUCKET).download(rawPath);
+      }
+
+      const { data, error } = downloadRes;
       if (error || !data) {
+        const errorDetail = error?.message || 'Objet introuvable dans Supabase Storage';
+        console.error(`[Storage Migration] Échec Supabase pour "${objectPath}" dans bucket "${SUPABASE_BUCKET}": ${errorDetail}`);
         stats.failed += 1;
-        stats.errors.push({ id: item.id, path: objectPath, error: error?.message || 'Fichier introuvable sur Supabase' });
+        stats.errors.push({
+          id: item.id,
+          path: objectPath,
+          error: `Supabase [${SUPABASE_BUCKET}] : ${errorDetail}`,
+        });
         if (typeof onProgress === 'function') onProgress(stats);
         continue;
       }
@@ -332,7 +395,7 @@ async function migrateSupabaseToR2({ deleteSource = false, onProgress = null } =
       // 3. Envoyer vers Cloudflare R2
       await r2Client.send(
         new PutObjectCommand({
-          Bucket: BUCKET,
+          Bucket: R2_BUCKET,
           Key: objectPath,
           Body: buffer,
           ContentType: contentType,
@@ -343,15 +406,16 @@ async function migrateSupabaseToR2({ deleteSource = false, onProgress = null } =
       // 4. Si demandé, supprimer de Supabase pour libérer le quota
       if (deleteSource) {
         try {
-          await supabase.storage.from(BUCKET).remove([objectPath]);
+          await supabase.storage.from(SUPABASE_BUCKET).remove([objectPath]);
           stats.deletedFromSource += 1;
-        } catch {
-          // Tolérance
+        } catch (delErr) {
+          console.warn(`[Supabase delete error ${objectPath}]:`, delErr.message);
         }
       }
 
       if (typeof onProgress === 'function') onProgress(stats);
     } catch (err) {
+      console.error(`[Storage Migration] Erreur pour item ${item.id} (${objectPath}):`, err.message);
       stats.failed += 1;
       stats.errors.push({ id: item.id, path: objectPath, error: err.message });
       if (typeof onProgress === 'function') onProgress(stats);
@@ -371,6 +435,8 @@ module.exports = {
   migrateSupabaseToR2,
   getStorageStatus,
   BUCKET,
+  SUPABASE_BUCKET,
+  R2_BUCKET,
   isR2,
   isSupabase,
 };
