@@ -83,8 +83,7 @@ export default function BasicInfoFormPage() {
     const newErrors = {};
     if (!values.lastName) newErrors.lastName = 'Requis';
     if (!values.firstName) newErrors.firstName = 'Requis';
-    if (!values.birthDate) newErrors.birthDate = 'Requis';
-    if (!values.birthPlace) newErrors.birthPlace = 'Requis';
+      if (!values.birthPlace) newErrors.birthPlace = 'Requis';
     if (!values.gender) newErrors.gender = 'Requis';
     if (!values.department) newErrors.department = 'Requis';
     const hasEmergencyPhone = (values.emergencyContacts || []).some((c) => (c.phone || '').trim());

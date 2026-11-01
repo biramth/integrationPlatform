@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS dut1_records (
   student_number              TEXT UNIQUE,
   last_name                   TEXT NOT NULL,
   first_name                  TEXT NOT NULL,
-  birth_date                  TEXT NOT NULL,
+  birth_date                  TEXT,
   birth_place                 TEXT NOT NULL,
   gender                      TEXT NOT NULL CHECK (gender IN ('M','F')),
   phone_number                TEXT,
