@@ -17,8 +17,8 @@ let nextClientId = 1;
 let pendingChanges = [];
 let flushTimer = null;
 
-const FLUSH_DELAY_MS = 1000;
-const HEARTBEAT_INTERVAL_MS = 25000;
+const FLUSH_DELAY_MS = 3000;
+const HEARTBEAT_INTERVAL_MS = 30000;
 // Garde-fou : un import massif peut générer des centaines de lignes d'audit en
 // quelques secondes — inutile de bufferiser un résumé infini, on borne.
 const MAX_PENDING_CHANGES = 50;

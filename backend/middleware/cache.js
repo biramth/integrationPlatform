@@ -48,7 +48,7 @@ function invalidateAll() {
     generation++;
     store.clear();
     invalidateTimer = null;
-  }, 2000);
+  }, 3000);
   invalidateTimer.unref?.();
 }
 

@@ -2,6 +2,42 @@ import { useRef, useState } from 'react';
 import { Camera, ShieldAlert } from 'lucide-react';
 import Button from '../common/Button';
 
+// Compression côté client : réduit la taille de l'image avant upload
+// pour alléger le traitement sharp côté serveur (Render plan gratuit).
+async function compressImage(file, maxWidth = 1280, quality = 0.75) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const ratio = Math.min(1, maxWidth / img.width);
+      const w = Math.round(img.width * ratio);
+      const h = Math.round(img.height * ratio);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+          } else {
+            resolve(file); // fallback: fichier original
+          }
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file); // fallback
+    };
+    img.src = url;
+  });
+}
+
 export default function PhotoCapture({ onCapture, submitting }) {
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
@@ -26,7 +62,9 @@ export default function PhotoCapture({ onCapture, submitting }) {
 
   async function handleSend() {
     if (!file) return;
-    await onCapture(file, isSensitive, sensitiveNote.trim());
+    // Compression avant envoi
+    const compressed = await compressImage(file);
+    await onCapture(compressed, isSensitive, sensitiveNote.trim());
     reset();
   }
 
