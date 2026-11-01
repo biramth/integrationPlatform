@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Trash2, Plus, Pencil, Check, X, HeartPulse, CalendarDays, ChevronUp, ChevronDown } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Trash2, Plus, Pencil, Check, X, HeartPulse, CalendarDays, ChevronUp, ChevronDown, Search, Filter } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import * as criteriaApi from '../../api/aptitudeCriteriaApi';
 import Input from '../../components/common/Input';
@@ -20,6 +20,15 @@ function formatActivityDate(activity) {
   return activity.activity_date;
 }
 
+const DAY_NAMES = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+
+function formatDateLabel(dateStr) {
+  if (!dateStr) return dateStr;
+  const d = new Date(dateStr + 'T00:00:00');
+  const dayName = DAY_NAMES[d.getDay()];
+  return `${dayName} ${dateStr.slice(8, 10)}/${dateStr.slice(5, 7)}`;
+}
+
 export default function AptitudeCriteriaPage() {
   const { showToast } = useToast();
   const criteriaFetch = useFetch(criteriaApi.listCriteria, []);
@@ -32,13 +41,47 @@ export default function AptitudeCriteriaPage() {
   const [renaming, setRenaming] = useState(false);
   const [newLevelLabel, setNewLevelLabel] = useState({});
   const [addingLevelFor, setAddingLevelFor] = useState(null);
-  const [editingLevel, setEditingLevel] = useState(null); // { criterionId, levelId }
+  const [editingLevel, setEditingLevel] = useState(null);
   const [editingLevelLabel, setEditingLevelLabel] = useState('');
   const [busyLevelId, setBusyLevelId] = useState(null);
-  const [savingRequirement, setSavingRequirement] = useState(null); // `${activityId}-${criterionId}`
+  const [savingRequirement, setSavingRequirement] = useState(null);
+  const [activitySearch, setActivitySearch] = useState('');
+  const [bulkCriterion, setBulkCriterion] = useState('');
+  const [bulkLevel, setBulkLevel] = useState('');
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   const criteria = criteriaFetch.data?.criteria || [];
-  const activities = activitiesFetch.data?.activities || [];
+  const allActivities = activitiesFetch.data?.activities || [];
+
+  // Filter activities by search
+  const filteredActivities = useMemo(() => {
+    if (!activitySearch.trim()) return allActivities;
+    const q = activitySearch.toLowerCase();
+    return allActivities.filter((a) =>
+      (a.name || '').toLowerCase().includes(q) ||
+      (a.activity_date || '').includes(q)
+    );
+  }, [allActivities, activitySearch]);
+
+  // Group activities by date
+  const groupedActivities = useMemo(() => {
+    const groups = new Map();
+    for (const a of filteredActivities) {
+      const key = a.activity_date || 'Sans date';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(a);
+    }
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [filteredActivities]);
+
+  // Coverage stats
+  const stats = useMemo(() => {
+    const total = allActivities.length;
+    const withCriteria = allActivities.filter((a) => (a.requirements || []).length > 0).length;
+    const without = total - withCriteria;
+    const coverage = total > 0 ? Math.round((withCriteria / total) * 100) : 0;
+    return { total, withCriteria, without, coverage };
+  }, [allActivities]);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -193,13 +236,66 @@ export default function AptitudeCriteriaPage() {
     }
   }
 
+  async function handleBulkApply() {
+    if (!bulkCriterion || !bulkLevel) return;
+    const criterion = criteria.find((c) => c.id === Number(bulkCriterion));
+    if (!criterion) return;
+    const levelId = bulkLevel === 'none' ? null : Number(bulkLevel);
+
+    if (!(await confirm({ message: `Appliquer "${criterion.label}" (niveau ${levelId ? criterion.levels.find((l) => l.id === levelId)?.label : 'aucun'}) à toutes les ${filteredActivities.length} activités filtrées ?`, danger: false }))) return;
+
+    setBulkSaving(true);
+    let done = 0;
+    let errors = 0;
+    for (const activity of filteredActivities) {
+      const current = activity.requirements || [];
+      const withoutThis = current.filter((r) => r.criterionId !== criterion.id);
+      const next = levelId ? [...withoutThis, { criterionId: criterion.id, minLevelId: levelId }] : withoutThis;
+      try {
+        await criteriaApi.setActivityCriteria(activity.id, next);
+        done++;
+      } catch {
+        errors++;
+      }
+    }
+    setBulkSaving(false);
+    showToast(`${done} activité(s) mise(s) à jour${errors > 0 ? `, ${errors} erreur(s)` : ''}.`, errors > 0 ? 'warning' : 'success');
+    activitiesFetch.reload();
+  }
+
   return (
     <div>
       <PageHeader
         title="Critères d'aptitude"
-        description="Chaque critère a son échelle de niveaux (ex: Sportif → Pas sportif / Peu sportif / Sportif / Très sportif). Pour chaque activité, choisissez le niveau minimum requis par critère — Risques du jour compare automatiquement le niveau déclaré par chaque DUT1 à l'enregistrement."
+        description="Chaque critère a son échelle de niveaux. Pour chaque activité, choisissez le niveau minimum requis par critère. Risques du jour compare automatiquement le niveau déclaré par chaque DUT1 à l'enregistrement."
       />
 
+      {/* Stats */}
+      <Card className="mb-6">
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <HeartPulse className="h-4 w-4 text-muted-foreground" />
+            <span className="font-semibold text-foreground">{criteria.length} critère{criteria.length > 1 ? 's' : ''}</span>
+          </div>
+          <div className="h-4 w-px bg-border" />
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            <span className="text-foreground">{stats.total} activités</span>
+          </div>
+          <div className="h-4 w-px bg-border" />
+          <div className="flex items-center gap-2">
+            <span className={`font-semibold ${stats.coverage === 100 ? 'text-success' : stats.coverage >= 50 ? 'text-warning' : 'text-danger'}`}>
+              {stats.coverage}%
+            </span>
+            <span className="text-muted-foreground">couverture ({stats.withCriteria}/{stats.total})</span>
+          </div>
+          {stats.without > 0 && (
+            <span className="text-xs text-warning">{stats.without} activité{stats.without > 1 ? 's' : ''} sans critère</span>
+          )}
+        </div>
+      </Card>
+
+      {/* Criteria management */}
       <Card className="mb-6">
         <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
           <HeartPulse className="h-4 w-4 text-muted-foreground" /> Critères d'aptitude
@@ -350,51 +446,131 @@ export default function AptitudeCriteriaPage() {
         )}
       </Card>
 
+      {/* Bulk apply */}
+      {criteria.length > 0 && activities.length > 0 && (
+        <Card className="mb-6">
+          <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Filter className="h-4 w-4 text-muted-foreground" /> Application rapide à toutes les activités filtrées
+          </p>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="min-w-[180px] flex-1">
+              <Select
+                label="Critère"
+                value={bulkCriterion}
+                onChange={(e) => setBulkCriterion(e.target.value)}
+                options={[
+                  { value: '', label: 'Choisir un critère…' },
+                  ...criteria.map((c) => ({ value: c.id, label: c.label })),
+                ]}
+              />
+            </div>
+            <div className="min-w-[180px] flex-1">
+              <Select
+                label="Niveau minimum"
+                value={bulkLevel}
+                onChange={(e) => setBulkLevel(e.target.value)}
+                disabled={!bulkCriterion}
+                options={[
+                  { value: '', label: 'Choisir un niveau…' },
+                  { value: 'none', label: 'Aucune exigence' },
+                  ...(criteria.find((c) => c.id === Number(bulkCriterion))?.levels || []).map((l) => ({
+                    value: l.id,
+                    label: l.label,
+                  })),
+                ]}
+              />
+            </div>
+            <Button
+              onClick={handleBulkApply}
+              loading={bulkSaving}
+              disabled={!bulkCriterion || !bulkLevel || filteredActivities.length === 0}
+              variant="secondary"
+            >
+              Appliquer à {filteredActivities.length} activité{filteredActivities.length > 1 ? 's' : ''}
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Applique le critère et le niveau choisis à toutes les activités actuellement filtrées (recherche ci-dessous).
+          </p>
+        </Card>
+      )}
+
+      {/* Activities */}
       <Card>
-        <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-          <CalendarDays className="h-4 w-4 text-muted-foreground" /> Niveau minimum requis par activité
-        </p>
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" /> Niveau minimum requis par activité
+          </p>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Rechercher une activité…"
+              value={activitySearch}
+              onChange={(e) => setActivitySearch(e.target.value)}
+              className="w-full rounded-md border border-border bg-card py-1.5 pl-8 pr-3 text-sm outline-none focus:border-role-accent focus:ring-1 focus:ring-role-accent"
+            />
+          </div>
+        </div>
 
         {activitiesFetch.loading && <CardListSkeleton />}
         {activitiesFetch.error && <ErrorState label={activitiesFetch.error} onRetry={activitiesFetch.reload} />}
-        {!activitiesFetch.loading && !activitiesFetch.error && activities.length === 0 && (
+        {!activitiesFetch.loading && !activitiesFetch.error && allActivities.length === 0 && (
           <EmptyState label="Aucune activité programmée." />
         )}
-        {!activitiesFetch.loading && !activitiesFetch.error && criteria.length === 0 && activities.length > 0 && (
+        {!activitiesFetch.loading && !activitiesFetch.error && criteria.length === 0 && allActivities.length > 0 && (
           <p className="text-sm text-muted-foreground">Ajoutez au moins un critère (avec ses niveaux) ci-dessus pour pouvoir l'exiger sur une activité.</p>
         )}
 
-        {!activitiesFetch.loading && !activitiesFetch.error && activities.length > 0 && criteria.length > 0 && (
+        {!activitiesFetch.loading && !activitiesFetch.error && filteredActivities.length > 0 && criteria.length > 0 && (
           <div className="flex flex-col gap-4">
-            {activities.map((activity, i) => {
-              const requirementByCriterion = Object.fromEntries((activity.requirements || []).map((r) => [r.criterionId, r.minLevelId]));
-              return (
-                <div key={activity.id} className="animate-fade-in-up border-b border-border pb-4 last:border-0 last:pb-0" style={staggerStyle(i)}>
-                  <p className="mb-2 text-sm font-medium text-foreground">
-                    {activity.name} <span className="font-normal text-muted-foreground">— {formatActivityDate(activity)}</span>
-                  </p>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {criteria
-                      .filter((c) => (c.levels || []).length > 0)
-                      .map((c) => (
-                        <Select
-                          key={c.id}
-                          label={c.label}
-                          placeholder="Aucune exigence"
-                          value={requirementByCriterion[c.id] || 'none'}
-                          onChange={(e) => handleRequirementChange(activity, c, e.target.value)}
-                          disabled={savingRequirement === `${activity.id}-${c.id}`}
-                          options={[
-                            { value: 'none', label: 'Aucune exigence' },
-                            ...(c.levels || []).map((l) => ({ value: l.id, label: l.label })),
-                          ]}
-                        />
-                      ))}
-                  </div>
+            {groupedActivities.map(([date, acts]) => (
+              <div key={date}>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {formatDateLabel(date)} — {acts.length} activité{acts.length > 1 ? 's' : ''}
+                </p>
+                <div className="flex flex-col gap-3">
+                  {acts.map((activity, i) => {
+                    const requirementByCriterion = Object.fromEntries((activity.requirements || []).map((r) => [r.criterionId, r.minLevelId]));
+                    const hasCriteria = (activity.requirements || []).length > 0;
+                    return (
+                      <div key={activity.id} className={`animate-fade-in-up rounded-lg border p-3 ${hasCriteria ? 'border-success/30 bg-success-soft/30' : 'border-border'}`} style={staggerStyle(i, 15, 100)}>
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-foreground">
+                            {hasCriteria && <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-success" />}
+                            {activity.name}
+                          </p>
+                          <span className="shrink-0 text-xs text-muted-foreground">{activity.start_time || ''}</span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {criteria
+                            .filter((c) => (c.levels || []).length > 0)
+                            .map((c) => (
+                              <Select
+                                key={c.id}
+                                label={c.label}
+                                placeholder="Aucune exigence"
+                                value={requirementByCriterion[c.id] || 'none'}
+                                onChange={(e) => handleRequirementChange(activity, c, e.target.value)}
+                                disabled={savingRequirement === `${activity.id}-${c.id}`}
+                                options={[
+                                  { value: 'none', label: 'Aucune exigence' },
+                                  ...(c.levels || []).map((l) => ({ value: l.id, label: l.label })),
+                                ]}
+                              />
+                            ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
+        )}
+
+        {!activitiesFetch.loading && !activitiesFetch.error && filteredActivities.length === 0 && allActivities.length > 0 && (
+          <EmptyState label="Aucune activité ne correspond à la recherche." />
         )}
       </Card>
     </div>
