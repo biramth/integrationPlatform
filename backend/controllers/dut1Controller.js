@@ -89,7 +89,7 @@ function stripMedicalFields(record) {
 }
 
 function validateBasicPayload(body) {
-  const required = ['lastName', 'firstName', 'birthPlace', 'gender', 'department'];
+  const required = ['lastName', 'firstName', 'birthDate', 'birthPlace', 'gender', 'department'];
   for (const field of required) {
     if (!body[field]) {
       return `Le champ ${field} est requis.`;
