@@ -5,14 +5,19 @@ const { verifyToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Protection contre le bruteforce : 10 tentatives / 15 min par IP, uniquement
+// Protection contre le bruteforce : 20 tentatives / 15 min par compte (IP + identifiant), uniquement
 // comptées sur les échecs (une connexion réussie ne consomme pas le quota).
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 200,
+  limit: 20,
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
+  keyGenerator: (req) => {
+    const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+    const username = (req.body?.username || '').toLowerCase().trim();
+    return username ? ip + ':' + username : ip;
+  },
   message: { error: 'Trop de tentatives de connexion. Réessaie dans quelques minutes.' },
 });
 
