@@ -48,11 +48,12 @@ export function useFetch(fetcher, deps = [], options = {}) {
   // reste utilisable pendant le rafraîchissement (pas de flash de squelette à
   // chaque événement temps réel), et une erreur transitoire n'efface jamais
   // l'affichage existant.
+  const silentSeqRef = useRef(0);
   const silentReload = useCallback(() => {
-    const seq = ++seqRef.current;
+    const seq = ++silentSeqRef.current;
     fetcher()
       .then((result) => {
-        if (seq === seqRef.current) setData(result);
+        if (seq === silentSeqRef.current) setData(result);
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/use-memo
