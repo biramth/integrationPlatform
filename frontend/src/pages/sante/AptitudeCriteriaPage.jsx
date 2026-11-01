@@ -447,7 +447,7 @@ export default function AptitudeCriteriaPage() {
       </Card>
 
       {/* Bulk apply */}
-      {criteria.length > 0 && activities.length > 0 && (
+      {criteria.length > 0 && allActivities.length > 0 && (
         <Card className="mb-6">
           <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
             <Filter className="h-4 w-4 text-muted-foreground" /> Application rapide à toutes les activités filtrées
