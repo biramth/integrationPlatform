@@ -43,19 +43,29 @@ async function autoAssignRoom(dut1Id, gender, department, changedBy) {
       occupancyByRoom.set(row.room_id, info);
     }
 
-    const candidates = rooms
+    const allRooms = rooms
       .map((room) => {
         const { total = 0, byDepartment = {} } = occupancyByRoom.get(room.id) || {};
         return { ...room, occupied: total, sameDepartment: byDepartment[department] || 0 };
-      })
-      .filter((room) => room.occupied < room.capacity);
+      });
 
-    if (candidates.length === 0) return null;
+    // Chambres avec de la place disponible
+    const candidates = allRooms.filter((room) => room.occupied < room.capacity);
 
-    candidates.sort(
-      (a, b) => a.sameDepartment - b.sameDepartment || a.occupied - b.occupied || a.id - b.id
-    );
-    const chosen = candidates[0];
+    let chosen;
+    if (candidates.length > 0) {
+      candidates.sort(
+        (a, b) => a.sameDepartment - b.sameDepartment || a.occupied - b.occupied || a.id - b.id
+      );
+      chosen = candidates[0];
+    } else {
+      // Toutes les chambres du genre sont pleines : surcharge autorisée.
+      // On choisit la moins remplie (homogénéité), puis par id.
+      allRooms.sort((a, b) => a.occupied - b.occupied || a.id - b.id);
+      chosen = allRooms[0];
+    }
+
+    if (!chosen) return null;
 
     await tx.run(`UPDATE dut1_records SET room_id = $1, room_assigned_at = NOW() WHERE id = $2`, [chosen.id, dut1Id]);
     await tx.run(
@@ -95,10 +105,24 @@ async function manualAssignRoom(dut1Id, newRoomId, changedBy) {
     }
 
     const occupiedRow = await tx.get('SELECT COUNT(*) AS occupied FROM dut1_records WHERE room_id = $1', [newRoomId]);
-    if (Number(occupiedRow.occupied) >= room.capacity) {
-      const err = new Error('Chambre déjà pleine.');
-      err.status = 409;
-      throw err;
+    const occupied = Number(occupiedRow.occupied);
+    if (occupied >= room.capacity) {
+      // Surcharge autorisée uniquement si TOUTES les chambres du même genre sont pleines.
+      const allRooms = await tx.all('SELECT id, capacity FROM rooms WHERE gender = $1', [room.gender]);
+      let allFull = true;
+      for (const r of allRooms) {
+        const occ = await tx.get('SELECT COUNT(*) AS c FROM dut1_records WHERE room_id = $1', [r.id]);
+        if (Number(occ.c) < r.capacity) {
+          allFull = false;
+          break;
+        }
+      }
+      if (!allFull) {
+        const err = new Error('Chambre déjà pleine.');
+        err.status = 409;
+        throw err;
+      }
+      // Surcharge autorisée : on continue.
     }
 
     await tx.run(`UPDATE dut1_records SET room_id = $1, room_assigned_at = NOW() WHERE id = $2`, [newRoomId, dut1Id]);

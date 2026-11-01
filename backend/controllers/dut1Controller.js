@@ -304,6 +304,13 @@ async function createRecord(req, res) {
     const record = await db.get('SELECT * FROM dut1_records WHERE id = $1', [dut1Id]);
     const room = assignedRoomId ? await db.get('SELECT * FROM rooms WHERE id = $1', [assignedRoomId]) : null;
 
+    // Vérifier si la chambre est en surcharge (surcapacité)
+    let overloaded = false;
+    if (room) {
+      const occ = await db.get('SELECT COUNT(*) AS c FROM dut1_records WHERE room_id = $1', [room.id]);
+      overloaded = Number(occ.c) > room.capacity;
+    }
+
     await auditService.logAction(req, {
       action: 'dut1.create',
       resourceType: 'dut1_record',
@@ -320,7 +327,7 @@ async function createRecord(req, res) {
       roomAssigned: !!assignedRoomId,
       room,
       repaired,
-      warning: assignedRoomId ? null : 'Aucune chambre disponible pour ce genre pour le moment.',
+      warning: overloaded ? 'Chambre en surcharge (' + room.capacity + ' places, ' + (await db.get('SELECT COUNT(*) AS c FROM dut1_records WHERE room_id = $1', [room.id])).c + ' occupant(s)).' : null,
     });
   } catch (err) {
     if (err.code === '23505') {
