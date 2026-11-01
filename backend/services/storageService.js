@@ -280,6 +280,74 @@ async function getSignedUrl(objectPath, expiresInSeconds = 300) {
   return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="%23f1f5f9"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%2394a3b8" font-family="sans-serif">Photo bagage</text></svg>`;
 }
 
+/**
+ * Diffuse directement le flux binaire de l'image au client HTTP.
+ * Évite les redirections 302 vers R2 (qui échouent côté navigateur en raison des restrictions CORS
+ * et des conflits d'en-tête Authorization d'Axios).
+ */
+async function streamLuggagePhoto(objectPath, res) {
+  const cleanPath = String(objectPath).replace(/^\/+/, '');
+
+  // 1. Tenter Cloudflare R2 si configuré
+  if (isR2 && r2Client) {
+    try {
+      const command = new GetObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: cleanPath,
+      });
+      const response = await r2Client.send(command);
+
+      if (response && response.Body) {
+        const contentType = response.ContentType || (cleanPath.endsWith('.png') ? 'image/png' : 'image/jpeg');
+        res.setHeader('Content-Type', contentType);
+        if (response.ContentLength) {
+          res.setHeader('Content-Length', response.ContentLength);
+        }
+        res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+
+        if (typeof response.Body.pipe === 'function') {
+          return response.Body.pipe(res);
+        }
+        if (typeof response.Body.transformToByteArray === 'function') {
+          const bytes = await response.Body.transformToByteArray();
+          return res.send(Buffer.from(bytes));
+        }
+      }
+    } catch (r2Err) {
+      console.warn(`[Storage] Photo non trouvée sur R2 (${cleanPath}), repli vers Supabase :`, r2Err.message);
+    }
+  }
+
+  // 2. Repli vers Supabase Storage si configuré
+  if (isSupabase && supabase) {
+    try {
+      const { data, error } = await supabase.storage.from(SUPABASE_BUCKET).download(cleanPath);
+      if (!error && data) {
+        const buffer = Buffer.from(await data.arrayBuffer());
+        const contentType = data.type || (cleanPath.endsWith('.png') ? 'image/png' : 'image/jpeg');
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Length', buffer.length);
+        res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+        return res.send(buffer);
+      }
+    } catch (supaErr) {
+      console.warn(`[Storage] Repli Supabase échoué (${cleanPath}) :`, supaErr.message);
+    }
+  }
+
+  // 3. Repli en mémoire (développement local)
+  const file = inMemoryFiles.get(cleanPath);
+  if (file && file.buffer) {
+    res.setHeader('Content-Type', file.mimetype || 'image/jpeg');
+    res.setHeader('Content-Length', file.buffer.length);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.send(file.buffer);
+  }
+
+  // 4. Si introuvable nulle part
+  return res.status(404).json({ error: 'Photo de bagage introuvable.' });
+}
+
 async function getStorageStatus() {
   const db = require('../db/database');
   const countRow = await db.get('SELECT COUNT(*) AS total FROM luggage_items WHERE file_path IS NOT NULL');
@@ -429,6 +497,7 @@ module.exports = {
   uploadLuggagePhoto,
   deleteLuggagePhoto,
   getSignedUrl,
+  streamLuggagePhoto,
   listAllFiles,
   deleteMany,
   cleanupOrphanedFiles,

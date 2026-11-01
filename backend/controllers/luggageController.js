@@ -152,13 +152,17 @@ async function listMyLuggageItems(req, res) {
 }
 
 async function getLuggagePhotoUrl(req, res) {
-  const item = await db.get('SELECT file_path FROM luggage_items WHERE id = $1', [req.params.itemId]);
-  if (!item) {
-    return res.status(404).json({ error: 'Bagage introuvable.' });
-  }
+  try {
+    const item = await db.get('SELECT file_path FROM luggage_items WHERE id = $1', [req.params.itemId]);
+    if (!item || !item.file_path) {
+      return res.status(404).json({ error: 'Bagage ou photo introuvable.' });
+    }
 
-  const url = await storage.getSignedUrl(item.file_path);
-  res.redirect(url);
+    return await storage.streamLuggagePhoto(item.file_path, res);
+  } catch (err) {
+    console.error(`[luggageController] Erreur récupération photo #${req.params.itemId} :`, err);
+    return res.status(500).json({ error: 'Erreur lors du chargement de la photo.' });
+  }
 }
 
 module.exports = {
