@@ -170,7 +170,7 @@ function App() {
                 chef ne fait que consulter l'évolution en pourcentage depuis sa Vue
                 d'ensemble (cf. GET /medications, seule route ouverte au chef côté
                 backend). */}
-            <Route element={<RoleRoute roles={['sante']} subScope="medoc" />}>
+            <Route element={<RoleRoute roles={['sante']} subScope="medoc" leadBypassesScope />}>
               <Route path="/sante/medicaments" element={<MedicationStockPage />} />
             </Route>
 

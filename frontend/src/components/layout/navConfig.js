@@ -191,7 +191,7 @@ export function getNavItems(user, settings) {
     // le responsable désigné gère seul le stock, le chef se contente de
     // suivre l'évolution en pourcentage depuis sa Vue d'ensemble.
     const scoped = user.isCommissionLead
-      ? [...SANTE_ITEMS.suivi, ...SANTE_ITEMS.phase2]
+      ? [...SANTE_ITEMS.suivi, ...SANTE_ITEMS.phase2, ...SANTE_ITEMS.medoc]
       : user.subRole
       ? (user.subRole === 'phase2' && !phase2Enabled ? [] : SANTE_ITEMS[user.subRole] || [])
       : [...SANTE_ITEMS.suivi, ...(phase2Enabled ? SANTE_ITEMS.phase2 : []), ...SANTE_ITEMS.medoc];
