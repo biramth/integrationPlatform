@@ -7,6 +7,7 @@ import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import PageHeader from '../../components/common/PageHeader';
 import FeatureTogglesCard from '../../components/admin/FeatureTogglesCard';
+import StorageMigrationCard from '../../components/admin/StorageMigrationCard';
 import { useToast } from '../../hooks/useToast';
 
 // Transmission de la plateforme à la génération IT suivante. Action irréversible :
@@ -36,9 +37,11 @@ export default function PlatformResetPage() {
   return (
     <div>
       <PageHeader
-        title="Réinitialiser la plateforme"
-        description={!done && user.canResetPlatform ? 'Transmission à la génération IT suivante.' : undefined}
+        title="Gestion & Plateforme"
+        description="Configuration du stockage, fonctionnalités et transmission."
       />
+
+      <StorageMigrationCard />
 
       <FeatureTogglesCard />
 

@@ -3,6 +3,15 @@ const db = require('../db/database');
 const storage = require('../services/storageService');
 const auditService = require('../services/auditService');
 
+// Optimisation charge / mémoire : limiter la concurrence Sharp pour éviter
+// l'explosion de RAM (512MB sur Render) lors d'arrivées massives de bagages.
+try {
+  sharp.concurrency(1);
+  sharp.cache({ files: 0, memory: 32 });
+} catch {
+  // Ignorer si l'environnement ne supporte pas la config libvips
+}
+
 const MAX_DIMENSION = 1920;
 const JPEG_QUALITY = 80;
 

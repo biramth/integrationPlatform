@@ -19,4 +19,7 @@ const resetLimiter = rateLimit({
 
 router.post('/reset', resetLimiter, platformController.resetPlatform);
 
+router.get('/storage-status', platformController.getStorageStatus);
+router.post('/migrate-storage-to-r2', platformController.migrateStorageToR2);
+
 module.exports = router;

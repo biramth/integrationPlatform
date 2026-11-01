@@ -79,4 +79,47 @@ async function resetPlatform(req, res) {
   res.json({ success: true });
 }
 
-module.exports = { resetPlatform, CONFIRMATION_PHRASE };
+const storage = require('../services/storageService');
+
+let isMigratingStorage = false;
+
+async function getStorageStatus(req, res) {
+  const status = await storage.getStorageStatus();
+  res.json({
+    ...status,
+    isMigrating: isMigratingStorage,
+  });
+}
+
+async function migrateStorageToR2(req, res) {
+  if (isMigratingStorage) {
+    return res.status(409).json({ error: 'Une migration de stockage est déjà en cours d’exécution.' });
+  }
+
+  isMigratingStorage = true;
+  const deleteSource = req.body.deleteSource === true;
+
+  try {
+    const stats = await storage.migrateSupabaseToR2({ deleteSource });
+
+    await auditService.logAction(req, {
+      action: 'storage.migrate_to_r2',
+      resourceType: 'storage',
+      commission: 'it',
+      details: { stats, deleteSource },
+    });
+
+    res.json({ success: true, stats });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    isMigratingStorage = false;
+  }
+}
+
+module.exports = {
+  resetPlatform,
+  CONFIRMATION_PHRASE,
+  getStorageStatus,
+  migrateStorageToR2,
+};

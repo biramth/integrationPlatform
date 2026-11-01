@@ -306,9 +306,11 @@ async function createRecord(req, res) {
 
     // Vérifier si la chambre est en surcharge (surcapacité)
     let overloaded = false;
+    let occupancyCount = 0;
     if (room) {
       const occ = await db.get('SELECT COUNT(*) AS c FROM dut1_records WHERE room_id = $1', [room.id]);
-      overloaded = Number(occ.c) > room.capacity;
+      occupancyCount = Number(occ?.c || 0);
+      overloaded = occupancyCount > room.capacity;
     }
 
     await auditService.logAction(req, {
@@ -327,7 +329,7 @@ async function createRecord(req, res) {
       roomAssigned: !!assignedRoomId,
       room,
       repaired,
-      warning: overloaded ? 'Chambre en surcharge (' + room.capacity + ' places, ' + (await db.get('SELECT COUNT(*) AS c FROM dut1_records WHERE room_id = $1', [room.id])).c + ' occupant(s)).' : null,
+      warning: overloaded ? `Chambre en surcharge (${room.capacity} places, ${occupancyCount} occupant(s)).` : null,
     });
   } catch (err) {
     if (err.code === '23505') {

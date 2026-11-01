@@ -13,13 +13,6 @@ import { confirm } from '../../components/common/confirmService';
 import { useToast } from '../../hooks/useToast';
 import { staggerStyle } from '../../utils/stagger';
 
-function formatActivityDate(activity) {
-  if (activity.end_date && activity.end_date !== activity.activity_date) {
-    return `${activity.activity_date} → ${activity.end_date}`;
-  }
-  return activity.activity_date;
-}
-
 const DAY_NAMES = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 
 function formatDateLabel(dateStr) {
@@ -50,8 +43,8 @@ export default function AptitudeCriteriaPage() {
   const [bulkLevel, setBulkLevel] = useState('');
   const [bulkSaving, setBulkSaving] = useState(false);
 
-  const criteria = criteriaFetch.data?.criteria || [];
-  const allActivities = activitiesFetch.data?.activities || [];
+  const criteria = useMemo(() => criteriaFetch.data?.criteria || [], [criteriaFetch.data]);
+  const allActivities = useMemo(() => activitiesFetch.data?.activities || [], [activitiesFetch.data]);
 
   // Filter activities by search
   const filteredActivities = useMemo(() => {

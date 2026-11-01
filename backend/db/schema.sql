@@ -759,3 +759,16 @@ ALTER TABLE activities DROP CONSTRAINT IF EXISTS activities_importance_check;
 ALTER TABLE activities DROP COLUMN IF EXISTS importance;
 ALTER TABLE activities DROP COLUMN IF EXISTS highlight;
 ALTER TABLE activities DROP COLUMN IF EXISTS time_label;
+
+-- Index de performance et tenue de charge :
+-- Accélère les recherches, filtres par commission, assignations de chambres et audits.
+CREATE INDEX IF NOT EXISTS idx_dut1_records_room_id ON dut1_records(room_id);
+CREATE INDEX IF NOT EXISTS idx_dut1_records_department ON dut1_records(department);
+CREATE INDEX IF NOT EXISTS idx_dut1_records_gender ON dut1_records(gender);
+CREATE INDEX IF NOT EXISTS idx_dut1_records_names ON dut1_records(last_name, first_name);
+CREATE INDEX IF NOT EXISTS idx_admitted_students_matched ON admitted_students(matched_dut1_id);
+CREATE INDEX IF NOT EXISTS idx_admitted_students_names ON admitted_students(last_name, first_name);
+CREATE INDEX IF NOT EXISTS idx_luggage_items_dut1_id ON luggage_items(dut1_id);
+CREATE INDEX IF NOT EXISTS idx_room_assignment_history_dut1_id ON room_assignment_history(dut1_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
+

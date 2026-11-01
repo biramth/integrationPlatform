@@ -147,13 +147,28 @@ const frontendDist = path.resolve(__dirname, '../frontend/dist');
 
 app.use('/api', notFoundHandler);
 
-app.use(express.static(frontendDist));
+// Cache-Control optimisé pour la rapidité et la réduction de charge :
+// - Fichiers hashés (Vite assets : JS, CSS, polices, webp...) en cache immutable 1 an
+// - HTML racine (index.html) en no-cache pour garantir les mises à jour immédiates
+app.use(
+  express.static(frontendDist, {
+    maxAge: '1y',
+    immutable: true,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    },
+  })
+);
+
 app.use((req, res, next) => {
   if (req.method !== 'GET') return next();
   if (req.path.startsWith('/api') || req.path === '/healthz') {
     return next();
   }
   const indexPath = path.join(frontendDist, 'index.html');
+  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(indexPath, (err) => {
     if (err) {
       res.send('Plateforme intégration DUT1 — En cours de chargement.');

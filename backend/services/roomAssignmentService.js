@@ -108,21 +108,21 @@ async function manualAssignRoom(dut1Id, newRoomId, changedBy) {
     const occupied = Number(occupiedRow.occupied);
     if (occupied >= room.capacity) {
       // Surcharge autorisée uniquement si TOUTES les chambres du même genre sont pleines.
-      const allRooms = await tx.all('SELECT id, capacity FROM rooms WHERE gender = $1', [room.gender]);
-      let allFull = true;
-      for (const r of allRooms) {
-        const occ = await tx.get('SELECT COUNT(*) AS c FROM dut1_records WHERE room_id = $1', [r.id]);
-        if (Number(occ.c) < r.capacity) {
-          allFull = false;
-          break;
-        }
-      }
-      if (!allFull) {
+      const availableRoom = await tx.get(
+        `SELECT r.id FROM rooms r
+         LEFT JOIN dut1_records d ON d.room_id = r.id
+         WHERE r.gender = $1
+         GROUP BY r.id, r.capacity
+         HAVING COUNT(d.id) < r.capacity
+         LIMIT 1`,
+        [room.gender]
+      );
+      if (availableRoom) {
         const err = new Error('Chambre déjà pleine.');
         err.status = 409;
         throw err;
       }
-      // Surcharge autorisée : on continue.
+      // Surcharge autorisée : toutes les chambres du genre sont pleines.
     }
 
     await tx.run(`UPDATE dut1_records SET room_id = $1, room_assigned_at = NOW() WHERE id = $2`, [newRoomId, dut1Id]);
