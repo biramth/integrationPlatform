@@ -35,12 +35,12 @@ function LuggagePhoto({ itemId, name }) {
   }, [itemId]);
 
   if (error) return <span className="text-xs text-muted-foreground">?</span>;
-  if (!src) return <div className="h-16 w-16 animate-pulse rounded bg-muted" />;
+  if (!src) return <div className="h-32 w-32 animate-pulse rounded bg-muted" />;
   return (
     <img
       src={src}
       alt={name || 'bagage'}
-      className="h-20 w-20 rounded object-cover print:h-16 print:w-16"
+      className="h-32 w-32 rounded object-cover print:h-28 print:w-28"
     />
   );
 }
