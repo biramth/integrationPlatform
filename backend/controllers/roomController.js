@@ -282,6 +282,27 @@ async function getRoomHistory(req, res) {
   res.json({ history });
 }
 
+
+async function getRoomLuggage(req, res) {
+  const roomId = req.params.id;
+  const room = await db.get('SELECT id, label, gender, capacity FROM rooms WHERE id = $1', [roomId]);
+  if (!room) {
+    return res.status(404).json({ error: 'Chambre introuvable.' });
+  }
+
+  const items = await db.all(
+    `SELECT li.id, li.file_path, li.original_name, li.is_sensitive, li.sensitive_note, li.uploaded_at,
+            d.id AS dut1_id, d.first_name, d.last_name, d.department, d.gender
+     FROM luggage_items li
+     JOIN dut1_records d ON d.id = li.dut1_id
+     WHERE d.room_id = $1
+     ORDER BY d.last_name, d.first_name, li.uploaded_at DESC`,
+    [roomId]
+  );
+
+  res.json({ room, items });
+}
+
 module.exports = {
   listRooms,
   createRoom,
@@ -291,4 +312,5 @@ module.exports = {
   reassignDut1Room,
   listAvailableRooms,
   getRoomHistory,
+  getRoomLuggage,
 };

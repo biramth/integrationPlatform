@@ -6,8 +6,6 @@ const router = express.Router();
 
 router.use(verifyToken);
 
-// Consultation des chambres : ouverte à tous les agents connectés (affichage des dossiers,
-// filtres, assignation). Gestion réservée au chef Orga et à IT.
 router.get('/', roomController.listRooms);
 router.post('/', requireRole('orga', 'it'), requireCommissionLead, roomController.createRoom);
 router.put('/:id', requireRole('orga', 'it'), requireCommissionLead, roomController.updateRoom);
@@ -18,6 +16,7 @@ router.put(
   roomController.updateMattressCount
 );
 router.get('/:id/history', requireRole('orga', 'it'), roomController.getRoomHistory);
+router.get('/:id/luggage', requireRole('orga', 'sante', 'it'), roomController.getRoomLuggage);
 router.delete('/:id', requireRole('orga', 'it'), requireCommissionLead, roomController.deleteRoom);
 
 module.exports = router;

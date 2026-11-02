@@ -23,3 +23,7 @@ export function updateMattressCount(id, mattressCount) {
 export function getRoomHistory(id) {
   return axiosClient.get(`/rooms/${id}/history`).then((res) => res.data);
 }
+
+export function getRoomLuggage(roomId) {
+  return axiosClient.get("/rooms/" + roomId + "/luggage").then((res) => res.data);
+}

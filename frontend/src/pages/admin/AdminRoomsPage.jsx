@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, Plus, Pencil, ChevronDown, BedDouble, Printer, Upload, DoorOpen, Users, PercentCircle, ArrowRightLeft, Search } from 'lucide-react';
+import { Trash2, Plus, Pencil, ChevronDown, BedDouble, Printer, Upload, DoorOpen, Users, PercentCircle, ArrowRightLeft, Search, Package } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useTheme } from '../../hooks/useTheme';
 import RoomsImportPanel from '../../components/admin/RoomsImportPanel';
+import { useRoomLuggage, RoomLuggageModal } from '../../components/admin/RoomLuggageModal';
 import * as roomApi from '../../api/roomApi';
 import * as statsApi from '../../api/statsApi';
 import { listDut1, reassignRoom } from '../../api/dut1Api';
@@ -36,6 +37,7 @@ const GENDER_ACCENT = {
 
 export default function AdminRoomsPage() {
   const { showToast } = useToast();
+  const { luggageRoom, luggageItems, luggageLoading, openLuggage, closeLuggage } = useRoomLuggage();
   const { theme } = useTheme();
   const { data, loading, error, reload } = useFetch(roomApi.listRooms, []);
   const occupancyFetch = useFetch(statsApi.getRoomsOccupancy, []);
@@ -385,6 +387,12 @@ export default function AdminRoomsPage() {
                         <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
                       </button>
                       <button
+                        onClick={() => openLuggage(room)}
+                        className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <Package className="h-3.5 w-3.5" /> Bagages
+                      </button>
+                      <button
                         onClick={() => toggleHistory(room)}
                         className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                       >
@@ -566,6 +574,12 @@ export default function AdminRoomsPage() {
           </div>
         )}
       </Modal>
+      <RoomLuggageModal
+        luggageRoom={luggageRoom}
+        luggageItems={luggageItems}
+        luggageLoading={luggageLoading}
+        onClose={closeLuggage}
+      />
     </div>
   );
 }
