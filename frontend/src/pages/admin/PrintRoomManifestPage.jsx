@@ -1,14 +1,49 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Printer } from 'lucide-react';
+import axiosClient from '../../api/axiosClient';
 import { useFetch } from '../../hooks/useFetch';
 import { listRooms } from '../../api/roomApi';
 import { listDut1 } from '../../api/dut1Api';
 import { getRoomLuggage } from '../../api/roomApi';
-import LuggageItemThumb from '../../components/upload/LuggageItemThumb';
 import Button from '../../components/common/Button';
 import PageHeader from '../../components/common/PageHeader';
 import { ErrorState, LoadingState, EmptyState } from '../../components/common/StateViews';
 import { DEPARTMENT_LABELS } from '../../utils/departments';
+
+function LuggagePhoto({ itemId, name }) {
+  const [src, setSrc] = useState(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let objectUrl;
+    let cancelled = false;
+    axiosClient
+      .get(`/luggage-items/${itemId}/photo`, { responseType: 'blob' })
+      .then((res) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(res.data);
+        setSrc(objectUrl);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError(true);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [itemId]);
+
+  if (error) return <span className="text-xs text-muted-foreground">?</span>;
+  if (!src) return <div className="h-16 w-16 animate-pulse rounded bg-muted" />;
+  return (
+    <img
+      src={src}
+      alt={name || 'bagage'}
+      className="h-20 w-20 rounded object-cover print:h-16 print:w-16"
+    />
+  );
+}
 
 export default function PrintRoomManifestPage() {
   const roomsFetch = useFetch(listRooms, []);
@@ -86,15 +121,14 @@ export default function PrintRoomManifestPage() {
                             <td className="py-1 pr-4">{o.gender}</td>
                             <td className="py-1">
                               {oLuggage.length > 0 ? (
-                                <div className="flex flex-wrap gap-1">
+                                <div className="flex flex-wrap gap-2">
                                   {oLuggage.map((item) => (
-                                    <img
-                                      key={item.id}
-                                      src={`/api/luggage-items/${item.id}/photo`}
-                                      alt={item.original_name || 'bagage'}
-                                      className="h-10 w-10 rounded object-cover print:h-8 print:w-8"
-                                      loading="lazy"
-                                    />
+                                    <div key={item.id} className="flex flex-col items-center gap-0.5">
+                                      <LuggagePhoto itemId={item.id} name={item.original_name} />
+                                      {item.is_sensitive && (
+                                        <span className="text-[9px] text-warning">Sensible</span>
+                                      )}
+                                    </div>
                                   ))}
                                 </div>
                               ) : (
