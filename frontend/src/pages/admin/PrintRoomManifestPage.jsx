@@ -3,6 +3,8 @@ import { Printer } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import { listRooms } from '../../api/roomApi';
 import { listDut1 } from '../../api/dut1Api';
+import { getRoomLuggage } from '../../api/roomApi';
+import LuggageItemThumb from '../../components/upload/LuggageItemThumb';
 import Button from '../../components/common/Button';
 import PageHeader from '../../components/common/PageHeader';
 import { ErrorState, LoadingState, EmptyState } from '../../components/common/StateViews';
@@ -22,8 +24,19 @@ export default function PrintRoomManifestPage() {
   }, [roomsFetch.data]);
   const occupantsFetch = useFetch(occupantsFetcher, [roomsFetch.data]);
 
-  const loading = roomsFetch.loading || occupantsFetch.loading;
-  const error = roomsFetch.error || occupantsFetch.error;
+  const luggageFetcher = useCallback(async () => {
+    if (!roomsFetch.data) return {};
+    const entries = await Promise.all(
+      roomsFetch.data.rooms.map((r) =>
+        getRoomLuggage(r.id).then((res) => [r.id, res.items || []])
+      )
+    );
+    return Object.fromEntries(entries);
+  }, [roomsFetch.data]);
+  const luggageFetch = useFetch(luggageFetcher, [roomsFetch.data]);
+
+  const loading = roomsFetch.loading || occupantsFetch.loading || luggageFetch.loading;
+  const error = roomsFetch.error || occupantsFetch.error || luggageFetch.error;
 
   return (
     <div>
@@ -44,10 +57,11 @@ export default function PrintRoomManifestPage() {
         <div className="flex flex-col gap-6 print:text-black">
           {roomsFetch.data.rooms.map((room) => {
             const occupants = occupantsFetch.data?.[room.id] || [];
+            const luggage = luggageFetch.data?.[room.id] || [];
             return (
               <div key={room.id} className="break-inside-avoid rounded-lg border border-border p-4 print:border-black">
                 <h2 className="mb-2 text-base font-semibold text-foreground">
-                  Chambre {room.label} — {room.gender === 'M' ? 'Masculin' : 'Féminin'} · {room.building || '—'} ·{' '}
+                  Chambre {room.label} — {room.gender === 'M' ? 'Masculin' : 'Féminin'} — {room.building || '—'} —{' '}
                   {occupants.length}/{room.capacity}
                 </h2>
                 {occupants.length === 0 ? (
@@ -58,17 +72,38 @@ export default function PrintRoomManifestPage() {
                       <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
                         <th className="py-1 pr-4">Nom</th>
                         <th className="py-1 pr-4">Département</th>
-                        <th className="py-1">Genre</th>
+                        <th className="py-1 pr-4">Genre</th>
+                        <th className="py-1">Bagages</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {occupants.map((o) => (
-                        <tr key={o.id} className="border-b border-border">
-                          <td className="py-1 pr-4">{o.first_name} {o.last_name}</td>
-                          <td className="py-1 pr-4">{DEPARTMENT_LABELS[o.department] || o.department}</td>
-                          <td className="py-1">{o.gender}</td>
-                        </tr>
-                      ))}
+                      {occupants.map((o) => {
+                        const oLuggage = luggage.filter((l) => l.dut1_id === o.id);
+                        return (
+                          <tr key={o.id} className="border-b border-border">
+                            <td className="py-1 pr-4">{o.first_name} {o.last_name}</td>
+                            <td className="py-1 pr-4">{DEPARTMENT_LABELS[o.department] || o.department}</td>
+                            <td className="py-1 pr-4">{o.gender}</td>
+                            <td className="py-1">
+                              {oLuggage.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {oLuggage.map((item) => (
+                                    <img
+                                      key={item.id}
+                                      src={`/api/luggage-items/${item.id}/photo`}
+                                      alt={item.original_name || 'bagage'}
+                                      className="h-10 w-10 rounded object-cover print:h-8 print:w-8"
+                                      loading="lazy"
+                                    />
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Aucun</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}
